@@ -1,0 +1,7 @@
+name: tianti-web
+channels:
+  - conda-forge
+dependencies:
+  - nodejs=24
+  - python=3.13
+  - git
