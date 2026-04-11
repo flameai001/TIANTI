@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { FormEvent } from "react";
 import { useState, useTransition } from "react";
@@ -41,7 +41,7 @@ export function LoginForm() {
         <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Editor Sign In</p>
         <h1 className="text-4xl text-white">进入 TIANTI 后台</h1>
         <p className="text-sm leading-7 text-white/68">
-          当前演示账号：`lin@example.com / changeme-one` 和 `yu@example.com / changeme-two`。
+          使用编辑账号登录。如需重置或更换账号，请通过环境变量更新。
         </p>
       </div>
       <form
