@@ -1,4 +1,5 @@
 import type {
+  Asset,
   ContentState,
   EditorArchive,
   EditorLadder,
@@ -13,6 +14,7 @@ export interface ContentRepository {
   createSession(session: SessionRecord): Promise<void>;
   getSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null>;
   deleteSessionByTokenHash(tokenHash: string): Promise<void>;
+  createAsset(asset: Asset): Promise<Asset>;
   upsertTalent(talent: Talent): Promise<Talent>;
   deleteTalent(id: string): Promise<void>;
   upsertEvent(event: Event): Promise<Event>;

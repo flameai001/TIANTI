@@ -19,6 +19,7 @@ import {
   talents
 } from "@/db/schema";
 import type {
+  Asset,
   ContentState,
   Event,
   Talent
@@ -269,6 +270,19 @@ export const postgresRepository: ContentRepository = {
   async deleteSessionByTokenHash(tokenHash) {
     const db = getDb();
     await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
+  },
+  async createAsset(asset: Asset) {
+    const db = getDb();
+    await db.insert(assets).values({
+      id: asset.id,
+      kind: asset.kind,
+      title: asset.title,
+      alt: asset.alt,
+      url: asset.url,
+      width: asset.width,
+      height: asset.height
+    });
+    return asset;
   },
   async upsertTalent(talent) {
     const db = getDb();

@@ -73,6 +73,30 @@ const archiveSchema = z.object({
   )
 });
 
+const assetSchema = z.object({
+  kind: z.enum(["talent_cover", "talent_representation", "event_scene", "shared_photo"]),
+  title: z.string().min(1),
+  alt: z.string().min(1),
+  url: z.string().url(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive()
+});
+
+export async function saveAsset(payload: unknown) {
+  const repository = getContentRepository();
+  const input = assetSchema.parse(payload);
+
+  return repository.createAsset({
+    id: randomUUID(),
+    kind: input.kind,
+    title: input.title,
+    alt: input.alt,
+    url: input.url,
+    width: input.width,
+    height: input.height
+  });
+}
+
 export async function saveTalent(payload: unknown) {
   const repository = getContentRepository();
   const state = await repository.getState();

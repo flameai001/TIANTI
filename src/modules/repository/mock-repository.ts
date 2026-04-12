@@ -36,6 +36,18 @@ export const mockRepository: ContentRepository = {
       return state;
     });
   },
+  async createAsset(asset) {
+    replaceState((state) => {
+      const index = state.assets.findIndex((item) => item.id === asset.id);
+      if (index >= 0) {
+        state.assets[index] = asset;
+      } else {
+        state.assets.push(asset);
+      }
+      return state;
+    });
+    return asset;
+  },
   async upsertTalent(talent) {
     replaceState((state) => {
       const index = state.talents.findIndex((item) => item.id === talent.id);
