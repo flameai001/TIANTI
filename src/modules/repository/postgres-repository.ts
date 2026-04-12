@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
@@ -185,8 +186,8 @@ async function upsertTalentRelations(talent: Talent) {
 
   if (talent.tags.length > 0) {
     await db.insert(talentTags).values(
-      talent.tags.map((tag, index) => ({
-        id: `${talent.id}-tag-${index}`,
+      talent.tags.map((tag) => ({
+        id: randomUUID(),
         talentId: talent.id,
         tag
       }))
@@ -395,7 +396,7 @@ export const postgresRepository: ContentRepository = {
 
       const entries = ladder.tiers.flatMap((tier) =>
         tier.talentIds.map((talentId, index) => ({
-          id: `${tier.id}-${talentId}`,
+          id: randomUUID(),
           tierId: tier.id,
           talentId,
           sortOrder: index
