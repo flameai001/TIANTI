@@ -57,71 +57,31 @@ export function AssetUploader({ allowedKinds, onUploaded }: AssetUploaderProps) 
     setMessage(null);
 
     try {
-      const signatureResponse = await fetch("/api/uploads/presign", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          fileName: file.name,
-          contentType: file.type || "application/octet-stream"
-        })
-      });
-
-      const signature = (await signatureResponse.json().catch(() => null)) as {
-        error?: string;
-        mode?: "mock" | "r2";
-        uploadUrl?: string | null;
-        publicUrl?: string | null;
-      } | null;
-
-      if (!signatureResponse.ok) {
-        throw new Error(signature?.error ?? "上传签名生成失败。");
-      }
-
-      if (signature?.mode !== "r2" || !signature.uploadUrl || !signature.publicUrl) {
-        throw new Error("当前环境还没有启用真实对象存储，暂时无法上传图片。");
-      }
-
-      const uploadResponse = await fetch(signature.uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type || "application/octet-stream"
-        },
-        body: file
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error("图片上传到 R2 失败，请重试。");
-      }
-
       const dimensions = await getImageDimensions(file);
-      const assetResponse = await fetch("/api/admin/assets", {
+      const formData = new FormData();
+      formData.set("file", file);
+      formData.set("kind", kind);
+      formData.set("title", title.trim());
+      formData.set("alt", alt.trim());
+      formData.set("width", String(dimensions.width));
+      formData.set("height", String(dimensions.height));
+
+      const response = await fetch("/api/admin/assets", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          kind,
-          title: title.trim(),
-          alt: alt.trim(),
-          url: signature.publicUrl,
-          width: dimensions.width,
-          height: dimensions.height
-        })
+        body: formData
       });
 
-      const assetData = (await assetResponse.json().catch(() => null)) as {
+      const data = (await response.json().catch(() => null)) as {
         error?: string;
         asset?: Asset;
       } | null;
 
-      if (!assetResponse.ok || !assetData?.asset) {
-        throw new Error(assetData?.error ?? "素材记录保存失败。");
+      if (!response.ok || !data?.asset) {
+        throw new Error(data?.error ?? "素材上传失败。");
       }
 
-      onUploaded(assetData.asset);
-      setMessage(`素材“${assetData.asset.title}”已上传，现在可以在下方直接选用了。`);
+      onUploaded(data.asset);
+      setMessage(`素材“${data.asset.title}”已上传，现在可以在下方直接选用了。`);
       setTitle("");
       setAlt("");
       setFile(null);
@@ -139,7 +99,7 @@ export function AssetUploader({ allowedKinds, onUploaded }: AssetUploaderProps) 
           <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">Asset Upload</p>
           <h3 className="mt-3 text-xl text-white">上传后台素材</h3>
           <p className="mt-2 text-sm leading-7 text-white/60">
-            上传成功后，图片会直传到 R2，并立即写入后台素材库。接着就可以在下方的封面或代表图列表里选择。
+            现在上传会先进入站点后台，再由服务端写入 R2。这样能避开浏览器直连对象存储时的跨域和网络问题。
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
