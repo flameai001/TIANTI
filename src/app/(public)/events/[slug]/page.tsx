@@ -68,7 +68,13 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                 {archive.entries.map((entry) => (
                   <div key={entry.entry.id} className="overflow-hidden rounded-[1.5rem] border border-white/10">
                     <div className="relative aspect-[4/3]">
-                      <Image src={entry.sceneAsset.url} alt={entry.sceneAsset.alt} fill className="object-cover" />
+                      <Image
+                        src={entry.sceneAsset.url}
+                        alt={entry.sceneAsset.alt}
+                        fill
+                        sizes="(min-width: 768px) 42vw, 100vw"
+                        className="object-cover"
+                      />
                     </div>
                     <div className="space-y-3 p-5">
                       <p className="text-xl text-white">{entry.talent.nickname}</p>

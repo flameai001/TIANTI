@@ -124,6 +124,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
         <div className="mt-5 space-y-3">
           <button
             type="button"
+            data-testid="new-talent-button"
             onClick={() => setSelectedId(null)}
             className="w-full rounded-[1.2rem] border border-dashed border-white/15 px-4 py-4 text-left text-sm text-white/70 transition hover:border-white/30 hover:text-white"
           >
@@ -254,6 +255,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               </p>
               <button
                 disabled={pending}
+                data-testid="save-talent"
                 className="rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm uppercase tracking-[0.25em] text-black disabled:opacity-60"
               >
                 {pending ? "保存中..." : "保存并公开"}

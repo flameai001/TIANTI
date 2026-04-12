@@ -93,17 +93,18 @@ export function AssetUploader({ allowedKinds, onUploaded }: AssetUploaderProps) 
   }
 
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-black/15 p-4">
+    <section data-testid="asset-uploader" className="rounded-[1.5rem] border border-white/10 bg-black/15 p-4">
       <div className="flex flex-col gap-5">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">Asset Upload</p>
           <h3 className="mt-3 text-xl text-white">上传后台素材</h3>
           <p className="mt-2 text-sm leading-7 text-white/60">
-            现在上传会先进入站点后台，再由服务端写入 R2。这样能避开浏览器直连对象存储时的跨域和网络问题。
+            上传会先进入站点后台，再由服务端写入真实存储；在本地 mock 模式下，也会先生成可预览的临时素材。
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <select
+            data-testid="asset-kind"
             value={kind}
             onChange={(event) => setKind(event.target.value as AssetKind)}
             className="rounded-[1rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
@@ -115,6 +116,7 @@ export function AssetUploader({ allowedKinds, onUploaded }: AssetUploaderProps) 
             ))}
           </select>
           <input
+            data-testid="asset-file"
             type="file"
             accept="image/*"
             onChange={(event) => {
@@ -129,12 +131,14 @@ export function AssetUploader({ allowedKinds, onUploaded }: AssetUploaderProps) 
             className="rounded-[1rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none file:mr-3 file:rounded-full file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-sm file:text-white"
           />
           <input
+            data-testid="asset-title"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="素材标题"
             className="rounded-[1rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
           />
           <input
+            data-testid="asset-alt"
             value={alt}
             onChange={(event) => setAlt(event.target.value)}
             placeholder="替代文字 / 检索描述"
@@ -145,11 +149,12 @@ export function AssetUploader({ allowedKinds, onUploaded }: AssetUploaderProps) 
         <div className="flex justify-end">
           <button
             type="button"
+            data-testid="asset-submit"
             onClick={handleUpload}
             disabled={pending}
             className="rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm uppercase tracking-[0.25em] text-black disabled:opacity-60"
           >
-            {pending ? "上传中..." : "上传到 R2"}
+            {pending ? "上传中..." : "上传素材"}
           </button>
         </div>
       </div>

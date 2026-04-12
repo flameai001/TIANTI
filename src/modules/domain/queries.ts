@@ -40,6 +40,27 @@ export interface EventFilters {
   city?: string;
   talentId?: string;
   participationStatus?: "confirmed" | "pending";
+  startDate?: string;
+  endDate?: string;
+}
+
+function parseDateBoundary(value?: string, endOfDay = false) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  if (value.length <= 10) {
+    if (endOfDay) {
+      date.setHours(23, 59, 59, 999);
+    } else {
+      date.setHours(0, 0, 0, 0);
+    }
+  }
+
+  return date.getTime();
 }
 
 export function getEditors(state: ContentState) {
@@ -175,26 +196,49 @@ export function listEventSummaries(
   state: ContentState,
   filters: EventFilters = {}
 ): EventSummary[] {
+  const query = filters.query?.trim().toLowerCase();
+  const startBoundary = parseDateBoundary(filters.startDate);
+  const endBoundary = parseDateBoundary(filters.endDate, true);
+  const talentMap = byId(state.talents);
+
   let events = state.events.filter((event) => {
+    const eventLineups = state.lineups.filter((lineup) => lineup.eventId === event.id);
+    const lineupText = eventLineups
+      .map((lineup) => {
+        const talent = talentMap.get(lineup.talentId);
+        return talent ? `${talent.nickname} ${talent.tags.join(" ")}` : "";
+      })
+      .join(" ");
     const matchesQuery =
-      !filters.query ||
-      `${event.name} ${event.city} ${event.venue} ${event.note}`
+      !query ||
+      `${event.name} ${event.city} ${event.venue} ${event.note} ${lineupText}`
         .toLowerCase()
-        .includes(filters.query.toLowerCase());
+        .includes(query);
     const matchesStatus = !filters.status || event.status === filters.status;
     const matchesCity = !filters.city || event.city === filters.city;
+    const startsAt = Date.parse(event.startsAt);
+    const matchesStartDate = startBoundary === null || startsAt >= startBoundary;
+    const matchesEndDate = endBoundary === null || startsAt <= endBoundary;
 
     let matchesTalent = true;
     let matchesParticipation = true;
     if (filters.talentId || filters.participationStatus) {
-      const lineups = state.lineups.filter((lineup) => lineup.eventId === event.id);
-      matchesTalent = !filters.talentId || lineups.some((lineup) => lineup.talentId === filters.talentId);
+      matchesTalent =
+        !filters.talentId || eventLineups.some((lineup) => lineup.talentId === filters.talentId);
       matchesParticipation =
         !filters.participationStatus ||
-        lineups.some((lineup) => lineup.status === filters.participationStatus);
+        eventLineups.some((lineup) => lineup.status === filters.participationStatus);
     }
 
-    return matchesQuery && matchesStatus && matchesCity && matchesTalent && matchesParticipation;
+    return (
+      matchesQuery &&
+      matchesStatus &&
+      matchesCity &&
+      matchesTalent &&
+      matchesParticipation &&
+      matchesStartDate &&
+      matchesEndDate
+    );
   });
 
   events = sortEvents(events);

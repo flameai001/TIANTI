@@ -18,7 +18,13 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
       <section className="grid gap-8 md:grid-cols-[0.75fr_1.25fr]">
         <div className="overflow-hidden rounded-[2rem] border border-white/10">
           <div className="relative aspect-[4/5]">
-            <Image src={detail.cover.url} alt={detail.cover.alt} fill className="object-cover" />
+            <Image
+              src={detail.cover.url}
+              alt={detail.cover.alt}
+              fill
+              sizes="(min-width: 768px) 34vw, 100vw"
+              className="object-cover"
+            />
           </div>
         </div>
         <div className="space-y-6">
@@ -123,7 +129,13 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
           {detail.representationAssets.map((representation) => (
             <article key={representation.id} className="overflow-hidden rounded-[1.8rem] border border-white/10">
               <div className="relative aspect-[4/3]">
-                <Image src={representation.asset.url} alt={representation.asset.alt} fill className="object-cover" />
+                <Image
+                  src={representation.asset.url}
+                  alt={representation.asset.alt}
+                  fill
+                  sizes="(min-width: 768px) 30vw, 100vw"
+                  className="object-cover"
+                />
               </div>
               <div className="p-5">
                 <p className="text-lg text-white">{representation.title}</p>

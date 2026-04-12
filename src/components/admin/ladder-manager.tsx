@@ -57,11 +57,13 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
       <section className="surface rounded-[1.8rem] p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <input
+            data-testid="ladder-title"
             value={draft.title}
             onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
             className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
           />
           <input
+            data-testid="ladder-subtitle"
             value={draft.subtitle}
             onChange={(event) => setDraft((current) => ({ ...current, subtitle: event.target.value }))}
             className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
@@ -178,6 +180,7 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
               {index === draft.tiers.length - 1 ? (
                 <button
                   type="button"
+                  data-testid="add-tier"
                   onClick={() =>
                     setDraft((current) => ({
                       ...current,
@@ -206,6 +209,7 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
         <button
           type="button"
           onClick={handleSave}
+          data-testid="save-ladder"
           disabled={pending}
           className="rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm uppercase tracking-[0.25em] text-black disabled:opacity-60"
         >

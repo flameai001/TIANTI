@@ -27,10 +27,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "请先选择图片文件。" }, { status: 400 });
     }
 
-    if (isMockStorageMode()) {
-      return NextResponse.json({ error: "当前环境还没有启用真实对象存储。" }, { status: 400 });
-    }
-
     const meta = assetSchema.parse({
       kind: formData.get("kind"),
       title: formData.get("title"),
@@ -39,15 +35,16 @@ export async function POST(request: Request) {
       height: formData.get("height")
     });
 
-    const uploaded = await uploadObjectToR2(
-      file.name,
-      file.type || "application/octet-stream",
-      new Uint8Array(await file.arrayBuffer())
-    );
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const url = isMockStorageMode()
+      ? `data:${file.type || "application/octet-stream"};base64,${Buffer.from(bytes).toString("base64")}`
+      : (
+          await uploadObjectToR2(file.name, file.type || "application/octet-stream", bytes)
+        ).publicUrl;
 
     const asset = await saveAsset({
       ...meta,
-      url: uploaded.publicUrl
+      url
     });
 
     return NextResponse.json({ asset });

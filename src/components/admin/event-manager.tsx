@@ -112,6 +112,7 @@ export function EventManager({ events, talents, lineups }: EventManagerProps) {
         <div className="mt-5 space-y-3">
           <button
             type="button"
+            data-testid="new-event-button"
             onClick={() => chooseEvent(null)}
             className="w-full rounded-[1.2rem] border border-dashed border-white/15 px-4 py-4 text-left text-sm text-white/70 transition hover:border-white/30 hover:text-white"
           >
@@ -212,6 +213,7 @@ export function EventManager({ events, talents, lineups }: EventManagerProps) {
               <h3 className="text-lg text-white">达人阵容</h3>
               <button
                 type="button"
+                data-testid="add-lineup"
                 onClick={() =>
                   setEditableLineups((current) => [
                     ...current,
@@ -230,8 +232,13 @@ export function EventManager({ events, talents, lineups }: EventManagerProps) {
             </div>
             <div className="space-y-3">
               {editableLineups.map((lineup, index) => (
-                <div key={`${lineup.id ?? "new"}-${index}`} className="grid gap-3 rounded-[1.2rem] border border-white/8 p-4 md:grid-cols-[1fr_0.8fr_0.8fr_auto]">
+                <div
+                  key={`${lineup.id ?? "new"}-${index}`}
+                  data-testid="lineup-item"
+                  className="grid gap-3 rounded-[1.2rem] border border-white/8 p-4 md:grid-cols-[1fr_0.8fr_0.8fr_auto]"
+                >
                   <select
+                    data-testid={`lineup-talent-${index}`}
                     value={lineup.talentId}
                     onChange={(event) =>
                       setEditableLineups((current) =>
@@ -249,6 +256,7 @@ export function EventManager({ events, talents, lineups }: EventManagerProps) {
                     ))}
                   </select>
                   <select
+                    data-testid={`lineup-status-${index}`}
                     value={lineup.status}
                     onChange={(event) =>
                       setEditableLineups((current) =>
@@ -265,6 +273,7 @@ export function EventManager({ events, talents, lineups }: EventManagerProps) {
                     <option value="pending">待核实</option>
                   </select>
                   <input
+                    data-testid={`lineup-source-${index}`}
                     value={lineup.source}
                     onChange={(event) =>
                       setEditableLineups((current) =>
@@ -284,6 +293,7 @@ export function EventManager({ events, talents, lineups }: EventManagerProps) {
                     删除
                   </button>
                   <textarea
+                    data-testid={`lineup-note-${index}`}
                     value={lineup.note}
                     onChange={(event) =>
                       setEditableLineups((current) =>
@@ -304,6 +314,7 @@ export function EventManager({ events, talents, lineups }: EventManagerProps) {
           <div className="flex justify-end">
             <button
               disabled={pending}
+              data-testid="save-event"
               className="rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm uppercase tracking-[0.25em] text-black disabled:opacity-60"
             >
               {pending ? "保存中..." : "保存并公开"}

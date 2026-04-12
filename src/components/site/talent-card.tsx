@@ -13,6 +13,7 @@ export function TalentCard({ talent }: { talent: TalentSummary }) {
           src={talent.cover.url}
           alt={talent.cover.alt}
           fill
+          sizes="(min-width: 1280px) 24rem, (min-width: 768px) 45vw, 100vw"
           className="object-cover transition duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/15 to-transparent" />

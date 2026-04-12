@@ -42,3 +42,7 @@ export function getMockState() {
 export function setMockState(nextState: ContentState) {
   globalThis.__tiantiMockState = nextState;
 }
+
+export function resetMockState() {
+  globalThis.__tiantiMockState = createInitialMockState();
+}
