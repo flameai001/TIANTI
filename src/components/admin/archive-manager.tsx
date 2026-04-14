@@ -154,7 +154,9 @@ export function ArchiveManager({
   const filteredEvents = useMemo(
     () =>
       liveEvents.filter((event) =>
-        `${event.name} ${event.city} ${event.venue}`.toLowerCase().includes(deferredQuery.toLowerCase())
+        `${event.name} ${event.aliases.join(" ")} ${event.city} ${event.venue} ${event.searchKeywords.join(" ")}`
+          .toLowerCase()
+          .includes(deferredQuery.toLowerCase())
       ),
     [deferredQuery, liveEvents]
   );
@@ -264,6 +266,8 @@ export function ArchiveManager({
       id: eventDraft.id,
       name: eventDraft.name,
       slug: eventDraft.slug,
+      aliases: normalizeEventDraft(eventDraft).aliases,
+      searchKeywords: normalizeEventDraft(eventDraft).searchKeywords,
       startsAt: eventDraft.startsAt,
       endsAt: eventDraft.endsAt,
       city: eventDraft.city,
@@ -682,6 +686,24 @@ export function ArchiveManager({
                 value={eventDraft.slug}
                 onChange={(event) => setEventDraft((current) => ({ ...current, slug: event.target.value }))}
                 placeholder="slug（留空自动生成）"
+                className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <input
+                name="aliases"
+                value={eventDraft.aliases}
+                onChange={(event) => setEventDraft((current) => ({ ...current, aliases: event.target.value }))}
+                placeholder="活动别名 / 英文名，用逗号分隔"
+                className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
+              />
+              <input
+                name="searchKeywords"
+                value={eventDraft.searchKeywords}
+                onChange={(event) =>
+                  setEventDraft((current) => ({ ...current, searchKeywords: event.target.value }))
+                }
+                placeholder="搜索关键词，用逗号分隔"
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
             </div>

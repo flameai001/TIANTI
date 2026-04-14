@@ -1,8 +1,16 @@
+import Link from "next/link";
 import { EventCard } from "@/components/site/event-card";
 import { SectionHeading } from "@/components/site/section-heading";
+import { buildMetadata } from "@/lib/site";
 import { getContentState, getEventIndex } from "@/modules/content/service";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export const metadata = buildMetadata({
+  title: "TIANTI | 活动发现",
+  description: "按时间、城市、阵容达人、参与状态和排序方式浏览活动档案与未来活动。",
+  path: "/events"
+});
 
 export default async function EventsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
@@ -19,14 +27,17 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
     ["confirmed", "pending"].includes(params.participationStatus)
       ? (params.participationStatus as "confirmed" | "pending")
       : undefined;
+  const requestedSort = typeof params.sort === "string" ? params.sort : undefined;
+  const sort =
+    requestedSort && ["relevance", "upcoming", "recent", "lineupSize"].includes(requestedSort)
+      ? (requestedSort as "relevance" | "upcoming" | "recent" | "lineupSize")
+      : undefined;
   const state = await getContentState();
   const cities = [...new Set(state.events.map((event) => event.city))];
   const requestedCity = typeof params.city === "string" ? params.city : undefined;
   const city = requestedCity && cities.includes(requestedCity) ? requestedCity : undefined;
   const requestedTalentId = typeof params.talent === "string" ? params.talent : undefined;
-  const talentId = state.talents.some((talent) => talent.id === requestedTalentId)
-    ? requestedTalentId
-    : undefined;
+  const talentId = state.talents.some((talent) => talent.id === requestedTalentId) ? requestedTalentId : undefined;
   const startDate = typeof params.from === "string" ? params.from : undefined;
   const endDate = typeof params.to === "string" ? params.to : undefined;
   const events = await getEventIndex({
@@ -36,21 +47,41 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
     talentId,
     participationStatus,
     startDate,
-    endDate
+    endDate,
+    sort
   });
+
+  const activeSort = sort ?? (q ? "relevance" : eventStatus === "past" ? "recent" : "upcoming");
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-14 md:px-8">
       <SectionHeading
-        eyebrow="Event Archive"
-        title="活动档案"
-        description="这里同时浏览未来活动与已结束活动，把公共信息、相关达人和活动现场档案汇到同一条内容线里。"
+        eyebrow="Event Discovery"
+        title="活动发现"
+        description="这里同时浏览未来活动和已结束活动，并把城市、阵容和档案上下文压进同一条发现路径。"
       />
-      <form className="surface mt-10 grid gap-4 rounded-[1.8rem] p-5 md:grid-cols-2 xl:grid-cols-[1.2fr_0.9fr_0.9fr_1fr_1fr_0.9fr_0.9fr_auto]">
+      <div className="mt-8 flex flex-wrap gap-3">
+        <Link
+          href="/events?eventStatus=future&sort=upcoming"
+          className={`rounded-full border px-4 py-2 text-sm ${eventStatus === "future" ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-white/12 text-white/70"}`}
+        >
+          未来活动
+        </Link>
+        <Link
+          href="/events?eventStatus=past&sort=recent"
+          className={`rounded-full border px-4 py-2 text-sm ${eventStatus === "past" ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-white/12 text-white/70"}`}
+        >
+          已结束活动
+        </Link>
+        <Link href="/events" className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70">
+          查看全部
+        </Link>
+      </div>
+      <form className="surface mt-6 grid gap-4 rounded-[1.8rem] p-5 md:grid-cols-2 xl:grid-cols-[1.2fr_0.9fr_0.9fr_1fr_1fr_0.9fr_0.9fr_0.9fr_auto]">
         <input
           name="q"
           defaultValue={q}
-          placeholder="搜索活动、地点、达人或备注"
+          placeholder="搜索活动名、别名、城市、场馆或阵容达人"
           className="rounded-full border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
         />
         <select
@@ -107,10 +138,26 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
           defaultValue={endDate ?? ""}
           className="rounded-full border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
         />
+        <select
+          name="sort"
+          defaultValue={activeSort}
+          className="rounded-full border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
+        >
+          <option value="relevance">按相关度</option>
+          <option value="upcoming">按即将开始</option>
+          <option value="recent">按最近发生</option>
+          <option value="lineupSize">按阵容规模</option>
+        </select>
         <button className="rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm uppercase tracking-[0.25em] text-black">
           筛选
         </button>
       </form>
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
+        <p>
+          共找到 <span className="text-white">{events.length}</span> 场活动
+        </p>
+        <p>当前排序：{activeSort}</p>
+      </div>
       <div className="mt-10 grid gap-6">
         {events.length > 0 ? events.map((event) => <EventCard key={event.event.id} item={event} />) : null}
       </div>

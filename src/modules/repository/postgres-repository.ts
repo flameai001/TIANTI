@@ -96,6 +96,8 @@ async function loadState(): Promise<ContentState> {
       nickname: row.nickname,
       bio: row.bio,
       mcn: row.mcn,
+      aliases: row.aliases,
+      searchKeywords: row.searchKeywords,
       coverAssetId: row.coverAssetId,
       updatedAt: row.updatedAt.toISOString(),
       tags: tagRows
@@ -122,6 +124,8 @@ async function loadState(): Promise<ContentState> {
       id: row.id,
       slug: row.slug,
       name: row.name,
+      aliases: row.aliases,
+      searchKeywords: row.searchKeywords,
       startsAt: row.startsAt.toISOString(),
       endsAt: row.endsAt?.toISOString() ?? null,
       city: row.city,
@@ -295,6 +299,8 @@ export const postgresRepository: ContentRepository = {
         nickname: talent.nickname,
         bio: talent.bio,
         mcn: talent.mcn,
+        aliases: talent.aliases,
+        searchKeywords: talent.searchKeywords,
         coverAssetId: talent.coverAssetId,
         updatedAt: new Date(talent.updatedAt)
       })
@@ -305,6 +311,8 @@ export const postgresRepository: ContentRepository = {
           nickname: talent.nickname,
           bio: talent.bio,
           mcn: talent.mcn,
+          aliases: talent.aliases,
+          searchKeywords: talent.searchKeywords,
           coverAssetId: talent.coverAssetId,
           updatedAt: new Date(talent.updatedAt)
         }
@@ -325,6 +333,8 @@ export const postgresRepository: ContentRepository = {
         id: event.id,
         slug: event.slug,
         name: event.name,
+        aliases: event.aliases,
+        searchKeywords: event.searchKeywords,
         startsAt: new Date(event.startsAt),
         endsAt: event.endsAt ? new Date(event.endsAt) : null,
         city: event.city,
@@ -338,6 +348,8 @@ export const postgresRepository: ContentRepository = {
         set: {
           slug: event.slug,
           name: event.name,
+          aliases: event.aliases,
+          searchKeywords: event.searchKeywords,
           startsAt: new Date(event.startsAt),
           endsAt: event.endsAt ? new Date(event.endsAt) : null,
           city: event.city,

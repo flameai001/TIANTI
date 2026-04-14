@@ -1,8 +1,15 @@
 import { TalentCard } from "@/components/site/talent-card";
 import { SectionHeading } from "@/components/site/section-heading";
+import { buildMetadata } from "@/lib/site";
 import { getContentState, getTalentIndex } from "@/modules/content/service";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export const metadata = buildMetadata({
+  title: "TIANTI | 达人发现",
+  description: "按关键词、标签、编辑视角、梯度和排序方式浏览 TIANTI 达人库。",
+  path: "/talents"
+});
 
 export default async function TalentsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
@@ -10,35 +17,47 @@ export default async function TalentsPage({ searchParams }: { searchParams: Sear
   const tag = typeof params.tag === "string" ? params.tag : undefined;
   const onlyFuture = params.future === "1";
   const selectedEditorSlug = typeof params.editor === "string" ? params.editor : "";
+  const requestedSort = typeof params.sort === "string" ? params.sort : undefined;
+  const sort =
+    requestedSort && ["relevance", "recent", "future", "archiveCount"].includes(requestedSort)
+      ? (requestedSort as "relevance" | "recent" | "future" | "archiveCount")
+      : undefined;
   const state = await getContentState();
   const tags = [...new Set(state.talents.flatMap((talent) => talent.tags))];
   const selectedEditor = state.editors.find((editor) => editor.slug === selectedEditorSlug) ?? null;
   const selectedLadder =
     selectedEditor ? state.ladders.find((ladder) => ladder.editorId === selectedEditor.id) ?? null : null;
   const requestedTierId = typeof params.tier === "string" ? params.tier : undefined;
-  const tierId = selectedLadder?.tiers.some((tier) => tier.id === requestedTierId)
-    ? requestedTierId
-    : undefined;
+  const tierId = selectedLadder?.tiers.some((tier) => tier.id === requestedTierId) ? requestedTierId : undefined;
   const talents = await getTalentIndex({
     query: q,
     tag,
     onlyFuture,
     editorId: selectedEditor?.id,
-    tierId
+    tierId,
+    sort
   });
+
+  const activeSort = sort ?? (q ? "relevance" : "recent");
+  const summaryParts = [
+    tag ? `标签「${tag}」` : null,
+    selectedEditor ? `${selectedEditor.name} 视角` : null,
+    tierId ? `梯度 ${selectedLadder?.tiers.find((tier) => tier.id === tierId)?.name}` : null,
+    onlyFuture ? "仅看未来活动关联" : null
+  ].filter(Boolean);
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-14 md:px-8">
       <SectionHeading
-        eyebrow="Talent Library"
-        title="达人入口页"
-        description="支持关键词、标签、未来活动，以及按编辑天梯和梯度筛选，方便从不同视角快速切入同一位达人。"
+        eyebrow="Talent Discovery"
+        title="达人发现"
+        description="把关键词、标签、编辑视角和排序能力压到同一页里，让公开站更像可探索的内容库。"
       />
-      <form className="surface mt-10 grid gap-4 rounded-[1.8rem] p-5 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto]">
+      <form className="surface mt-10 grid gap-4 rounded-[1.8rem] p-5 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr_auto]">
         <input
           name="q"
           defaultValue={q}
-          placeholder="搜索昵称、标签或简介"
+          placeholder="搜索昵称、别名、标签或关键词"
           className="rounded-full border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
         />
         <select
@@ -81,6 +100,16 @@ export default async function TalentsPage({ searchParams }: { searchParams: Sear
               </option>
             ))}
         </select>
+        <select
+          name="sort"
+          defaultValue={activeSort}
+          className="rounded-full border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
+        >
+          <option value="relevance">按相关度</option>
+          <option value="recent">按最近更新</option>
+          <option value="future">按未来活动数量</option>
+          <option value="archiveCount">按档案记录数</option>
+        </select>
         <label className="flex items-center gap-3 rounded-full border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
           <input type="checkbox" name="future" value="1" defaultChecked={onlyFuture} />
           仅看有未来活动
@@ -89,6 +118,13 @@ export default async function TalentsPage({ searchParams }: { searchParams: Sear
           筛选
         </button>
       </form>
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
+        <p>
+          共找到 <span className="text-white">{talents.length}</span> 位达人
+          {summaryParts.length > 0 ? ` · ${summaryParts.join(" · ")}` : ""}
+        </p>
+        <p>当前排序：{activeSort}</p>
+      </div>
       <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {talents.length > 0 ? talents.map((talent) => <TalentCard key={talent.id} talent={talent} />) : null}
       </div>

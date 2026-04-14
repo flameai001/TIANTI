@@ -4,6 +4,8 @@ export interface EditableEvent {
   id?: string;
   name: string;
   slug: string;
+  aliases: string;
+  searchKeywords: string;
   startsAt: string;
   endsAt: string;
   city: string;
@@ -29,6 +31,8 @@ export function createEmptyEventDraft(): EditableEvent {
   return {
     name: "",
     slug: "",
+    aliases: "",
+    searchKeywords: "",
     startsAt: "",
     endsAt: "",
     city: "",
@@ -47,6 +51,8 @@ export function createEventDraft(event?: Event | null): EditableEvent {
     id: event.id,
     name: event.name,
     slug: event.slug,
+    aliases: event.aliases.join(", "),
+    searchKeywords: event.searchKeywords.join(", "),
     startsAt: toInputDate(event.startsAt),
     endsAt: toInputDate(event.endsAt),
     city: event.city,
@@ -101,6 +107,14 @@ export function normalizeEventDraft(value: EditableEvent) {
     id: value.id ?? "",
     name: value.name.trim(),
     slug: value.slug.trim(),
+    aliases: value.aliases
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+    searchKeywords: value.searchKeywords
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
     startsAt: value.startsAt,
     endsAt: value.endsAt,
     city: value.city.trim(),

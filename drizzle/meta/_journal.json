@@ -8,6 +8,13 @@
       "when": 1775929440141,
       "tag": "0000_low_scalphunter",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776182400000,
+      "tag": "0001_v3_discovery_fields",
+      "breakpoints": true
     }
   ]
 }

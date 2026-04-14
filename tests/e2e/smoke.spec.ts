@@ -101,7 +101,7 @@ test("editor can create a talent and future event that appear on public pages", 
   await expect(page.getByText("Starlight Expo")).toBeVisible();
 
   await page.goto("/talents/star-lume");
-  await expect(page.getByText("Starlight Expo")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Starlight Expo/ }).first()).toBeVisible();
 });
 
 test("editor can update ladder title and see it publicly", async ({ page }) => {
@@ -183,10 +183,10 @@ test("public pages remain browsable on mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "TIANTI" })).toBeVisible();
 
   await page.goto("/talents");
-  await expect(page.getByRole("heading", { name: "达人入口页" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "达人发现" })).toBeVisible();
 
   await page.goto("/events");
-  await expect(page.getByRole("heading", { name: "活动档案" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "活动发现" })).toBeVisible();
 
   await page.goto("/ladder");
   await expect(page.getByRole("heading", { name: "双编辑天梯榜" })).toBeVisible();

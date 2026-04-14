@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Noto_Sans_SC } from "next/font/google";
 import "@/app/globals.css";
+import { buildMetadata } from "@/lib/site";
 
 const sans = Noto_Sans_SC({
   variable: "--font-sans",
@@ -14,10 +15,11 @@ const display = Cormorant_Garamond({
   weight: ["400", "500", "600", "700"]
 });
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "TIANTI",
-  description: "面向 cosplay 与国风圈层的公开达人展示与活动信息站。"
-};
+  description: "面向 cosplay 与国风圈层的公开达人展示与活动发现站。",
+  path: "/"
+});
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

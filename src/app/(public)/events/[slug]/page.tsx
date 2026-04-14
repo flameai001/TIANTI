@@ -1,9 +1,31 @@
+import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatDateRange } from "@/lib/date";
+import { buildAbsoluteUrl, buildMetadata } from "@/lib/site";
 import { getEventPage } from "@/modules/content/service";
 
 type Params = Promise<{ slug: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { slug } = await params;
+  const detail = await getEventPage(slug);
+
+  if (!detail) {
+    return buildMetadata({
+      title: "TIANTI | 活动详情",
+      description: "公开活动详情页",
+      path: `/events/${slug}`
+    });
+  }
+
+  return buildMetadata({
+    title: `TIANTI | ${detail.event.name}`,
+    description: `${detail.event.name} 的公开活动信息、阵容与现场档案。`,
+    path: `/events/${slug}`
+  });
+}
 
 export default async function EventDetailPage({ params }: { params: Params }) {
   const { slug } = await params;
@@ -12,8 +34,29 @@ export default async function EventDetailPage({ params }: { params: Params }) {
     notFound();
   }
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: detail.event.name,
+    startDate: detail.event.startsAt,
+    endDate: detail.event.endsAt ?? undefined,
+    eventStatus:
+      detail.event.status === "future"
+        ? "https://schema.org/EventScheduled"
+        : "https://schema.org/EventCompleted",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    location: {
+      "@type": "Place",
+      name: detail.event.venue,
+      address: detail.event.city
+    },
+    description: detail.event.note,
+    url: buildAbsoluteUrl(`/events/${detail.event.slug}`)
+  };
+
   return (
     <main className="mx-auto max-w-7xl px-5 py-14 md:px-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <section className="surface rounded-[2rem] p-6 md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs uppercase tracking-[0.25em] text-white/45">
           <span>{detail.event.city}</span>
@@ -23,28 +66,48 @@ export default async function EventDetailPage({ params }: { params: Params }) {
         <div className="mt-4 space-y-1 text-sm text-white/60">
           <p>{formatDateRange(detail.event.startsAt, detail.event.endsAt)}</p>
           <p>{detail.event.venue}</p>
+          {detail.event.aliases.length > 0 ? <p>别名：{detail.event.aliases.join(" / ")}</p> : null}
         </div>
         <p className="mt-6 max-w-3xl text-sm leading-8 text-white/70">{detail.event.note}</p>
       </section>
 
-      <section className="mt-12">
-        <div className="mb-6 space-y-2">
-          <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Lineup</p>
-          <h2 className="text-3xl text-white">活动相关达人</h2>
-        </div>
-        <div className="grid gap-5 md:grid-cols-2">
-          {detail.lineups.map((item) => (
-            <article key={item.lineup.id} className="surface rounded-[1.8rem] p-5">
-              <p className="text-2xl text-white">{item.talent.nickname}</p>
-              <div className="mt-3 flex items-center gap-3 text-sm text-white/55">
-                <span>{item.lineup.status === "confirmed" ? "已确认" : "待核实"}</span>
-                <span>·</span>
-                <span>{item.lineup.source}</span>
-              </div>
-              <p className="mt-3 text-sm leading-7 text-white/68">{item.lineup.note}</p>
-            </article>
-          ))}
-        </div>
+      <section className="mt-12 grid gap-6 lg:grid-cols-2">
+        <article className="surface rounded-[1.8rem] p-6">
+          <div className="mb-6 space-y-2">
+            <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Lineup</p>
+            <h2 className="text-3xl text-white">同场阵容达人</h2>
+          </div>
+          <div className="space-y-4">
+            {detail.relatedTalents.length > 0 ? (
+              detail.relatedTalents.map((item) => (
+                <Link key={item.talent.id} href={`/talents/${item.talent.slug}`} className="block border-b border-white/8 pb-4 last:border-none">
+                  <p className="text-lg text-white">{item.talent.nickname}</p>
+                  <p className="mt-2 text-sm text-white/60">{item.reason}</p>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-white/55">当前没有可公开的阵容达人。</p>
+            )}
+          </div>
+        </article>
+        <article className="surface rounded-[1.8rem] p-6">
+          <div className="mb-6 space-y-2">
+            <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Related Events</p>
+            <h2 className="text-3xl text-white">相关活动</h2>
+          </div>
+          <div className="space-y-4">
+            {detail.relatedEvents.length > 0 ? (
+              detail.relatedEvents.map((item) => (
+                <Link key={item.event.event.id} href={`/events/${item.event.event.slug}`} className="block border-b border-white/8 pb-4 last:border-none">
+                  <p className="text-lg text-white">{item.event.event.name}</p>
+                  <p className="mt-2 text-sm text-white/60">{item.reason}</p>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-white/55">暂时没有可公开的相关活动。</p>
+            )}
+          </div>
+        </article>
       </section>
 
       <section className="mt-12">
@@ -84,7 +147,9 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                         />
                       </div>
                       <div className="space-y-3 p-5">
-                        <p className="text-xl text-white">{entry.talent.nickname}</p>
+                        <Link href={`/talents/${entry.talent.slug}`} className="text-xl text-white">
+                          {entry.talent.nickname}
+                        </Link>
                         <p className="text-sm text-white/60">{entry.entry.cosplayTitle}</p>
                         <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.15em] text-white/55">
                           <span>{entry.entry.recognized ? "已认出" : "未认出"}</span>

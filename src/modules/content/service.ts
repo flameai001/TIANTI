@@ -57,6 +57,10 @@ export async function getSearchPage(query: string) {
   return searchSite(await getContentState(), query);
 }
 
+export async function getScopedSearchPage(query: string, scope: "all" | "talents" | "events") {
+  return searchSite(await getContentState(), query, scope);
+}
+
 export async function getAdminDashboard(editorId: string) {
   return getDashboardSummary(await getContentState(), editorId);
 }

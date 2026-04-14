@@ -18,6 +18,10 @@ function toRepresentationsText(talent?: Talent) {
   return talent?.representations.map((item) => `${item.title}|${item.assetId}`).join("\n") ?? "";
 }
 
+function toCommaText(value?: string[]) {
+  return value?.join(", ") ?? "";
+}
+
 function parsePipeRows(value: string) {
   return value
     .split("\n")
@@ -55,7 +59,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
   const filteredTalents = useMemo(
     () =>
       liveTalents.filter((talent) =>
-        `${talent.nickname} ${talent.bio} ${talent.tags.join(" ")}`
+        `${talent.nickname} ${talent.aliases.join(" ")} ${talent.bio} ${talent.tags.join(" ")} ${talent.searchKeywords.join(" ")}`
           .toLowerCase()
           .includes(deferredQuery.toLowerCase())
       ),
@@ -84,11 +88,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
 
   function applyUpdatedTalents(updatedTalents: Talent[]) {
     const updatedMap = new Map(updatedTalents.map((talent) => [talent.id, talent]));
-    setLiveTalents((current) =>
-      sortTalents(
-        current.map((talent) => updatedMap.get(talent.id) ?? talent)
-      )
-    );
+    setLiveTalents((current) => sortTalents(current.map((talent) => updatedMap.get(talent.id) ?? talent)));
   }
 
   async function handleSave(formData: FormData) {
@@ -101,6 +101,8 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       slug: String(formData.get("slug") || ""),
       bio: String(formData.get("bio") || ""),
       mcn: String(formData.get("mcn") || ""),
+      aliases: splitTags(String(formData.get("aliases") || "")),
+      searchKeywords: splitTags(String(formData.get("searchKeywords") || "")),
       coverAssetId: String(formData.get("coverAssetId") || ""),
       tags: splitTags(String(formData.get("tags") || "")),
       links: parsePipeRows(String(formData.get("links") || "")).map((row) => ({
@@ -164,7 +166,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
 
   async function handleBulkAction(action: "add_tags" | "remove_tags" | "delete") {
     if (!hasSelectedTalents) {
-      setMessage("请先勾选至少一个达人。");
+      setMessage("请先勾选至少一位达人。");
       return;
     }
 
@@ -219,9 +221,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
 
       const blockedSummary =
         data.result.blocked.length > 0
-          ? `；${data.result.blocked.length} 项未完成：${data.result.blocked
-              .map((item) => item.reason)
-              .join(" / ")}`
+          ? `，${data.result.blocked.length} 项未完成：${data.result.blocked.map((item) => item.reason).join(" / ")}`
           : "";
       const actionLabel =
         action === "add_tags" ? "已批量追加标签" : action === "remove_tags" ? "已批量移除标签" : "已批量删除达人";
@@ -318,14 +318,10 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                   onChange={(event) => toggleSelectedTalent(talent.id, event.target.checked)}
                   className="mt-1 size-4 rounded border-white/20 bg-black/30"
                 />
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(talent.id)}
-                  className="flex-1 text-left"
-                >
+                <button type="button" onClick={() => setSelectedId(talent.id)} className="flex-1 text-left">
                   <p className="text-lg text-white">{talent.nickname}</p>
                   <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/40">
-                    {talent.tags.join(" 路 ") || "未设置标签"}
+                    {talent.tags.join(" · ") || "未设置标签"}
                   </p>
                 </button>
               </div>
@@ -338,7 +334,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
           allowedKinds={["talent_cover", "talent_representation"]}
           onUploaded={(asset) => {
             setLiveAssets((current) => [asset, ...current]);
-            setMessage(`素材“${asset.title}”已进入素材列表，现在可以直接在下面选择。`);
+            setMessage(`素材「${asset.title}」已进入素材列表，现在可以直接在下面选择。`);
           }}
         />
 
@@ -397,6 +393,20 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <input
+                name="aliases"
+                defaultValue={toCommaText(selectedTalent?.aliases)}
+                placeholder="别名 / 英文名，用逗号分隔"
+                className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
+              />
+              <input
+                name="searchKeywords"
+                defaultValue={toCommaText(selectedTalent?.searchKeywords)}
+                placeholder="搜索关键词，用逗号分隔"
+                className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
+              />
+            </div>
             <div className="space-y-3">
               <select
                 name="coverAssetId"
@@ -406,7 +416,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                 {coverAssets.length === 0 ? <option value="">请先上传达人封面</option> : null}
                 {coverAssets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
-                    {asset.title} 路 {asset.id}
+                    {asset.title} · {asset.id}
                   </option>
                 ))}
               </select>
@@ -433,7 +443,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                 <div className="rounded-[1.2rem] border border-white/10 bg-black/15 p-4 text-xs leading-6 text-white/55">
                   可用代表图素材：
                   {representationAssets.length > 0
-                    ? ` ${representationAssets.map((asset) => `${asset.title} 路 ${asset.id}`).join(" / ")}`
+                    ? ` ${representationAssets.map((asset) => `${asset.title} · ${asset.id}`).join(" / ")}`
                     : " 暂无，请先在上方上传“代表图”。"}
                 </div>
               </div>
@@ -441,7 +451,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
             {message ? <p className="text-sm text-amber-200">{message}</p> : null}
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs leading-6 text-white/45">
-                现在上传的图片会直接进入 R2；表单保存后，公开站会立刻读取新的达人信息和素材关联。
+                发现字段会直接影响前台搜索、相关推荐和列表排序，保存后预览站会立即读到新数据。
               </p>
               <button
                 disabled={pending}

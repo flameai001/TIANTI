@@ -7,6 +7,7 @@ import {
   uniqueIndex,
   uuid
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const editors = pgTable(
   "editors",
@@ -58,6 +59,14 @@ export const talents = pgTable(
     nickname: text("nickname").notNull(),
     bio: text("bio").notNull(),
     mcn: text("mcn").notNull(),
+    aliases: text("aliases")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    searchKeywords: text("search_keywords")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     coverAssetId: uuid("cover_asset_id")
       .notNull()
       .references(() => assets.id),
@@ -105,6 +114,14 @@ export const events = pgTable(
     id: uuid("id").primaryKey(),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
+    aliases: text("aliases")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
+    searchKeywords: text("search_keywords")
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::text[]`),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }),
     city: text("city").notNull(),

@@ -57,6 +57,8 @@ export interface Talent {
   nickname: string;
   bio: string;
   mcn: string;
+  aliases: string[];
+  searchKeywords: string[];
   tags: TalentTag[];
   coverAssetId: string;
   links: TalentLink[];
@@ -68,6 +70,8 @@ export interface Event {
   id: string;
   slug: string;
   name: string;
+  aliases: string[];
+  searchKeywords: string[];
   startsAt: string;
   endsAt?: string | null;
   city: string;
@@ -144,24 +148,18 @@ export interface TalentSummary {
   slug: string;
   nickname: string;
   bio: string;
+  aliases: string[];
   tags: TalentTag[];
   cover: Asset;
   recentHint: string | null;
   hasFutureEvent: boolean;
+  archiveCount: number;
+  relevanceScore?: number;
 }
 
-export interface TalentDetail {
-  talent: Talent;
-  cover: Asset;
-  representationAssets: Array<TalentRepresentation & { asset: Asset }>;
-  futureEvents: Event[];
-  pastEvents: Event[];
-  editorSummaries: Array<{
-    editor: EditorProfile;
-    tierName: string | null;
-    seenCount: number;
-    sharedPhotoCount: number;
-  }>;
+export interface RelatedTalentSummary {
+  talent: TalentSummary;
+  reason: string;
 }
 
 export interface EventSummary {
@@ -170,6 +168,29 @@ export interface EventSummary {
     lineup: EventLineup;
     talent: Talent;
     cover: Asset;
+  }>;
+  lineupSize: number;
+  relevanceScore?: number;
+}
+
+export interface RelatedEventSummary {
+  event: EventSummary;
+  reason: string;
+}
+
+export interface TalentDetail {
+  talent: Talent;
+  cover: Asset;
+  representationAssets: Array<TalentRepresentation & { asset: Asset }>;
+  futureEvents: Event[];
+  pastEvents: Event[];
+  relatedTalents: RelatedTalentSummary[];
+  relatedEvents: RelatedEventSummary[];
+  editorSummaries: Array<{
+    editor: EditorProfile;
+    tierName: string | null;
+    seenCount: number;
+    sharedPhotoCount: number;
   }>;
 }
 
@@ -190,11 +211,41 @@ export interface EventDetail {
       sharedPhotoAsset?: Asset | null;
     }>;
   }>;
+  relatedEvents: RelatedEventSummary[];
+  relatedTalents: RelatedTalentSummary[];
 }
 
 export interface SiteSearchResult {
   talents: TalentSummary[];
   events: EventSummary[];
+}
+
+export interface DiscoverySection<T> {
+  title: string;
+  href: string;
+  description: string;
+  items: T[];
+}
+
+export interface HomepageDiscovery {
+  featuredTalents: TalentSummary[];
+  futureEvents: EventSummary[];
+  recentTalents: TalentSummary[];
+  tagSpotlights: Array<{
+    tag: TalentTag;
+    count: number;
+    href: string;
+  }>;
+  editorSpotlights: Array<{
+    editor: EditorProfile;
+    href: string;
+    summary: string;
+  }>;
+  ladderSpotlights: Array<{
+    ladder: EditorLadder;
+    topTier: LadderTier;
+    href: string;
+  }>;
 }
 
 export interface DashboardSummary {
