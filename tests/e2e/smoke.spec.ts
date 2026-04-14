@@ -44,7 +44,7 @@ test("public homepage renders and links into talent detail", async ({ page }) =>
   await expect(page).toHaveURL(/\/talents$/);
   await page.getByRole("link", { name: "青鸾" }).first().click();
   await expect(page).toHaveURL(/\/talents\/qingluan$/);
-  await expect(page.getByText("青鸾")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "青鸾" })).toBeVisible();
 });
 
 test("editor can log in and open admin dashboard", async ({ page }) => {
@@ -78,7 +78,7 @@ test("editor can create a talent and future event that appear on public pages", 
   await page.locator('input[name="mcn"]').fill("Orbit Studio");
   await page.locator('input[name="tags"]').fill("cosplay, 舞台");
   await page.getByTestId("save-talent").click();
-  await expect(page.getByText("Star Lume")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "编辑 Star Lume" })).toBeVisible();
 
   await page.goto("/admin/archives");
   await page.getByTestId("new-event-button").click();
@@ -137,6 +137,43 @@ test("editor can upload archive assets and publish an archive entry", async ({ p
   await publicPage.goto("/events/spring-gala-2026");
   await expect(publicPage.getByText("Archive Test Role")).toBeVisible();
   await publicPage.close();
+});
+
+test("admin return button routes back to the matching public section", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/archives");
+  await page.getByTestId("return-to-site").click();
+  await expect(page).toHaveURL(/\/events$/);
+
+  await page.goto("/admin/talents");
+  await page.getByTestId("return-to-site").click();
+  await expect(page).toHaveURL(/\/talents$/);
+
+  await page.goto("/admin/ladder");
+  await page.getByTestId("return-to-site").click();
+  await expect(page).toHaveURL(/\/ladder$/);
+});
+
+test("archive workspace can import lineup entries and duplicate a record", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/archives");
+  await page.getByTestId("import-lineup-entries").click();
+  await expect(page.getByTestId("archive-entry")).toHaveCount(2);
+
+  await page.getByTestId("archive-copy-1").click();
+  await expect(page.getByTestId("archive-entry")).toHaveCount(3);
+
+  await page.getByTestId("archive-note").fill("Imported archive workflow note");
+  await page.getByTestId("archive-cosplay-0").fill("Role One");
+  await page.getByTestId("archive-cosplay-1").fill("Role Two");
+  await page.getByTestId("archive-cosplay-2").fill("Role Three");
+  await page.getByTestId("save-archive").click();
+
+  await expect(page.getByTestId("archive-entry")).toHaveCount(3);
+  await expect(page.getByTestId("archive-note")).toHaveValue("Imported archive workflow note");
+  await expect(page).toHaveURL(/\/admin\/archives\?event=/);
 });
 
 test("public pages remain browsable on mobile", async ({ page }) => {

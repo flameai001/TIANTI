@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { GuardedLink } from "@/components/admin/guarded-link";
 import { cn } from "@/lib/cn";
 
 const navItems = [
@@ -19,7 +19,7 @@ export function AdminNav() {
       {navItems.map((item) => {
         const active = pathname === item.href;
         return (
-          <Link
+          <GuardedLink
             key={item.href}
             href={item.href}
             className={cn(
@@ -30,7 +30,7 @@ export function AdminNav() {
             )}
           >
             {item.label}
-          </Link>
+          </GuardedLink>
         );
       })}
     </nav>

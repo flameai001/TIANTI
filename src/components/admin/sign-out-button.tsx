@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useAdminUnsavedChanges } from "@/components/admin/admin-unsaved-changes";
 
 export function SignOutButton() {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const { confirmNavigation } = useAdminUnsavedChanges();
 
   function handleSignOut() {
+    if (!confirmNavigation()) {
+      return;
+    }
+
     setError(null);
     startTransition(async () => {
       const response = await fetch("/api/auth/sign-out", {

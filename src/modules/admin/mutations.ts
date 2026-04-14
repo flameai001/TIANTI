@@ -3,6 +3,13 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
+import type { Talent } from "@/modules/domain/types";
+import type {
+  BulkActionResult,
+  EventBulkPayload,
+  TalentBulkPayload,
+  TalentBulkResponse
+} from "@/modules/admin/types";
 import { getContentRepository } from "@/modules/repository";
 
 const talentSchema = z.object({
@@ -82,6 +89,46 @@ const assetSchema = z.object({
   height: z.number().int().positive()
 });
 
+const talentBulkSchema = z.object({
+  action: z.enum(["add_tags", "remove_tags", "delete"]),
+  ids: z.array(z.string()).min(1),
+  tags: z.array(z.string()).optional()
+});
+
+const eventBulkSchema = z.object({
+  action: z.enum(["set_status", "delete"]),
+  ids: z.array(z.string()).min(1),
+  status: z.enum(["future", "past"]).optional()
+});
+
+function dedupeIds(ids: string[]) {
+  return [...new Set(ids)];
+}
+
+function formatMissingReason(kind: "达人" | "活动") {
+  return `${kind}不存在或已被删除。`;
+}
+
+async function ensureUniqueTalentSlug(id: string, slug: string) {
+  const repository = getContentRepository();
+  const state = await repository.getState();
+  const duplicate = state.talents.find((talent) => talent.slug === slug && talent.id !== id);
+
+  if (duplicate) {
+    throw new Error("该达人 slug 已存在，请修改昵称或手动 slug。");
+  }
+}
+
+async function ensureUniqueEventSlug(id: string, slug: string) {
+  const repository = getContentRepository();
+  const state = await repository.getState();
+  const duplicate = state.events.find((event) => event.slug === slug && event.id !== id);
+
+  if (duplicate) {
+    throw new Error("该活动 slug 已存在，请修改活动名或手动 slug。");
+  }
+}
+
 export async function saveAsset(payload: unknown) {
   const repository = getContentRepository();
   const input = assetSchema.parse(payload);
@@ -99,15 +146,11 @@ export async function saveAsset(payload: unknown) {
 
 export async function saveTalent(payload: unknown) {
   const repository = getContentRepository();
-  const state = await repository.getState();
   const input = talentSchema.parse(payload);
   const id = input.id ?? randomUUID();
   const slug = slugify(input.slug || input.nickname);
 
-  const duplicate = state.talents.find((talent) => talent.slug === slug && talent.id !== id);
-  if (duplicate) {
-    throw new Error("该达人 slug 已存在，请修改昵称或手动 slug。");
-  }
+  await ensureUniqueTalentSlug(id, slug);
 
   return repository.upsertTalent({
     id,
@@ -116,7 +159,7 @@ export async function saveTalent(payload: unknown) {
     bio: input.bio,
     mcn: input.mcn,
     coverAssetId: input.coverAssetId,
-    tags: input.tags as never,
+    tags: input.tags as Talent["tags"],
     links: input.links.map((link) => ({
       id: link.id ?? randomUUID(),
       label: link.label,
@@ -147,15 +190,11 @@ export async function removeTalent(id: string) {
 
 export async function saveEvent(payload: unknown) {
   const repository = getContentRepository();
-  const state = await repository.getState();
   const input = eventSchema.parse(payload);
   const id = input.id ?? randomUUID();
   const slug = slugify(input.slug || input.name);
 
-  const duplicate = state.events.find((event) => event.slug === slug && event.id !== id);
-  if (duplicate) {
-    throw new Error("该活动 slug 已存在，请修改活动名或手动 slug。");
-  }
+  await ensureUniqueEventSlug(id, slug);
 
   const event = await repository.upsertEvent({
     id,
@@ -229,4 +268,133 @@ export async function saveArchive(editorId: string, payload: unknown) {
       hasSharedPhoto: entry.hasSharedPhoto
     }))
   });
+}
+
+export async function saveTalentBulk(payload: unknown): Promise<TalentBulkResponse> {
+  const repository = getContentRepository();
+  const input = talentBulkSchema.parse(payload) as TalentBulkPayload;
+  const ids = dedupeIds(input.ids);
+  const state = await repository.getState();
+  const talentMap = new Map(state.talents.map((talent) => [talent.id, talent]));
+  const blocked: BulkActionResult["blocked"] = [];
+
+  if (input.action === "delete") {
+    const succeededIds: string[] = [];
+
+    for (const id of ids) {
+      const talent = talentMap.get(id);
+      if (!talent) {
+        blocked.push({ id, reason: formatMissingReason("达人") });
+        continue;
+      }
+
+      try {
+        await removeTalent(id);
+        succeededIds.push(id);
+      } catch (error) {
+        blocked.push({
+          id,
+          reason: error instanceof Error ? error.message : "删除失败。"
+        });
+      }
+    }
+
+    return {
+      succeededIds,
+      blocked
+    };
+  }
+
+  const tags = [...new Set((input.tags ?? []).map((tag) => tag.trim()).filter(Boolean))];
+  if (tags.length === 0) {
+    throw new Error("请至少填写一个标签。");
+  }
+
+  const updatedTalents: Talent[] = [];
+
+  for (const id of ids) {
+    const talent = talentMap.get(id);
+    if (!talent) {
+      blocked.push({ id, reason: formatMissingReason("达人") });
+      continue;
+    }
+
+    const nextTags =
+      input.action === "add_tags"
+        ? [...new Set([...talent.tags, ...tags])]
+        : talent.tags.filter((tag) => !tags.includes(tag));
+
+    const updatedTalent = await repository.upsertTalent({
+      ...talent,
+      tags: nextTags as Talent["tags"],
+      updatedAt: new Date().toISOString()
+    });
+
+    updatedTalents.push(updatedTalent);
+  }
+
+  return {
+    succeededIds: updatedTalents.map((talent) => talent.id),
+    blocked,
+    talents: updatedTalents
+  };
+}
+
+export async function saveEventBulk(payload: unknown): Promise<BulkActionResult> {
+  const repository = getContentRepository();
+  const input = eventBulkSchema.parse(payload) as EventBulkPayload;
+  const ids = dedupeIds(input.ids);
+  const state = await repository.getState();
+  const eventMap = new Map(state.events.map((event) => [event.id, event]));
+  const blocked: BulkActionResult["blocked"] = [];
+  const succeededIds: string[] = [];
+
+  if (input.action === "delete") {
+    for (const id of ids) {
+      const event = eventMap.get(id);
+      if (!event) {
+        blocked.push({ id, reason: formatMissingReason("活动") });
+        continue;
+      }
+
+      try {
+        await removeEvent(id);
+        succeededIds.push(id);
+      } catch (error) {
+        blocked.push({
+          id,
+          reason: error instanceof Error ? error.message : "删除失败。"
+        });
+      }
+    }
+
+    return {
+      succeededIds,
+      blocked
+    };
+  }
+
+  if (!input.status) {
+    throw new Error("批量修改活动状态时必须提供目标状态。");
+  }
+
+  for (const id of ids) {
+    const event = eventMap.get(id);
+    if (!event) {
+      blocked.push({ id, reason: formatMissingReason("活动") });
+      continue;
+    }
+
+    await repository.upsertEvent({
+      ...event,
+      status: input.status,
+      updatedAt: new Date().toISOString()
+    });
+    succeededIds.push(id);
+  }
+
+  return {
+    succeededIds,
+    blocked
+  };
 }
