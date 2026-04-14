@@ -27,7 +27,7 @@ export default async function HomePage() {
                     一个把人物、活动与编辑视角编进同一条叙事里的公开展示站。
                   </p>
                   <p className="max-w-2xl text-sm leading-8 text-white/68 md:text-base">
-                    首版聚焦 cosplay 与国风现场，把未来行程、达人资料、活动档案与双编辑天梯榜压进同一套有策展感的信息结构里。
+                    首版聚焦 cosplay 与国风现场，把活动档案里的未来安排、达人资料与双编辑天梯榜压进同一套有策展感的信息结构里。
                   </p>
                 </div>
               </div>
@@ -40,10 +40,10 @@ export default async function HomePage() {
                 浏览达人
               </Link>
               <Link
-                href="/schedule"
+                href="/events?eventStatus=future"
                 className="rounded-full border border-white/20 px-6 py-3 text-sm uppercase tracking-[0.25em] text-white"
               >
-                看未来行程
+                看活动档案
               </Link>
             </div>
           </div>
@@ -88,7 +88,7 @@ export default async function HomePage() {
         <SectionHeading
           eyebrow="Upcoming"
           title="近期未来活动"
-          description="未来行程页底层就是未来状态活动的聚合，这里直接提前给出最值得进入的两个入口。"
+          description="活动档案页已经吸收未来活动视图，这里直接给出最值得进入的两个入口。"
         />
         <div className="mt-10 grid gap-6">
           {homepage.futureEvents.map((event) => (

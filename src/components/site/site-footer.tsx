@@ -12,8 +12,8 @@ export function SiteFooter() {
           <p className="text-xs uppercase tracking-[0.35em] text-white/45">Sections</p>
           <ul className="space-y-2">
             <li>首页 / 达人 / 天梯榜</li>
-            <li>未来行程 / 活动档案</li>
-            <li>编辑后台 / 搜索入口</li>
+            <li>活动档案 / 搜索入口</li>
+            <li>编辑后台 / 双编辑视角</li>
           </ul>
         </div>
         <div className="space-y-3">

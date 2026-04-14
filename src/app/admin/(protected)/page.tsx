@@ -43,7 +43,7 @@ export default async function AdminDashboardPage() {
         </div>
       </section>
       <section className="surface rounded-[1.8rem] p-5">
-        <p className="text-xs uppercase tracking-[0.25em] text-white/40">我最近改过的档案</p>
+        <p className="text-xs uppercase tracking-[0.25em] text-white/40">我最近改过的活动档案</p>
         <div className="mt-4 space-y-4">
           {data.myRecentArchives.map((archive) => {
             const event = eventMap.get(archive.eventId);

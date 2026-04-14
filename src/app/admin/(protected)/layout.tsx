@@ -15,7 +15,7 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
           <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">TIANTI Admin</p>
           <h1 className="mt-3 text-4xl text-white">{editor.name} 的后台</h1>
           <p className="mt-2 text-sm leading-7 text-white/65">
-            共享内容在这里统一维护；天梯榜和活动档案只开放你自己的编辑区域。
+            共享活动信息与达人资料在这里统一维护；天梯榜和我的活动档案仍只开放当前账号编辑。
           </p>
         </div>
         <div className="flex flex-col items-start gap-4 md:items-end">

@@ -52,45 +52,53 @@ export default async function EventDetailPage({ params }: { params: Params }) {
           <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Archive Layers</p>
           <h2 className="text-3xl text-white">活动现场档案</h2>
         </div>
-        <div className="grid gap-6">
-          {detail.archives.map((archive) => (
-            <article key={archive.archive.id} className="surface rounded-[1.8rem] p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-                <div>
-                  <p className="text-2xl text-white">{archive.editor.name} 的记录</p>
-                  <p className="mt-2 text-sm text-white/58">{archive.archive.note}</p>
+        {detail.archives.length === 0 ? (
+          <div className="surface rounded-[1.8rem] px-6 py-10 text-center text-white/68">
+            {detail.event.status === "future"
+              ? "这场未来活动已经公开基础信息和阵容，现场档案会在活动结束后补充。"
+              : "这场活动暂时还没有公开的现场档案。"}
+          </div>
+        ) : (
+          <div className="grid gap-6">
+            {detail.archives.map((archive) => (
+              <article key={archive.archive.id} className="surface rounded-[1.8rem] p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+                  <div>
+                    <p className="text-2xl text-white">{archive.editor.name} 的记录</p>
+                    <p className="mt-2 text-sm text-white/58">{archive.archive.note}</p>
+                  </div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-white/40">
+                    {archive.entries.length} 条现场记录
+                  </p>
                 </div>
-                <p className="text-xs uppercase tracking-[0.25em] text-white/40">
-                  {archive.entries.length} 条现场记录
-                </p>
-              </div>
-              <div className="mt-6 grid gap-6 md:grid-cols-2">
-                {archive.entries.map((entry) => (
-                  <div key={entry.entry.id} className="overflow-hidden rounded-[1.5rem] border border-white/10">
-                    <div className="relative aspect-[4/3]">
-                      <Image
-                        src={entry.sceneAsset.url}
-                        alt={entry.sceneAsset.alt}
-                        fill
-                        sizes="(min-width: 768px) 42vw, 100vw"
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="space-y-3 p-5">
-                      <p className="text-xl text-white">{entry.talent.nickname}</p>
-                      <p className="text-sm text-white/60">{entry.entry.cosplayTitle}</p>
-                      <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.15em] text-white/55">
-                        <span>{entry.entry.recognized ? "已认出" : "未认出"}</span>
-                        <span>·</span>
-                        <span>{entry.entry.hasSharedPhoto ? "有合照" : "无合照"}</span>
+                <div className="mt-6 grid gap-6 md:grid-cols-2">
+                  {archive.entries.map((entry) => (
+                    <div key={entry.entry.id} className="overflow-hidden rounded-[1.5rem] border border-white/10">
+                      <div className="relative aspect-[4/3]">
+                        <Image
+                          src={entry.sceneAsset.url}
+                          alt={entry.sceneAsset.alt}
+                          fill
+                          sizes="(min-width: 768px) 42vw, 100vw"
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="space-y-3 p-5">
+                        <p className="text-xl text-white">{entry.talent.nickname}</p>
+                        <p className="text-sm text-white/60">{entry.entry.cosplayTitle}</p>
+                        <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.15em] text-white/55">
+                          <span>{entry.entry.recognized ? "已认出" : "未认出"}</span>
+                          <span>·</span>
+                          <span>{entry.entry.hasSharedPhoto ? "有合照" : "无合照"}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
-        </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

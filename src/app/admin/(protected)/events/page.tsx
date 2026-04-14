@@ -1,8 +1,16 @@
-import { EventManager } from "@/components/admin/event-manager";
-import { getContentState } from "@/modules/content/service";
+import { redirect } from "next/navigation";
 
-export default async function AdminEventsPage() {
-  const state = await getContentState();
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-  return <EventManager events={state.events} talents={state.talents} lineups={state.lineups} />;
+export default async function AdminEventsRedirectPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const nextParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string") {
+      nextParams.set(key, value);
+    }
+  }
+
+  redirect(nextParams.size > 0 ? `/admin/archives?${nextParams.toString()}` : "/admin/archives");
 }

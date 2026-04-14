@@ -36,7 +36,7 @@ export interface TalentFilters {
 
 export interface EventFilters {
   query?: string;
-  status?: "future" | "past";
+  eventStatus?: "future" | "past";
   city?: string;
   talentId?: string;
   participationStatus?: "confirmed" | "pending";
@@ -70,7 +70,7 @@ export function getEditors(state: ContentState) {
 export function getHomepageCollections(state: ContentState) {
   return {
     featuredTalents: listTalents(state).slice(0, 3),
-    futureEvents: listEventSummaries(state, { status: "future" }).slice(0, 2),
+    futureEvents: listEventSummaries(state, { eventStatus: "future" }).slice(0, 2),
     recentArchives: sortByDateDesc(state.archives).slice(0, 2),
     ladderSpotlights: state.ladders.map((ladder) => ({
       ladder,
@@ -214,7 +214,7 @@ export function listEventSummaries(
       `${event.name} ${event.city} ${event.venue} ${event.note} ${lineupText}`
         .toLowerCase()
         .includes(query);
-    const matchesStatus = !filters.status || event.status === filters.status;
+    const matchesStatus = !filters.eventStatus || event.status === filters.eventStatus;
     const matchesCity = !filters.city || event.city === filters.city;
     const startsAt = Date.parse(event.startsAt);
     const matchesStartDate = startBoundary === null || startsAt >= startBoundary;
@@ -242,7 +242,7 @@ export function listEventSummaries(
   });
 
   events = sortEvents(events);
-  if (filters.status === "past") {
+  if (filters.eventStatus === "past") {
     events = events.reverse();
   }
 

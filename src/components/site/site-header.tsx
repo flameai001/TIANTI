@@ -5,7 +5,6 @@ const navItems = [
   { href: "/", label: "首页" },
   { href: "/talents", label: "达人" },
   { href: "/ladder", label: "天梯榜" },
-  { href: "/schedule", label: "未来行程" },
   { href: "/events", label: "活动档案" }
 ];
 
