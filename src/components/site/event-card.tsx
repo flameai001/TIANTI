@@ -19,22 +19,31 @@ export function EventCard({ item }: { item: EventSummary }) {
           {item.event.venue ? <p className="mt-1 text-sm text-white/50">{item.event.venue}</p> : null}
         </div>
         {item.event.note ? <p className="text-sm leading-7 text-white/70">{item.event.note}</p> : null}
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        {item.lineups.map((lineup) => (
-          <div key={lineup.lineup.id} className="rounded-[1.3rem] border border-white/10 bg-black/20 p-4">
-            <p className="text-lg text-white">{lineup.talent.nickname}</p>
-            {lineup.lineup.source ? (
-              <p className="mt-1 text-xs uppercase tracking-[0.2em] text-white/50">{lineup.lineup.source}</p>
-            ) : null}
-            {(lineup.lineup.status || lineup.lineup.note) && (
-              <p className="mt-3 text-sm text-white/65">
-                {lineup.lineup.status === "confirmed" ? "已确认" : "待确认"}
-                {lineup.lineup.note ? ` · ${lineup.lineup.note}` : ""}
-              </p>
-            )}
+        </div>
+      <div className="space-y-4">
+        {item.lineupGroups.length > 0 ? (
+          item.lineupGroups.map((group) => (
+            <div key={group.date ?? "single"} className="space-y-2">
+              {group.label ? (
+                <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]">{group.label}</p>
+              ) : null}
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                {group.items.map((lineup) => (
+                  <div key={lineup.lineup.id} className="rounded-[1.1rem] border border-white/10 bg-black/20 p-3">
+                    <p className="text-sm text-white">{lineup.talent.nickname}</p>
+                    <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-white/55">
+                      {lineup.lineup.status === "confirmed" ? "已确认" : "待确认"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-[1.2rem] border border-dashed border-white/10 px-4 py-6 text-sm text-white/52">
+            暂无公开阵容
           </div>
-        ))}
+        )}
       </div>
     </Link>
   );

@@ -141,6 +141,7 @@ export const eventLineup = pgTable("event_lineup", {
   talentId: uuid("talent_id")
     .notNull()
     .references(() => talents.id, { onDelete: "cascade" }),
+  lineupDate: timestamp("lineup_date", { withTimezone: true }),
   status: text("status").notNull(),
   source: text("source").notNull(),
   note: text("note").notNull()

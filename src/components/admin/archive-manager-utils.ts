@@ -15,6 +15,7 @@ export interface EditableEvent {
 export interface EditableLineup {
   id: string;
   talentId: string;
+  lineupDate: string;
   status: "confirmed" | "pending";
   source: string;
   note: string;
@@ -49,16 +50,17 @@ export function createEventDraft(event?: Event | null): EditableEvent {
   };
 }
 
-export function createLineupDrafts(eventId: string | null, lineups: EventLineup[]): EditableLineup[] {
-  if (!eventId) {
+export function createLineupDrafts(event: Event | null, lineups: EventLineup[]): EditableLineup[] {
+  if (!event) {
     return [];
   }
 
   return lineups
-    .filter((lineup) => lineup.eventId === eventId)
+    .filter((lineup) => lineup.eventId === event.id)
     .map((lineup) => ({
       id: lineup.id,
       talentId: lineup.talentId,
+      lineupDate: toDateInputValue(lineup.lineupDate ?? event.startsAt ?? event.endsAt ?? null),
       status: lineup.status,
       source: lineup.source,
       note: lineup.note
@@ -106,6 +108,7 @@ export function normalizeLineupDrafts(value: EditableLineup[]) {
   return value.map((lineup) => ({
     id: lineup.id,
     talentId: lineup.talentId,
+    lineupDate: lineup.lineupDate,
     status: lineup.status,
     source: lineup.source.trim(),
     note: lineup.note.trim()

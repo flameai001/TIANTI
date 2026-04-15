@@ -36,10 +36,71 @@ export const appEnv = {
   ]
 };
 
+function normalizeHttpUrl(value: string, label: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error(`R2 存储配置错误：${label} 不能为空。`);
+  }
+
+  const withProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  let url: URL;
+  try {
+    url = new URL(withProtocol);
+  } catch {
+    throw new Error(`R2 存储配置错误：${label} 不是有效的 URL。`);
+  }
+
+  return url.toString().replace(/\/$/, "");
+}
+
 export function isMockContentMode() {
   return appEnv.contentMode === "mock" || !appEnv.DATABASE_URL;
 }
 
 export function isMockStorageMode() {
-  return appEnv.storageMode === "mock" || !appEnv.R2_BUCKET || !appEnv.R2_ENDPOINT;
+  return appEnv.storageMode === "mock";
+}
+
+export function getR2StorageConfig() {
+  const missing = [
+    !appEnv.R2_BUCKET?.trim() ? "R2_BUCKET" : null,
+    !appEnv.R2_ENDPOINT?.trim() ? "R2_ENDPOINT" : null,
+    !appEnv.R2_ACCESS_KEY_ID?.trim() ? "R2_ACCESS_KEY_ID" : null,
+    !appEnv.R2_SECRET_ACCESS_KEY?.trim() ? "R2_SECRET_ACCESS_KEY" : null,
+    !appEnv.R2_PUBLIC_BASE_URL?.trim() ? "R2_PUBLIC_BASE_URL" : null
+  ].filter(Boolean);
+
+  if (missing.length > 0) {
+    throw new Error(`R2 存储配置错误：缺少 ${missing.join("、")}。`);
+  }
+
+  return {
+    bucket: appEnv.R2_BUCKET!.trim(),
+    endpoint: normalizeHttpUrl(appEnv.R2_ENDPOINT!, "R2_ENDPOINT"),
+    accessKeyId: appEnv.R2_ACCESS_KEY_ID!.trim(),
+    secretAccessKey: appEnv.R2_SECRET_ACCESS_KEY!.trim(),
+    publicBaseUrl: normalizeHttpUrl(appEnv.R2_PUBLIC_BASE_URL!, "R2_PUBLIC_BASE_URL")
+  };
+}
+
+export function getR2StorageSummary() {
+  if (isMockStorageMode()) {
+    return null;
+  }
+
+  try {
+    const config = getR2StorageConfig();
+    return {
+      bucket: config.bucket,
+      publicBaseUrl: config.publicBaseUrl,
+      error: null
+    };
+  } catch (error) {
+    return {
+      bucket: appEnv.R2_BUCKET?.trim() ?? "",
+      publicBaseUrl: appEnv.R2_PUBLIC_BASE_URL?.trim() ?? "",
+      error: error instanceof Error ? error.message : "R2 存储配置错误。"
+    };
+  }
 }

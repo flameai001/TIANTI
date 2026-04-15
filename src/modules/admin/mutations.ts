@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { toDateOnlyIso } from "@/lib/date";
+import { getDateOnlyKey, getDateRangeDays, isMultiDayRange, toDateOnlyIso } from "@/lib/date";
 import { slugify } from "@/lib/slug";
 import type { Talent } from "@/modules/domain/types";
 import type {
@@ -52,6 +52,7 @@ const eventSchema = z.object({
       z.object({
         id: z.string().optional(),
         talentId: z.string().nullable().optional(),
+        lineupDate: z.string().nullable().optional(),
         status: z.enum(["confirmed", "pending"]),
         source: z.string().optional().default(""),
         note: z.string().optional().default("")
@@ -114,6 +115,16 @@ const eventBulkSchema = z.object({
 
 function dedupeIds(ids: string[]) {
   return [...new Set(ids)];
+}
+
+function getValidLineupDateKeys(startsAt?: string | null, endsAt?: string | null) {
+  const rangeDates = getDateRangeDays(startsAt, endsAt);
+  if (rangeDates.length > 0) {
+    return rangeDates;
+  }
+
+  const fallbackDate = getDateOnlyKey(startsAt) ?? getDateOnlyKey(endsAt);
+  return fallbackDate ? [fallbackDate] : [];
 }
 
 function formatMissingReason(kind: "达人" | "活动") {
@@ -220,6 +231,10 @@ export async function saveEvent(payload: unknown) {
   const existingEvent = state.events.find((event) => event.id === id) ?? null;
   const name = input.name.trim();
   const slug = slugify(input.slug || name);
+  const startsAt = toDateOnlyIso(input.startsAt?.trim() ?? "") ?? null;
+  const endsAt = toDateOnlyIso(input.endsAt?.trim() ?? "") ?? null;
+  const isMultiDayEvent = isMultiDayRange(startsAt, endsAt);
+  const validLineupDateKeys = new Set(getValidLineupDateKeys(startsAt, endsAt));
 
   await ensureUniqueEventSlug(id, slug);
 
@@ -233,14 +248,28 @@ export async function saveEvent(payload: unknown) {
       : [...new Set(input.searchKeywords.map((item) => item.trim()).filter(Boolean))];
   const lineups = input.lineups
     .filter((lineup) => lineup.talentId?.trim())
-    .map((lineup) => ({
-      id: lineup.id ?? randomUUID(),
-      eventId: id,
-      talentId: lineup.talentId!.trim(),
-      status: lineup.status,
-      source: lineup.source.trim(),
-      note: lineup.note.trim()
-    }));
+    .map((lineup) => {
+      const lineupDate = toDateOnlyIso(lineup.lineupDate?.trim() ?? "") ?? null;
+      const lineupDateKey = getDateOnlyKey(lineupDate);
+
+      if (isMultiDayEvent && !lineupDate) {
+        throw new Error("多日活动的每条达人阵容都必须选择所属日期。");
+      }
+
+      if (lineupDateKey && validLineupDateKeys.size > 0 && !validLineupDateKeys.has(lineupDateKey)) {
+        throw new Error("达人阵容的所属日期必须落在活动开始和结束日期之间。");
+      }
+
+      return {
+        id: lineup.id ?? randomUUID(),
+        eventId: id,
+        talentId: lineup.talentId!.trim(),
+        lineupDate,
+        status: lineup.status,
+        source: lineup.source.trim(),
+        note: lineup.note.trim()
+      };
+    });
 
   const event = await repository.upsertEvent({
     id,
@@ -248,8 +277,8 @@ export async function saveEvent(payload: unknown) {
     name,
     aliases,
     searchKeywords,
-    startsAt: toDateOnlyIso(input.startsAt?.trim() ?? "") ?? null,
-    endsAt: toDateOnlyIso(input.endsAt?.trim() ?? "") ?? null,
+    startsAt,
+    endsAt,
     city: input.city.trim(),
     venue: input.venue.trim(),
     status: input.status,

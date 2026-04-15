@@ -88,6 +88,7 @@ export interface EventLineup {
   status: ParticipationStatus;
   source: string;
   note: string;
+  lineupDate?: string | null;
 }
 
 export interface LadderTier {
@@ -162,13 +163,22 @@ export interface RelatedTalentSummary {
   reason: string;
 }
 
+export interface EventLineupDisplayItem {
+  lineup: EventLineup;
+  talent: Talent;
+  cover: Asset | null;
+}
+
+export interface EventLineupGroup {
+  date: string | null;
+  label: string | null;
+  items: EventLineupDisplayItem[];
+}
+
 export interface EventSummary {
   event: Event;
-  lineups: Array<{
-    lineup: EventLineup;
-    talent: Talent;
-    cover: Asset | null;
-  }>;
+  lineups: EventLineupDisplayItem[];
+  lineupGroups: EventLineupGroup[];
   lineupSize: number;
   relevanceScore?: number;
 }
@@ -196,11 +206,8 @@ export interface TalentDetail {
 
 export interface EventDetail {
   event: Event;
-  lineups: Array<{
-    lineup: EventLineup;
-    talent: Talent;
-    cover: Asset | null;
-  }>;
+  lineups: EventLineupDisplayItem[];
+  lineupGroups: EventLineupGroup[];
   archives: Array<{
     editor: EditorProfile;
     archive: EditorArchive;

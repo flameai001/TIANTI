@@ -2,13 +2,14 @@ import { AdminUnsavedChangesProvider } from "@/components/admin/admin-unsaved-ch
 import { AdminNav } from "@/components/admin/admin-nav";
 import { ReturnToSiteButton } from "@/components/admin/return-to-site-button";
 import { SignOutButton } from "@/components/admin/sign-out-button";
-import { appEnv, isMockContentMode, isMockStorageMode } from "@/lib/env";
+import { getR2StorageSummary, isMockContentMode, isMockStorageMode } from "@/lib/env";
 import { requireAuthenticatedEditor } from "@/lib/session";
 
 export default async function ProtectedAdminLayout({ children }: { children: React.ReactNode }) {
   const editor = await requireAuthenticatedEditor();
   const contentMode = isMockContentMode() ? "Mock 演示数据" : "Postgres 正式数据";
   const storageMode = isMockStorageMode() ? "Mock 占位存储" : "Cloudflare R2";
+  const storageSummary = getR2StorageSummary();
 
   return (
     <AdminUnsavedChangesProvider>
@@ -40,7 +41,9 @@ export default async function ProtectedAdminLayout({ children }: { children: Rea
               ? "线上内容已经从 Postgres 读取。"
               : "当前仍在读取本地 mock 数据。"}
             {!isMockStorageMode()
-              ? ` 图片上传会直传到 R2 bucket「${appEnv.R2_BUCKET}」，公开地址走 ${appEnv.R2_PUBLIC_BASE_URL}。`
+              ? storageSummary?.error
+                ? ` 当前 R2 配置存在问题：${storageSummary.error}`
+                : ` 图片上传会直传到 R2 bucket「${storageSummary?.bucket}」，公开地址走 ${storageSummary?.publicBaseUrl}。`
               : " 图片上传仍未启用真实对象存储。"}
           </p>
         </div>

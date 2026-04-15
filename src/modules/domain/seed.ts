@@ -235,6 +235,7 @@ export const demoSeedState: ContentState = {
       id: "lineup-1",
       eventId: "event-spring-gala",
       talentId: "talent-qingluan",
+      lineupDate: "2026-05-01T12:00:00.000Z",
       status: "confirmed",
       source: "主办官宣",
       note: "主视觉第一轮海报已出现"
@@ -243,6 +244,7 @@ export const demoSeedState: ContentState = {
       id: "lineup-2",
       eventId: "event-spring-gala",
       talentId: "talent-zhaoying",
+      lineupDate: "2026-05-02T12:00:00.000Z",
       status: "pending",
       source: "达人直播口风",
       note: "待主办二宣"
@@ -251,6 +253,7 @@ export const demoSeedState: ContentState = {
       id: "lineup-3",
       eventId: "event-echo-market",
       talentId: "talent-yunmo",
+      lineupDate: "2026-04-19T12:00:00.000Z",
       status: "confirmed",
       source: "主办嘉宾名单",
       note: "签售时段待补"
@@ -259,6 +262,7 @@ export const demoSeedState: ContentState = {
       id: "lineup-4",
       eventId: "event-echo-market",
       talentId: "talent-yanjin",
+      lineupDate: "2026-04-20T12:00:00.000Z",
       status: "confirmed",
       source: "工作室行程表",
       note: "预计双日均在"
@@ -267,6 +271,7 @@ export const demoSeedState: ContentState = {
       id: "lineup-5",
       eventId: "event-mist-lantern",
       talentId: "talent-qingluan",
+      lineupDate: "2026-03-22T12:00:00.000Z",
       status: "confirmed",
       source: "已结束活动",
       note: "现场返图已归档"
@@ -275,6 +280,7 @@ export const demoSeedState: ContentState = {
       id: "lineup-6",
       eventId: "event-mist-lantern",
       talentId: "talent-yanjin",
+      lineupDate: "2026-03-22T12:00:00.000Z",
       status: "confirmed",
       source: "已结束活动",
       note: "舞台返场一次"

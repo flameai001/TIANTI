@@ -61,6 +61,52 @@ describe("admin mutations", () => {
     expect(saved.endsAt).toBeNull();
   });
 
+  it("requires lineup dates for multi-day events", async () => {
+    await expect(
+      saveEvent({
+        name: "Two Day Event",
+        startsAt: "2026-06-01",
+        endsAt: "2026-06-02",
+        city: "",
+        venue: "",
+        status: "future",
+        note: "",
+        lineups: [
+          {
+            talentId: "talent-qingluan",
+            lineupDate: null,
+            status: "confirmed",
+            source: "",
+            note: ""
+          }
+        ]
+      })
+    ).rejects.toThrow("多日活动的每条达人阵容都必须选择所属日期。");
+  });
+
+  it("rejects lineup dates outside the event range", async () => {
+    await expect(
+      saveEvent({
+        name: "Two Day Event",
+        startsAt: "2026-06-01",
+        endsAt: "2026-06-02",
+        city: "",
+        venue: "",
+        status: "future",
+        note: "",
+        lineups: [
+          {
+            talentId: "talent-qingluan",
+            lineupDate: "2026-06-05",
+            status: "confirmed",
+            source: "",
+            note: ""
+          }
+        ]
+      })
+    ).rejects.toThrow("达人阵容的所属日期必须落在活动开始和结束日期之间。");
+  });
+
   it("bulk adds tags to selected talents", async () => {
     const result = await saveTalentBulk({
       action: "add_tags",

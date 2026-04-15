@@ -79,21 +79,30 @@ export default async function EventDetailPage({ params }: { params: Params }) {
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Lineup</p>
             <h2 className="text-3xl text-white">同场阵容达人</h2>
           </div>
-          {detail.lineups.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {detail.lineups.map((item) => (
-                <Link
-                  key={item.lineup.id}
-                  href={`/talents/${item.talent.slug}`}
-                  className="rounded-[1.3rem] border border-white/10 bg-black/20 p-4 transition hover:border-white/20"
-                >
-                  <p className="text-lg text-white">{item.talent.nickname}</p>
-                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
-                    {item.lineup.status === "confirmed" ? "已确认" : "待确认"}
-                  </p>
-                  {item.lineup.source ? <p className="mt-3 text-sm text-white/65">{item.lineup.source}</p> : null}
-                  {item.lineup.note ? <p className="mt-2 text-sm text-white/52">{item.lineup.note}</p> : null}
-                </Link>
+          {detail.lineupGroups.length > 0 ? (
+            <div className="space-y-5">
+              {detail.lineupGroups.map((group) => (
+                <div key={group.date ?? "single"} className="space-y-3">
+                  {group.label ? (
+                    <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-accent)]">{group.label}</p>
+                  ) : null}
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.lineup.id}
+                        href={`/talents/${item.talent.slug}`}
+                        className="rounded-[1.3rem] border border-white/10 bg-black/20 p-4 transition hover:border-white/20"
+                      >
+                        <p className="text-lg text-white">{item.talent.nickname}</p>
+                        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
+                          {item.lineup.status === "confirmed" ? "已确认" : "待确认"}
+                        </p>
+                        {item.lineup.source ? <p className="mt-3 text-sm text-white/65">{item.lineup.source}</p> : null}
+                        {item.lineup.note ? <p className="mt-2 text-sm text-white/52">{item.lineup.note}</p> : null}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           ) : (

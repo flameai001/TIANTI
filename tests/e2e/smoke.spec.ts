@@ -85,6 +85,42 @@ test("editor can create a talent with inline uploads and publish a future event"
   await expect(page.getByRole("link", { name: /Starlight Expo/ }).first()).toBeVisible();
 });
 
+test("multi-day event lineups are grouped by date in admin, list cards, and detail pages", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/archives");
+  await page.getByTestId("new-event-button").click();
+  await page.locator('input[name="name"]').fill("Weekend Expo");
+  await page.locator('input[name="startsAt"]').fill("2026-06-01");
+  await page.locator('input[name="endsAt"]').fill("2026-06-02");
+  await page.locator('input[name="city"]').fill("上海");
+  await page.locator('input[name="venue"]').fill("Harbor Hall");
+  await page.getByTestId("add-lineup").click();
+  await page.getByTestId("lineup-talent-0").selectOption({ label: "青鸾" });
+  await page.getByTestId("lineup-date-0").selectOption("2026-06-01");
+  await page.getByTestId("lineup-source-0").fill("Day 1 source");
+  await page.getByTestId("lineup-note-0").fill("Day 1 note");
+  await page.getByTestId("add-lineup").click();
+  await page.getByTestId("lineup-talent-1").selectOption({ label: "雁锦" });
+  await page.getByTestId("lineup-date-1").selectOption("2026-06-02");
+  await page.getByTestId("lineup-source-1").fill("Day 2 source");
+  await page.getByTestId("lineup-note-1").fill("Day 2 note");
+  await page.getByTestId("save-event").click();
+
+  await page.goto("/events?eventStatus=future&q=Weekend%20Expo");
+  await expect(page.getByText("Weekend Expo")).toBeVisible();
+  await expect(page.getByText("2026.06.01").last()).toBeVisible();
+  await expect(page.getByText("2026.06.02")).toBeVisible();
+  await expect(page.getByText("Day 1 source")).toHaveCount(0);
+  await expect(page.getByText("Day 2 note")).toHaveCount(0);
+
+  await page.goto("/events/weekend-expo");
+  await expect(page.getByText("2026.06.01").last()).toBeVisible();
+  await expect(page.getByText("2026.06.02")).toBeVisible();
+  await expect(page.getByText("Day 1 source")).toBeVisible();
+  await expect(page.getByText("Day 2 note")).toBeVisible();
+});
+
 test("editor can upload archive assets inline and shared-photo card toggles on the public page", async ({ page }) => {
   await login(page);
 
@@ -112,6 +148,24 @@ test("editor can upload archive assets inline and shared-photo card toggles on t
   await sharedButton.click();
   await expect.poll(async () => sharedImage.evaluate((node) => getComputedStyle(node).opacity)).toBe("0");
   await publicPage.close();
+});
+
+test("inline upload surfaces clear backend error messages", async ({ page }) => {
+  await login(page);
+
+  await page.route("**/api/admin/assets", async (route) => {
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "R2 存储配置错误：缺少 R2_PUBLIC_BASE_URL。"
+      })
+    });
+  });
+
+  await page.goto("/admin/talents");
+  await page.getByTestId("talent-cover-upload").setInputFiles(sceneUploadPath);
+  await expect(page.getByText("R2 存储配置错误：缺少 R2_PUBLIC_BASE_URL。")).toBeVisible();
 });
 
 test("public filters apply automatically without a filter button", async ({ page }) => {

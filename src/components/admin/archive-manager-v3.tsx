@@ -14,7 +14,7 @@ import {
   type EditableEvent,
   type EditableLineup
 } from "@/components/admin/archive-manager-utils";
-import { getDateSortTime } from "@/lib/date";
+import { formatDateKey, getDateRangeDays, getDateSortTime, isMultiDayRange, toDateOnlyIso } from "@/lib/date";
 import type { BulkActionResult } from "@/modules/admin/types";
 import type { Asset, EditorArchive, Event, EventLineup, Talent } from "@/modules/domain/types";
 
@@ -44,10 +44,11 @@ function sortEventsForManager(value: Event[]) {
   });
 }
 
-function createEditableLineup(talentId = ""): EditableLineup {
+function createEditableLineup(talentId = "", lineupDate = ""): EditableLineup {
   return {
     id: crypto.randomUUID(),
     talentId,
+    lineupDate,
     status: "confirmed",
     source: "",
     note: ""
@@ -84,8 +85,20 @@ function buildBulkSummary(result: BulkActionResult, label: string) {
   return `${label} ${result.succeededIds.length} 项${blocked}`;
 }
 
-function validateEventDraft(eventDraft: EditableEvent) {
+function validateEventDraft(eventDraft: EditableEvent, editableLineups: EditableLineup[]) {
   if (!eventDraft.name.trim()) return "请先填写活动名称。";
+
+  const validDateKeys = new Set(getDateRangeDays(eventDraft.startsAt, eventDraft.endsAt));
+  if (isMultiDayRange(eventDraft.startsAt, eventDraft.endsAt)) {
+    for (const lineup of editableLineups) {
+      if (!lineup.talentId) continue;
+      if (!lineup.lineupDate) return "多日活动的每条达人阵容都必须选择所属日期。";
+      if (!validDateKeys.has(lineup.lineupDate)) {
+        return "达人阵容的所属日期必须落在活动开始和结束日期之间。";
+      }
+    }
+  }
+
   return null;
 }
 
@@ -100,6 +113,47 @@ function validateArchiveDraft(archiveDraft: EditorArchive) {
   }
 
   return null;
+}
+
+function buildEditableLineupGroups(lineups: EditableLineup[], dateOptions: string[], isMultiDayEvent: boolean) {
+  if (!isMultiDayEvent) {
+    return [
+      {
+        key: "single",
+        label: null,
+        items: lineups.map((lineup, index) => ({ lineup, index }))
+      }
+    ];
+  }
+
+  const groups = dateOptions.map((date) => ({
+    key: date,
+    label: formatDateKey(date),
+    items: [] as Array<{ lineup: EditableLineup; index: number }>
+  }));
+  const groupMap = new Map(groups.map((group) => [group.key, group]));
+  const undatedItems: Array<{ lineup: EditableLineup; index: number }> = [];
+
+  lineups.forEach((lineup, index) => {
+    const group = lineup.lineupDate ? groupMap.get(lineup.lineupDate) : null;
+    if (!group) {
+      undatedItems.push({ lineup, index });
+      return;
+    }
+
+    group.items.push({ lineup, index });
+  });
+
+  return undatedItems.length > 0
+    ? [
+        ...groups,
+        {
+          key: "undated",
+          label: "未分配日期",
+          items: undatedItems
+        }
+      ]
+    : groups;
 }
 
 export function ArchiveManager({
@@ -130,7 +184,7 @@ export function ArchiveManager({
     createEventDraft(initialEvents.find((event) => event.id === initialEventId) ?? null)
   );
   const [editableLineups, setEditableLineups] = useState<EditableLineup[]>(() =>
-    createLineupDrafts(initialEventId, lineups)
+    createLineupDrafts(initialEvents.find((event) => event.id === initialEventId) ?? null, lineups)
   );
   const [archiveDraft, setArchiveDraft] = useState<EditorArchive>(() =>
     createArchiveDraft(initialEventId, archives)
@@ -149,12 +203,24 @@ export function ArchiveManager({
   const selectedEvent = liveEvents.find((event) => event.id === selectedEventId) ?? null;
   const persistedEventDraft = useMemo(() => createEventDraft(selectedEvent), [selectedEvent]);
   const persistedLineups = useMemo(
-    () => createLineupDrafts(selectedEventId, liveLineups),
-    [liveLineups, selectedEventId]
+    () => createLineupDrafts(selectedEvent, liveLineups),
+    [liveLineups, selectedEvent]
   );
   const persistedArchive = useMemo(
     () => createArchiveDraft(selectedEventId, liveArchives),
     [liveArchives, selectedEventId]
+  );
+  const lineupDateOptions = useMemo(
+    () => getDateRangeDays(eventDraft.startsAt, eventDraft.endsAt),
+    [eventDraft.endsAt, eventDraft.startsAt]
+  );
+  const isMultiDayEvent = useMemo(
+    () => isMultiDayRange(eventDraft.startsAt, eventDraft.endsAt),
+    [eventDraft.endsAt, eventDraft.startsAt]
+  );
+  const editableLineupGroups = useMemo(
+    () => buildEditableLineupGroups(editableLineups, lineupDateOptions, isMultiDayEvent),
+    [editableLineups, isMultiDayEvent, lineupDateOptions]
   );
   const sceneAssets = useMemo(() => liveAssets.filter((asset) => asset.kind === "event_scene"), [liveAssets]);
   const sharedAssets = useMemo(() => liveAssets.filter((asset) => asset.kind === "shared_photo"), [liveAssets]);
@@ -170,6 +236,7 @@ export function ArchiveManager({
     const usedTalentIds = new Set(editableLineups.map((lineup) => lineup.talentId));
     return talents.find((talent) => !usedTalentIds.has(talent.id))?.id ?? talents[0]?.id ?? "";
   }, [editableLineups, talents]);
+  const defaultLineupDate = lineupDateOptions[0] ?? "";
   const defaultSceneAssetId = sceneAssets[0]?.id ?? "";
   const areAllFilteredEventsSelected =
     filteredEvents.length > 0 && filteredEvents.every((event) => selectedEventIds.includes(event.id));
@@ -192,9 +259,10 @@ export function ArchiveManager({
     nextLineups = liveLineups,
     nextArchives = liveArchives
   ) {
+    const nextSelectedEvent = nextEvents.find((event) => event.id === nextEventId) ?? null;
     setSelectedEventId(nextEventId);
-    setEventDraft(createEventDraft(nextEvents.find((event) => event.id === nextEventId) ?? null));
-    setEditableLineups(createLineupDrafts(nextEventId, nextLineups));
+    setEventDraft(createEventDraft(nextSelectedEvent));
+    setEditableLineups(createLineupDrafts(nextSelectedEvent, nextLineups));
     setArchiveDraft(createArchiveDraft(nextEventId, nextArchives));
     updateBrowserSelection(nextEventId);
   }
@@ -237,7 +305,7 @@ export function ArchiveManager({
   }
 
   async function handleSaveEvent() {
-    const validationError = validateEventDraft(eventDraft);
+    const validationError = validateEventDraft(eventDraft, editableLineups);
     if (validationError) {
       setMessage(validationError);
       return;
@@ -280,7 +348,11 @@ export function ArchiveManager({
         ...liveLineups.filter((lineup) => lineup.eventId !== nextEventId),
         ...editableLineups
           .filter((lineup) => lineup.talentId)
-          .map((lineup) => ({ ...lineup, eventId: nextEventId }))
+          .map((lineup) => ({
+            ...lineup,
+            eventId: nextEventId,
+            lineupDate: toDateOnlyIso(lineup.lineupDate) ?? null
+          }))
       ];
 
       setLiveEvents(nextEvents);
@@ -732,74 +804,131 @@ export function ArchiveManager({
               className="w-full rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
             />
             <div className="space-y-4 rounded-[1.5rem] border border-white/10 bg-black/15 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg text-white">达人阵容</h3>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg text-white">达人阵容</h3>
+                  <p className="mt-2 text-xs leading-6 text-white/45">
+                    {isMultiDayEvent
+                      ? "当前活动跨多天，阵容会按日期分组；每条达人阵容都需要选择所属日期。"
+                      : "单日活动保持轻量录入体验，阵容不额外按日期拆分。"}
+                  </p>
+                </div>
                 <button
                   type="button"
                   data-testid="add-lineup"
                   onClick={() =>
-                    setEditableLineups((current) => [...current, createEditableLineup(defaultLineupTalentId)])
+                    setEditableLineups((current) => [
+                      ...current,
+                      createEditableLineup(defaultLineupTalentId, defaultLineupDate)
+                    ])
                   }
                   className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70"
                 >
                   + 添加达人
                 </button>
               </div>
-              <div className="space-y-3">
-                {editableLineups.map((lineup, index) => (
-                  <div
-                    key={lineup.id}
-                    data-testid="lineup-item"
-                    className="grid gap-3 rounded-[1.2rem] border border-white/8 p-4 md:grid-cols-[1fr_0.8fr_0.8fr_auto]"
-                  >
-                    <select
-                      data-testid={`lineup-talent-${index}`}
-                      value={lineup.talentId}
-                      onChange={(event) => updateLineup(index, { talentId: event.target.value })}
-                      className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                    >
-                      <option value="">暂不选择达人</option>
-                      {talents.map((talent) => (
-                        <option key={talent.id} value={talent.id}>
-                          {talent.nickname}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      data-testid={`lineup-status-${index}`}
-                      value={lineup.status}
-                      onChange={(event) =>
-                        updateLineup(index, { status: event.target.value as EditableLineup["status"] })
-                      }
-                      className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                    >
-                      <option value="confirmed">已确认</option>
-                      <option value="pending">待确认</option>
-                    </select>
-                    <input
-                      data-testid={`lineup-source-${index}`}
-                      value={lineup.source}
-                      onChange={(event) => updateLineup(index, { source: event.target.value })}
-                      placeholder="信息来源"
-                      className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setEditableLineups((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                      }
-                      className="rounded-[1rem] border border-red-300/30 px-3 py-2 text-sm text-red-200"
-                    >
-                      删除
-                    </button>
-                    <textarea
-                      data-testid={`lineup-note-${index}`}
-                      value={lineup.note}
-                      onChange={(event) => updateLineup(index, { note: event.target.value })}
-                      rows={2}
-                      placeholder="补充备注"
-                      className="md:col-span-4 rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                    />
+
+              {editableLineups.length === 0 ? (
+                <div className="rounded-[1.2rem] border border-dashed border-white/10 px-4 py-5 text-sm text-white/55">
+                  还没有阵容达人，可以先添加一位。
+                </div>
+              ) : null}
+
+              <div className="space-y-4">
+                {editableLineupGroups.map((group) => (
+                  <div key={group.key} className="space-y-3">
+                    {group.label ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-accent)]">
+                          {group.label}
+                        </p>
+                        <span className="text-xs text-white/45">{group.items.length} 位达人</span>
+                      </div>
+                    ) : null}
+
+                    {group.items.length === 0 ? (
+                      <div className="rounded-[1.2rem] border border-dashed border-white/10 px-4 py-5 text-sm text-white/52">
+                        本日还没有阵容达人。
+                      </div>
+                    ) : null}
+
+                    {group.items.map(({ lineup, index }) => (
+                      <div
+                        key={lineup.id}
+                        data-testid="lineup-item"
+                        className={`grid gap-3 rounded-[1.2rem] border border-white/8 p-4 ${
+                          isMultiDayEvent
+                            ? "xl:grid-cols-[1fr_0.9fr_0.9fr_1fr_auto]"
+                            : "md:grid-cols-[1fr_0.8fr_0.8fr_auto]"
+                        }`}
+                      >
+                        <select
+                          data-testid={`lineup-talent-${index}`}
+                          value={lineup.talentId}
+                          onChange={(event) => updateLineup(index, { talentId: event.target.value })}
+                          className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                        >
+                          <option value="">暂不选择达人</option>
+                          {talents.map((talent) => (
+                            <option key={talent.id} value={talent.id}>
+                              {talent.nickname}
+                            </option>
+                          ))}
+                        </select>
+                        {isMultiDayEvent ? (
+                          <select
+                            data-testid={`lineup-date-${index}`}
+                            value={lineup.lineupDate}
+                            onChange={(event) => updateLineup(index, { lineupDate: event.target.value })}
+                            className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                          >
+                            <option value="">选择日期</option>
+                            {lineupDateOptions.map((date) => (
+                              <option key={date} value={date}>
+                                {formatDateKey(date)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                        <select
+                          data-testid={`lineup-status-${index}`}
+                          value={lineup.status}
+                          onChange={(event) =>
+                            updateLineup(index, { status: event.target.value as EditableLineup["status"] })
+                          }
+                          className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                        >
+                          <option value="confirmed">已确认</option>
+                          <option value="pending">待确认</option>
+                        </select>
+                        <input
+                          data-testid={`lineup-source-${index}`}
+                          value={lineup.source}
+                          onChange={(event) => updateLineup(index, { source: event.target.value })}
+                          placeholder="信息来源"
+                          className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditableLineups((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                          }
+                          className="rounded-[1rem] border border-red-300/30 px-3 py-2 text-sm text-red-200"
+                        >
+                          删除
+                        </button>
+                        <textarea
+                          data-testid={`lineup-note-${index}`}
+                          value={lineup.note}
+                          onChange={(event) => updateLineup(index, { note: event.target.value })}
+                          rows={2}
+                          placeholder="补充备注"
+                          className={`rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none ${
+                            isMultiDayEvent ? "xl:col-span-5" : "md:col-span-4"
+                          }`}
+                        />
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>

@@ -15,6 +15,10 @@ export function formatDate(date?: string | Date | null, pattern = "yyyy.MM.dd") 
   return format(value, pattern, { locale: zhCN });
 }
 
+export function formatDateKey(value?: string | null, pattern = "yyyy.MM.dd") {
+  return formatDate(toDateOnlyIso(value ?? "") ?? null, pattern);
+}
+
 export function formatDateRange(startsAt?: string | Date | null, endsAt?: string | Date | null) {
   const start = toDate(startsAt);
   const end = toDate(endsAt);
@@ -43,6 +47,11 @@ export function toDateInputValue(value?: string | null) {
   return date ? format(date, "yyyy-MM-dd") : "";
 }
 
+export function getDateOnlyKey(value?: string | Date | null) {
+  const date = toDate(value);
+  return date ? format(date, "yyyy-MM-dd") : null;
+}
+
 export function toDateOnlyIso(value?: string | null) {
   if (!value) return null;
 
@@ -63,4 +72,66 @@ export function toDateOnlyIso(value?: string | null) {
 export function getDateSortTime(value?: string | Date | null) {
   const date = toDate(value);
   return date ? date.getTime() : null;
+}
+
+function parseDateKey(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  if ([year, month, day].some((part) => Number.isNaN(part))) {
+    return null;
+  }
+
+  return { year, month, day };
+}
+
+function createUtcDateFromKey(value: string) {
+  const parts = parseDateKey(value);
+  if (!parts) {
+    return null;
+  }
+
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0));
+}
+
+export function isSameDateOnly(left?: string | Date | null, right?: string | Date | null) {
+  return getDateOnlyKey(left) === getDateOnlyKey(right);
+}
+
+export function isMultiDayRange(startsAt?: string | Date | null, endsAt?: string | Date | null) {
+  const start = getDateOnlyKey(startsAt);
+  const end = getDateOnlyKey(endsAt);
+  return Boolean(start && end && start !== end);
+}
+
+export function getDateRangeDays(startsAt?: string | Date | null, endsAt?: string | Date | null) {
+  const startKey = getDateOnlyKey(startsAt);
+  const endKey = getDateOnlyKey(endsAt);
+
+  if (!startKey || !endKey) {
+    return [];
+  }
+
+  const startDate = createUtcDateFromKey(startKey);
+  const endDate = createUtcDateFromKey(endKey);
+  if (!startDate || !endDate) {
+    return [];
+  }
+
+  const startTime = startDate.getTime();
+  const endTime = endDate.getTime();
+  const [rangeStart, rangeEnd] = startTime <= endTime ? [startDate, endDate] : [endDate, startDate];
+  const dates: string[] = [];
+
+  for (let cursor = new Date(rangeStart); cursor.getTime() <= rangeEnd.getTime(); cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+    dates.push(format(cursor, "yyyy-MM-dd"));
+  }
+
+  return dates;
 }

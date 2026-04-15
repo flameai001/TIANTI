@@ -29,6 +29,18 @@ function getImageDimensions(file: File) {
   });
 }
 
+function getUploadErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message === "Failed to fetch") {
+      return "上传请求失败，请检查网络连接或 R2 存储配置。";
+    }
+
+    return error.message;
+  }
+
+  return "上传失败。";
+}
+
 export function InlineAssetUpload({
   kind,
   onUploaded,
@@ -40,6 +52,10 @@ export function InlineAssetUpload({
 
   async function handleChange(file: File | null) {
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setMessage("请选择可识别的图片文件。");
+      return;
+    }
 
     setPending(true);
     setMessage(null);
@@ -61,6 +77,10 @@ export function InlineAssetUpload({
       });
       const data = (await response.json().catch(() => null)) as { error?: string; asset?: Asset } | null;
 
+      if (response.status === 401) {
+        throw new Error("登录已失效，请重新登录后再上传。");
+      }
+
       if (!response.ok || !data?.asset) {
         throw new Error(data?.error ?? "上传失败。");
       }
@@ -68,7 +88,7 @@ export function InlineAssetUpload({
       onUploaded(data.asset);
       setMessage(`已上传 ${data.asset.title}`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "上传失败。");
+      setMessage(getUploadErrorMessage(error));
     } finally {
       setPending(false);
     }

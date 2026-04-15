@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getDateSortTime, toDateOnlyIso } from "@/lib/date";
+import { formatDateKey, getDateOnlyKey, getDateRangeDays, getDateSortTime, isMultiDayRange, toDateOnlyIso } from "@/lib/date";
 import { compareByPinyin } from "@/lib/pinyin";
 import type {
   ArchiveEntry,
@@ -215,23 +215,115 @@ function getEventRelevanceScore(state: ContentState, event: Event, terms: string
   );
 }
 
-function buildEventSummary(state: ContentState, event: Event, relevanceScore?: number): EventSummary {
+function getResolvedLineupDate(event: Event, lineupDate?: string | null) {
+  return lineupDate ?? event.startsAt ?? event.endsAt ?? null;
+}
+
+function buildResolvedEventLineups(state: ContentState, event: Event) {
   const assetMap = byId(state.assets);
   const talentMap = byId(state.talents);
-  const lineups = state.lineups
+
+  return state.lineups
     .filter((lineup) => lineup.eventId === event.id)
-    .map((lineup) => {
-      const talent = talentMap.get(lineup.talentId)!;
+    .map((lineup, index) => {
+      const talent = talentMap.get(lineup.talentId);
+      if (!talent) {
+        return null;
+      }
+
       return {
-        lineup,
+        index,
+        lineup: {
+          ...lineup,
+          lineupDate: getResolvedLineupDate(event, lineup.lineupDate)
+        },
         talent,
         cover: talent.coverAssetId ? assetMap.get(talent.coverAssetId) ?? null : null
       };
-    });
+    })
+    .filter(
+      (
+        item
+      ): item is {
+        index: number;
+        lineup: ContentState["lineups"][number] & { lineupDate: string | null };
+        talent: Talent;
+        cover: ContentState["assets"][number] | null;
+      } => Boolean(item)
+    )
+    .sort((left, right) => {
+      const leftTime = getDateSortTime(left.lineup.lineupDate);
+      const rightTime = getDateSortTime(right.lineup.lineupDate);
+
+      if (leftTime === null && rightTime === null) {
+        return left.index - right.index;
+      }
+
+      if (leftTime === null) return 1;
+      if (rightTime === null) return -1;
+      return leftTime - rightTime || left.index - right.index;
+    })
+    .map((item) => ({
+      lineup: item.lineup,
+      talent: item.talent,
+      cover: item.cover
+    }));
+}
+
+function buildLineupGroups(event: Event, lineups: ReturnType<typeof buildResolvedEventLineups>) {
+  if (lineups.length === 0) {
+    return [];
+  }
+
+  if (!isMultiDayRange(event.startsAt, event.endsAt)) {
+    return [
+      {
+        date: null,
+        label: null,
+        items: lineups
+      }
+    ];
+  }
+
+  const grouped = new Map<string, (typeof lineups)[number][]>();
+  const orderedDates = getDateRangeDays(event.startsAt, event.endsAt);
+
+  for (const date of orderedDates) {
+    grouped.set(date, []);
+  }
+
+  for (const item of lineups) {
+    const fallbackDate = orderedDates[0] ?? getDateOnlyKey(item.lineup.lineupDate);
+    const dateKey = getDateOnlyKey(item.lineup.lineupDate) ?? fallbackDate;
+    if (!dateKey) {
+      continue;
+    }
+
+    const bucket = grouped.get(dateKey);
+    if (bucket) {
+      bucket.push(item);
+      continue;
+    }
+
+    grouped.set(dateKey, [item]);
+  }
+
+  return [...grouped.entries()]
+    .filter(([, items]) => items.length > 0)
+    .map(([date, items]) => ({
+      date,
+      label: formatDateKey(date),
+      items
+    }));
+}
+
+function buildEventSummary(state: ContentState, event: Event, relevanceScore?: number): EventSummary {
+  const lineups = buildResolvedEventLineups(state, event);
 
   return {
     event,
     lineups,
+    lineupGroups: buildLineupGroups(event, lineups),
     lineupSize: lineups.length,
     relevanceScore
   };
@@ -527,7 +619,8 @@ export function getEventDetail(state: ContentState, slug: string) {
   const assetMap = byId(state.assets);
   const talentMap = byId(state.talents);
   const editorMap = byId(state.editors);
-  const lineups = buildEventSummary(state, event).lineups;
+  const eventSummary = buildEventSummary(state, event);
+  const { lineups, lineupGroups } = eventSummary;
   const lineupTalentIds = lineups.map((item) => item.talent.id);
 
   const relatedEvents = state.events
@@ -558,6 +651,7 @@ export function getEventDetail(state: ContentState, slug: string) {
   return {
     event,
     lineups,
+    lineupGroups,
     archives: state.archives
       .filter((archive) => archive.eventId === event.id)
       .map((archive) => ({

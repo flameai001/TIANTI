@@ -2,16 +2,17 @@ import "server-only";
 
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { appEnv, isMockStorageMode } from "@/lib/env";
+import { getR2StorageConfig, isMockStorageMode } from "@/lib/env";
 
 function getR2Client() {
+  const config = getR2StorageConfig();
   return new S3Client({
     region: "auto",
-    endpoint: appEnv.R2_ENDPOINT,
+    endpoint: config.endpoint,
     forcePathStyle: true,
     credentials: {
-      accessKeyId: appEnv.R2_ACCESS_KEY_ID!,
-      secretAccessKey: appEnv.R2_SECRET_ACCESS_KEY!
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey
     }
   });
 }
@@ -30,9 +31,10 @@ export async function createUploadSignature(fileName: string, contentType: strin
     };
   }
 
+  const config = getR2StorageConfig();
   const objectKey = buildObjectKey(fileName);
   const command = new PutObjectCommand({
-    Bucket: appEnv.R2_BUCKET,
+    Bucket: config.bucket,
     Key: objectKey,
     ContentType: contentType
   });
@@ -40,7 +42,7 @@ export async function createUploadSignature(fileName: string, contentType: strin
   return {
     mode: "r2" as const,
     uploadUrl: await getSignedUrl(getR2Client(), command, { expiresIn: 60 * 5 }),
-    publicUrl: `${appEnv.R2_PUBLIC_BASE_URL}/${objectKey}`
+    publicUrl: `${config.publicBaseUrl}/${objectKey}`
   };
 }
 
@@ -49,18 +51,25 @@ export async function uploadObjectToR2(fileName: string, contentType: string, bo
     throw new Error("当前环境还没有启用真实对象存储。");
   }
 
+  const config = getR2StorageConfig();
   const objectKey = buildObjectKey(fileName);
-  await getR2Client().send(
-    new PutObjectCommand({
-      Bucket: appEnv.R2_BUCKET,
-      Key: objectKey,
-      ContentType: contentType,
-      Body: body
-    })
-  );
+  try {
+    await getR2Client().send(
+      new PutObjectCommand({
+        Bucket: config.bucket,
+        Key: objectKey,
+        ContentType: contentType,
+        Body: body
+      })
+    );
+  } catch (error) {
+    throw new Error(
+      `R2 上传失败：${error instanceof Error && error.message ? error.message : "请检查 Bucket、Endpoint 和密钥配置。"}`
+    );
+  }
 
   return {
     objectKey,
-    publicUrl: `${appEnv.R2_PUBLIC_BASE_URL}/${objectKey}`
+    publicUrl: `${config.publicBaseUrl}/${objectKey}`
   };
 }

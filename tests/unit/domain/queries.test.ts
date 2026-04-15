@@ -30,6 +30,52 @@ describe("domain queries", () => {
     expect(detail?.archives[0]?.entries[0]?.sceneAsset.url).toContain("/media/");
   });
 
+  it("groups multi-day lineups in ascending date order and backfills missing lineup dates", () => {
+    const state = structuredClone(demoSeedState);
+    state.events.push({
+      id: "event-grouped",
+      slug: "event-grouped",
+      name: "Grouped Event",
+      aliases: [],
+      searchKeywords: [],
+      startsAt: "2026-06-01T12:00:00.000Z",
+      endsAt: "2026-06-02T12:00:00.000Z",
+      city: "",
+      venue: "",
+      status: "future",
+      note: "",
+      updatedAt: "2026-04-11T00:00:00.000Z"
+    });
+    state.lineups.push(
+      {
+        id: "lineup-grouped-2",
+        eventId: "event-grouped",
+        talentId: "talent-yanjin",
+        lineupDate: "2026-06-02T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: ""
+      },
+      {
+        id: "lineup-grouped-1",
+        eventId: "event-grouped",
+        talentId: "talent-qingluan",
+        lineupDate: null,
+        status: "confirmed",
+        source: "",
+        note: ""
+      }
+    );
+
+    const summary = listEventSummaries(state, { query: "Grouped Event" })[0];
+    const detail = getEventDetail(state, "event-grouped");
+
+    expect(summary?.lineupGroups.map((group) => group.date)).toEqual(["2026-06-01", "2026-06-02"]);
+    expect(summary?.lineupGroups[0]?.items[0]?.talent.id).toBe("talent-qingluan");
+    expect(detail?.lineupGroups.map((group) => group.date)).toEqual(["2026-06-01", "2026-06-02"]);
+    expect(detail?.lineups[0]?.lineup.lineupDate).toBe("2026-06-01T12:00:00.000Z");
+  });
+
   it("matches talent aliases in relevance search", () => {
     const results = listTalents(demoSeedState, { query: "Qingluan", sort: "relevance" });
     expect(results[0]?.slug).toBe("qingluan");

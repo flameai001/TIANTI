@@ -203,7 +203,12 @@ async function main() {
       updatedAt: new Date(event.updatedAt)
     }))
   );
-  await db.insert(eventLineup).values(state.lineups);
+  await db.insert(eventLineup).values(
+    state.lineups.map((lineup) => ({
+      ...lineup,
+      lineupDate: lineup.lineupDate ? new Date(lineup.lineupDate) : null
+    }))
+  );
   await db.insert(ladders).values(
     state.ladders.map((ladder) => ({
       id: ladder.id,

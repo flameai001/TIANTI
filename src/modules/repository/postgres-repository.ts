@@ -62,6 +62,10 @@ async function loadState(): Promise<ContentState> {
     db.select().from(archiveEntries)
   ]);
 
+  const fallbackLineupDateByEventId = new Map(
+    eventRows.map((row) => [row.id, row.startsAt ?? row.endsAt ?? null])
+  );
+
   return {
     editors: editorRows.map((row) => ({
       id: row.id,
@@ -138,6 +142,7 @@ async function loadState(): Promise<ContentState> {
       id: row.id,
       eventId: row.eventId,
       talentId: row.talentId,
+      lineupDate: (row.lineupDate ?? fallbackLineupDateByEventId.get(row.eventId) ?? null)?.toISOString() ?? null,
       status: row.status as ContentState["lineups"][number]["status"],
       source: row.source,
       note: row.note
@@ -365,7 +370,12 @@ export const postgresRepository: ContentRepository = {
     const db = getDb();
     await db.delete(eventLineup).where(eq(eventLineup.eventId, eventId));
     if (nextLineups.length > 0) {
-      await db.insert(eventLineup).values(nextLineups);
+      await db.insert(eventLineup).values(
+        nextLineups.map((lineup) => ({
+          ...lineup,
+          lineupDate: lineup.lineupDate ? new Date(lineup.lineupDate) : null
+        }))
+      );
     }
   },
   async deleteEvent(id) {
