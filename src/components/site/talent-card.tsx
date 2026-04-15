@@ -8,7 +8,7 @@ export function TalentCard({ talent }: { talent: TalentSummary }) {
       href={`/talents/${talent.slug}`}
       className="group overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-white/20"
     >
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[3/4] overflow-hidden">
         {talent.cover ? (
           <>
             <Image
