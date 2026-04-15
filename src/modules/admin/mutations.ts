@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { toDateOnlyIso } from "@/lib/date";
 import { slugify } from "@/lib/slug";
 import type { Talent } from "@/modules/domain/types";
 import type {
@@ -16,15 +17,21 @@ const talentSchema = z.object({
   id: z.string().optional(),
   nickname: z.string().min(1),
   slug: z.string().optional(),
-  bio: z.string().min(1),
-  mcn: z.string().min(1),
-  aliases: z.array(z.string()).default([]),
-  searchKeywords: z.array(z.string()).default([]),
-  coverAssetId: z.string().min(1),
+  bio: z.string().optional().default(""),
+  mcn: z.string().optional().default(""),
+  aliases: z.array(z.string()).optional(),
+  searchKeywords: z.array(z.string()).optional(),
+  coverAssetId: z.string().nullable().optional(),
   tags: z.array(z.string()).default([]),
   links: z.array(z.object({ id: z.string().optional(), label: z.string(), url: z.string().url() })).default([]),
   representations: z
-    .array(z.object({ id: z.string().optional(), title: z.string(), assetId: z.string() }))
+    .array(
+      z.object({
+        id: z.string().optional(),
+        title: z.string().optional().default(""),
+        assetId: z.string().optional().default("")
+      })
+    )
     .default([])
 });
 
@@ -32,22 +39,22 @@ const eventSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1),
   slug: z.string().optional(),
-  aliases: z.array(z.string()).default([]),
-  searchKeywords: z.array(z.string()).default([]),
-  startsAt: z.string().min(1),
+  aliases: z.array(z.string()).optional(),
+  searchKeywords: z.array(z.string()).optional(),
+  startsAt: z.string().nullable().optional(),
   endsAt: z.string().optional().nullable(),
-  city: z.string().min(1),
-  venue: z.string().min(1),
+  city: z.string().optional().default(""),
+  venue: z.string().optional().default(""),
   status: z.enum(["future", "past"]),
-  note: z.string().min(1),
+  note: z.string().optional().default(""),
   lineups: z
     .array(
       z.object({
         id: z.string().optional(),
-        talentId: z.string(),
+        talentId: z.string().nullable().optional(),
         status: z.enum(["confirmed", "pending"]),
-        source: z.string().min(1),
-        note: z.string().min(1)
+        source: z.string().optional().default(""),
+        note: z.string().optional().default("")
       })
     )
     .default([])
@@ -119,7 +126,7 @@ async function ensureUniqueTalentSlug(id: string, slug: string) {
   const duplicate = state.talents.find((talent) => talent.slug === slug && talent.id !== id);
 
   if (duplicate) {
-    throw new Error("该达人 slug 已存在，请修改昵称或手动 slug。");
+    throw new Error("该达人 slug 已存在，请修改昵称。");
   }
 }
 
@@ -129,7 +136,7 @@ async function ensureUniqueEventSlug(id: string, slug: string) {
   const duplicate = state.events.find((event) => event.slug === slug && event.id !== id);
 
   if (duplicate) {
-    throw new Error("该活动 slug 已存在，请修改活动名或手动 slug。");
+    throw new Error("该活动 slug 已存在，请修改活动名称。");
   }
 }
 
@@ -151,31 +158,42 @@ export async function saveAsset(payload: unknown) {
 export async function saveTalent(payload: unknown) {
   const repository = getContentRepository();
   const input = talentSchema.parse(payload);
+  const state = await repository.getState();
   const id = input.id ?? randomUUID();
-  const slug = slugify(input.slug || input.nickname);
+  const nickname = input.nickname.trim();
+  const slug = slugify(input.slug || nickname);
+  const aliases = [...new Set((input.aliases ?? []).map((item) => item.trim()).filter(Boolean))];
+  const searchKeywords = [...new Set([nickname, ...aliases, ...((input.searchKeywords ?? []).map((item) => item.trim()).filter(Boolean))])];
+  const assetTitleMap = new Map(state.assets.map((asset) => [asset.id, asset.title]));
 
   await ensureUniqueTalentSlug(id, slug);
 
   return repository.upsertTalent({
     id,
     slug,
-    nickname: input.nickname,
-    bio: input.bio,
-    mcn: input.mcn,
-    aliases: [...new Set(input.aliases.map((item) => item.trim()).filter(Boolean))],
-    searchKeywords: [...new Set(input.searchKeywords.map((item) => item.trim()).filter(Boolean))],
-    coverAssetId: input.coverAssetId,
+    nickname,
+    bio: input.bio.trim(),
+    mcn: input.mcn.trim(),
+    aliases,
+    searchKeywords,
+    coverAssetId: input.coverAssetId?.trim() || null,
     tags: input.tags as Talent["tags"],
     links: input.links.map((link) => ({
       id: link.id ?? randomUUID(),
       label: link.label,
       url: link.url
     })),
-    representations: input.representations.map((item) => ({
-      id: item.id ?? randomUUID(),
-      title: item.title,
-      assetId: item.assetId
-    })),
+    representations: input.representations
+      .map((item) => ({
+        id: item.id ?? randomUUID(),
+        title: item.title?.trim() ?? "",
+        assetId: item.assetId.trim()
+      }))
+      .filter((item) => item.assetId)
+      .map((item) => ({
+        ...item,
+        title: item.title || assetTitleMap.get(item.assetId) || "未命名代表图"
+      })),
     updatedAt: new Date().toISOString()
   });
 }
@@ -197,50 +215,55 @@ export async function removeTalent(id: string) {
 export async function saveEvent(payload: unknown) {
   const repository = getContentRepository();
   const input = eventSchema.parse(payload);
+  const state = await repository.getState();
   const id = input.id ?? randomUUID();
-  const slug = slugify(input.slug || input.name);
+  const existingEvent = state.events.find((event) => event.id === id) ?? null;
+  const name = input.name.trim();
+  const slug = slugify(input.slug || name);
 
   await ensureUniqueEventSlug(id, slug);
+
+  const aliases =
+    input.aliases === undefined
+      ? (existingEvent?.aliases ?? [])
+      : [...new Set(input.aliases.map((item) => item.trim()).filter(Boolean))];
+  const searchKeywords =
+    input.searchKeywords === undefined
+      ? (existingEvent?.searchKeywords ?? [])
+      : [...new Set(input.searchKeywords.map((item) => item.trim()).filter(Boolean))];
+  const lineups = input.lineups
+    .filter((lineup) => lineup.talentId?.trim())
+    .map((lineup) => ({
+      id: lineup.id ?? randomUUID(),
+      eventId: id,
+      talentId: lineup.talentId!.trim(),
+      status: lineup.status,
+      source: lineup.source.trim(),
+      note: lineup.note.trim()
+    }));
 
   const event = await repository.upsertEvent({
     id,
     slug,
-    name: input.name,
-    aliases: [...new Set(input.aliases.map((item) => item.trim()).filter(Boolean))],
-    searchKeywords: [...new Set(input.searchKeywords.map((item) => item.trim()).filter(Boolean))],
-    startsAt: new Date(input.startsAt).toISOString(),
-    endsAt: input.endsAt ? new Date(input.endsAt).toISOString() : null,
-    city: input.city,
-    venue: input.venue,
+    name,
+    aliases,
+    searchKeywords,
+    startsAt: toDateOnlyIso(input.startsAt?.trim() ?? "") ?? null,
+    endsAt: toDateOnlyIso(input.endsAt?.trim() ?? "") ?? null,
+    city: input.city.trim(),
+    venue: input.venue.trim(),
     status: input.status,
-    note: input.note,
+    note: input.note.trim(),
     updatedAt: new Date().toISOString()
   });
 
-  await repository.replaceEventLineup(
-    id,
-    input.lineups.map((lineup) => ({
-      id: lineup.id ?? randomUUID(),
-      eventId: id,
-      talentId: lineup.talentId,
-      status: lineup.status,
-      source: lineup.source,
-      note: lineup.note
-    }))
-  );
+  await repository.replaceEventLineup(id, lineups);
 
   return event;
 }
 
 export async function removeEvent(id: string) {
   const repository = getContentRepository();
-  const state = await repository.getState();
-  const referenced = state.archives.some((archive) => archive.eventId === id);
-
-  if (referenced) {
-    throw new Error("该活动已有关联档案，无法直接删除。");
-  }
-
   await repository.deleteEvent(id);
 }
 

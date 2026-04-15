@@ -1,7 +1,8 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState, useTransition } from "react";
-import { AssetUploader } from "@/components/admin/asset-uploader";
+import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
+import { InlineAssetUpload } from "@/components/admin/inline-asset-upload";
+import { compareByPinyin } from "@/lib/pinyin";
 import type { TalentBulkResponse } from "@/modules/admin/types";
 import type { Asset, Talent } from "@/modules/domain/types";
 
@@ -10,12 +11,26 @@ interface TalentManagerProps {
   assets: Asset[];
 }
 
-function toLinksText(talent?: Talent) {
-  return talent?.links.map((link) => `${link.label}|${link.url}`).join("\n") ?? "";
+interface RepresentationDraft {
+  id: string;
+  title: string;
+  assetId: string;
 }
 
-function toRepresentationsText(talent?: Talent) {
-  return talent?.representations.map((item) => `${item.title}|${item.assetId}`).join("\n") ?? "";
+interface TalentDraft {
+  id?: string;
+  nickname: string;
+  bio: string;
+  mcn: string;
+  tags: string;
+  aliases: string;
+  coverAssetId: string;
+  linksText: string;
+  representations: RepresentationDraft[];
+}
+
+function toLinksText(talent?: Talent | null) {
+  return talent?.links.map((link) => `${link.label}|${link.url}`).join("\n") ?? "";
 }
 
 function toCommaText(value?: string[]) {
@@ -34,12 +49,59 @@ function parsePipeRows(value: string) {
     .filter((row) => row.left && row.right);
 }
 
-function sortTalents(value: Talent[]) {
-  return [...value].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
-}
-
 function splitTags(value: string) {
   return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
+}
+
+function sortTalents(value: Talent[]) {
+  return [...value].sort(
+    (left, right) =>
+      compareByPinyin(left.nickname, right.nickname) ||
+      left.nickname.localeCompare(right.nickname, "zh-CN") ||
+      left.id.localeCompare(right.id)
+  );
+}
+
+function createRepresentationDraft(title = "", assetId = ""): RepresentationDraft {
+  return {
+    id: crypto.randomUUID(),
+    title,
+    assetId
+  };
+}
+
+function createTalentDraft(talent?: Talent | null): TalentDraft {
+  if (!talent) {
+    return {
+      nickname: "",
+      bio: "",
+      mcn: "",
+      tags: "",
+      aliases: "",
+      coverAssetId: "",
+      linksText: "",
+      representations: [createRepresentationDraft()]
+    };
+  }
+
+  return {
+    id: talent.id,
+    nickname: talent.nickname,
+    bio: talent.bio,
+    mcn: talent.mcn,
+    tags: toCommaText(talent.tags),
+    aliases: toCommaText(talent.aliases),
+    coverAssetId: talent.coverAssetId ?? "",
+    linksText: toLinksText(talent),
+    representations:
+      talent.representations.length > 0
+        ? talent.representations.map((item) => ({
+            id: item.id,
+            title: item.title,
+            assetId: item.assetId
+          }))
+        : [createRepresentationDraft()]
+  };
 }
 
 export function TalentManager({ talents, assets }: TalentManagerProps) {
@@ -53,20 +115,32 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
-  const coverAssets = liveAssets.filter((asset) => asset.kind === "talent_cover");
-  const representationAssets = liveAssets.filter((asset) => asset.kind === "talent_representation");
+  const selectedTalent = liveTalents.find((talent) => talent.id === selectedId) ?? null;
+  const [draft, setDraft] = useState<TalentDraft>(() => createTalentDraft(selectedTalent));
+
+  useEffect(() => {
+    setDraft(createTalentDraft(selectedTalent));
+  }, [selectedTalent]);
+
+  const coverAssets = useMemo(
+    () => liveAssets.filter((asset) => asset.kind === "talent_cover"),
+    [liveAssets]
+  );
+  const representationAssets = useMemo(
+    () => liveAssets.filter((asset) => asset.kind === "talent_representation"),
+    [liveAssets]
+  );
 
   const filteredTalents = useMemo(
     () =>
       liveTalents.filter((talent) =>
-        `${talent.nickname} ${talent.aliases.join(" ")} ${talent.bio} ${talent.tags.join(" ")} ${talent.searchKeywords.join(" ")}`
+        `${talent.nickname} ${talent.aliases.join(" ")} ${talent.bio} ${talent.tags.join(" ")} ${talent.searchKeywords.join(" ")} ${talent.mcn}`
           .toLowerCase()
           .includes(deferredQuery.toLowerCase())
       ),
     [deferredQuery, liveTalents]
   );
 
-  const selectedTalent = liveTalents.find((talent) => talent.id === selectedId) ?? null;
   const hasSelectedTalents = selectedIds.length > 0;
 
   function toggleSelectedTalent(id: string, checked: boolean) {
@@ -91,33 +165,57 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
     setLiveTalents((current) => sortTalents(current.map((talent) => updatedMap.get(talent.id) ?? talent)));
   }
 
-  async function handleSave(formData: FormData) {
+  function updateRepresentation(index: number, patch: Partial<RepresentationDraft>) {
+    setDraft((current) => ({
+      ...current,
+      representations: current.representations.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item
+      )
+    }));
+  }
+
+  function addRepresentationRow() {
+    setDraft((current) => ({
+      ...current,
+      representations: [...current.representations, createRepresentationDraft()]
+    }));
+  }
+
+  function removeRepresentationRow(index: number) {
+    setDraft((current) => {
+      const next = current.representations.filter((_, itemIndex) => itemIndex !== index);
+      return {
+        ...current,
+        representations: next.length > 0 ? next : [createRepresentationDraft()]
+      };
+    });
+  }
+
+  async function handleSave() {
     setMessage(null);
 
-    const id = String(formData.get("id") || "");
     const payload = {
-      id: id || undefined,
-      nickname: String(formData.get("nickname") || ""),
-      slug: String(formData.get("slug") || ""),
-      bio: String(formData.get("bio") || ""),
-      mcn: String(formData.get("mcn") || ""),
-      aliases: splitTags(String(formData.get("aliases") || "")),
-      searchKeywords: splitTags(String(formData.get("searchKeywords") || "")),
-      coverAssetId: String(formData.get("coverAssetId") || ""),
-      tags: splitTags(String(formData.get("tags") || "")),
-      links: parsePipeRows(String(formData.get("links") || "")).map((row) => ({
+      id: draft.id,
+      nickname: draft.nickname,
+      bio: draft.bio,
+      mcn: draft.mcn,
+      aliases: splitTags(draft.aliases),
+      coverAssetId: draft.coverAssetId || null,
+      tags: splitTags(draft.tags),
+      links: parsePipeRows(draft.linksText).map((row) => ({
         label: row.left,
         url: row.right
       })),
-      representations: parsePipeRows(String(formData.get("representations") || "")).map((row) => ({
-        title: row.left,
-        assetId: row.right
+      representations: draft.representations.map((item) => ({
+        id: item.id,
+        title: item.title,
+        assetId: item.assetId
       }))
     };
 
     startTransition(async () => {
-      const response = await fetch(id ? `/api/admin/talents/${id}` : "/api/admin/talents", {
-        method: id ? "PUT" : "POST",
+      const response = await fetch(draft.id ? `/api/admin/talents/${draft.id}` : "/api/admin/talents", {
+        method: draft.id ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json"
         },
@@ -134,7 +232,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
         const exists = current.some((talent) => talent.id === data.talent!.id);
         const next = exists
           ? current.map((talent) => (talent.id === data.talent!.id ? data.talent! : talent))
-          : [data.talent!, ...current];
+          : [...current, data.talent!];
         return sortTalents(next);
       });
       setSelectedId(data.talent.id);
@@ -329,15 +427,8 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
           })}
         </div>
       </aside>
-      <section className="space-y-6">
-        <AssetUploader
-          allowedKinds={["talent_cover", "talent_representation"]}
-          onUploaded={(asset) => {
-            setLiveAssets((current) => [asset, ...current]);
-            setMessage(`素材「${asset.title}」已进入素材列表，现在可以直接在下面选择。`);
-          }}
-        />
 
+      <section className="space-y-6">
         <div className="surface rounded-[1.8rem] p-6">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
@@ -356,112 +447,173 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               </button>
             ) : null}
           </div>
-          <form key={selectedTalent?.id ?? "new"} action={handleSave} className="space-y-5">
-            <input type="hidden" name="id" value={selectedTalent?.id ?? ""} />
+
+          <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
               <input
                 name="nickname"
-                defaultValue={selectedTalent?.nickname ?? ""}
+                value={draft.nickname}
+                onChange={(event) => setDraft((current) => ({ ...current, nickname: event.target.value }))}
                 placeholder="昵称"
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
               <input
-                name="slug"
-                defaultValue={selectedTalent?.slug ?? ""}
-                placeholder="slug（留空自动生成）"
+                name="mcn"
+                value={draft.mcn}
+                onChange={(event) => setDraft((current) => ({ ...current, mcn: event.target.value }))}
+                placeholder="MCN / 所属机构"
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
             </div>
+
             <textarea
               name="bio"
-              defaultValue={selectedTalent?.bio ?? ""}
+              value={draft.bio}
+              onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
               placeholder="简介"
               rows={4}
               className="w-full rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
             />
+
             <div className="grid gap-4 md:grid-cols-2">
               <input
-                name="mcn"
-                defaultValue={selectedTalent?.mcn ?? ""}
-                placeholder="MCN / 所属机构"
-                className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
-              />
-              <input
                 name="tags"
-                defaultValue={selectedTalent?.tags.join(", ") ?? ""}
+                value={draft.tags}
+                onChange={(event) => setDraft((current) => ({ ...current, tags: event.target.value }))}
                 placeholder="标签，用逗号分隔"
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
               <input
                 name="aliases"
-                defaultValue={toCommaText(selectedTalent?.aliases)}
+                value={draft.aliases}
+                onChange={(event) => setDraft((current) => ({ ...current, aliases: event.target.value }))}
                 placeholder="别名 / 英文名，用逗号分隔"
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
-              <input
-                name="searchKeywords"
-                defaultValue={toCommaText(selectedTalent?.searchKeywords)}
-                placeholder="搜索关键词，用逗号分隔"
-                className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
-              />
             </div>
-            <div className="space-y-3">
+
+            <div className="space-y-3 rounded-[1.4rem] border border-white/10 bg-black/15 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-white">封面图片</p>
+                  <p className="mt-1 text-xs text-white/45">可直接选择已有素材，也可以在这里上传本地图片。</p>
+                </div>
+                <InlineAssetUpload
+                  kind="talent_cover"
+                  dataTestId="talent-cover-upload"
+                  onUploaded={(asset) => {
+                    setLiveAssets((current) => [asset, ...current]);
+                    setDraft((current) => ({ ...current, coverAssetId: asset.id }));
+                    setMessage(`已上传并选中封面「${asset.title}」。`);
+                  }}
+                />
+              </div>
               <select
                 name="coverAssetId"
-                defaultValue={selectedTalent?.coverAssetId ?? coverAssets[0]?.id ?? ""}
+                data-testid="talent-cover-select"
+                value={draft.coverAssetId}
+                onChange={(event) => setDraft((current) => ({ ...current, coverAssetId: event.target.value }))}
                 className="w-full rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               >
-                {coverAssets.length === 0 ? <option value="">请先上传达人封面</option> : null}
+                <option value="">暂不设置封面</option>
                 {coverAssets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
-                    {asset.title} · {asset.id}
+                    {asset.title}
                   </option>
                 ))}
               </select>
-              <p className="text-xs leading-6 text-white/45">
-                新上传的达人封面会立刻出现在这个下拉框里。选择后保存，公开页就会使用新的封面。
-              </p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <textarea
-                name="links"
-                defaultValue={toLinksText(selectedTalent ?? undefined)}
-                rows={5}
-                className="w-full rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
-                placeholder="平台链接，每行格式：标签|URL"
-              />
-              <div className="space-y-3">
-                <textarea
-                  name="representations"
-                  defaultValue={toRepresentationsText(selectedTalent ?? undefined)}
-                  rows={5}
-                  className="w-full rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
-                  placeholder="代表图，每行格式：标题|assetId"
-                />
-                <div className="rounded-[1.2rem] border border-white/10 bg-black/15 p-4 text-xs leading-6 text-white/55">
-                  可用代表图素材：
-                  {representationAssets.length > 0
-                    ? ` ${representationAssets.map((asset) => `${asset.title} · ${asset.id}`).join(" / ")}`
-                    : " 暂无，请先在上方上传“代表图”。"}
+
+            <textarea
+              name="links"
+              value={draft.linksText}
+              onChange={(event) => setDraft((current) => ({ ...current, linksText: event.target.value }))}
+              rows={5}
+              className="w-full rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
+              placeholder="平台链接，每行格式：标签|URL"
+            />
+
+            <div className="space-y-4 rounded-[1.4rem] border border-white/10 bg-black/15 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-white">代表图</p>
+                  <p className="mt-1 text-xs text-white/45">标题可留空；上传新图后会自动选中到当前行。</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={addRepresentationRow}
+                  className="rounded-full border border-white/12 px-3 py-2 text-xs text-white/72"
+                >
+                  + 添加代表图
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {draft.representations.map((representation, index) => (
+                  <div key={representation.id} className="rounded-[1.2rem] border border-white/10 bg-black/20 p-4">
+                    <div className="grid gap-3 md:grid-cols-[1fr_1.2fr_auto]">
+                      <input
+                        value={representation.title}
+                        onChange={(event) => updateRepresentation(index, { title: event.target.value })}
+                        placeholder="代表图标题"
+                        className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                      />
+                      <select
+                        data-testid={`talent-representation-select-${index}`}
+                        value={representation.assetId}
+                        onChange={(event) => updateRepresentation(index, { assetId: event.target.value })}
+                        className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                      >
+                        <option value="">暂不选择图片</option>
+                        {representationAssets.map((asset) => (
+                          <option key={asset.id} value={asset.id}>
+                            {asset.title}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => removeRepresentationRow(index)}
+                        className="rounded-[1rem] border border-red-300/30 px-3 py-2 text-sm text-red-200"
+                      >
+                        删除
+                      </button>
+                    </div>
+                    <div className="mt-3">
+                      <InlineAssetUpload
+                        kind="talent_representation"
+                        dataTestId={`talent-representation-upload-${index}`}
+                        onUploaded={(asset) => {
+                          setLiveAssets((current) => [asset, ...current]);
+                          updateRepresentation(index, {
+                            assetId: asset.id,
+                            title: representation.title || asset.title
+                          });
+                          setMessage(`已上传并选中代表图「${asset.title}」。`);
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
+
             {message ? <p className="text-sm text-amber-200">{message}</p> : null}
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs leading-6 text-white/45">
-                发现字段会直接影响前台搜索、相关推荐和列表排序，保存后预览站会立即读到新数据。
+                保存时会自动生成 slug，并把昵称与别名同步为搜索关键词。昵称之外的内容都可以留空。
               </p>
               <button
+                type="button"
                 disabled={pending}
                 data-testid="save-talent"
+                onClick={handleSave}
                 className="rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm uppercase tracking-[0.25em] text-black disabled:opacity-60"
               >
                 {pending ? "保存中..." : "保存并公开"}
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </section>
     </div>

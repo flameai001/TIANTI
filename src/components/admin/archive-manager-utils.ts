@@ -1,11 +1,9 @@
+import { toDateInputValue } from "@/lib/date";
 import type { EditorArchive, Event, EventLineup } from "@/modules/domain/types";
 
 export interface EditableEvent {
   id?: string;
   name: string;
-  slug: string;
-  aliases: string;
-  searchKeywords: string;
   startsAt: string;
   endsAt: string;
   city: string;
@@ -22,17 +20,9 @@ export interface EditableLineup {
   note: string;
 }
 
-export function toInputDate(value?: string | null) {
-  if (!value) return "";
-  return new Date(value).toISOString().slice(0, 16);
-}
-
 export function createEmptyEventDraft(): EditableEvent {
   return {
     name: "",
-    slug: "",
-    aliases: "",
-    searchKeywords: "",
     startsAt: "",
     endsAt: "",
     city: "",
@@ -50,11 +40,8 @@ export function createEventDraft(event?: Event | null): EditableEvent {
   return {
     id: event.id,
     name: event.name,
-    slug: event.slug,
-    aliases: event.aliases.join(", "),
-    searchKeywords: event.searchKeywords.join(", "),
-    startsAt: toInputDate(event.startsAt),
-    endsAt: toInputDate(event.endsAt),
+    startsAt: toDateInputValue(event.startsAt),
+    endsAt: toDateInputValue(event.endsAt),
     city: event.city,
     venue: event.venue,
     status: event.status,
@@ -106,15 +93,6 @@ export function normalizeEventDraft(value: EditableEvent) {
   return {
     id: value.id ?? "",
     name: value.name.trim(),
-    slug: value.slug.trim(),
-    aliases: value.aliases
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
-    searchKeywords: value.searchKeywords
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
     startsAt: value.startsAt,
     endsAt: value.endsAt,
     city: value.city.trim(),

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getDateSortTime, toDateOnlyIso } from "@/lib/date";
+import { compareByPinyin } from "@/lib/pinyin";
 import type {
   ArchiveEntry,
   ContentState,
@@ -26,8 +28,60 @@ function sortByDateDesc<T extends { updatedAt: string }>(rows: T[]) {
   return [...rows].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
 
+function getEventPrimaryTime(event: Event) {
+  return getDateSortTime(event.startsAt ?? event.endsAt ?? null);
+}
+
+function getEventStartBoundary(event: Event) {
+  return getDateSortTime(event.startsAt ?? event.endsAt ?? null);
+}
+
+function getEventEndBoundary(event: Event) {
+  return getDateSortTime(event.endsAt ?? event.startsAt ?? null);
+}
+
 function sortEventsChronologically(events: Event[]) {
-  return [...events].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+  return [...events].sort((left, right) => {
+    const leftTime = getEventPrimaryTime(left);
+    const rightTime = getEventPrimaryTime(right);
+
+    if (leftTime === null && rightTime === null) return 0;
+    if (leftTime === null) return 1;
+    if (rightTime === null) return -1;
+    return leftTime - rightTime;
+  });
+}
+
+function sortEventsByRecent(events: Event[]) {
+  return [...events].sort((left, right) => {
+    const leftTime = getEventPrimaryTime(left);
+    const rightTime = getEventPrimaryTime(right);
+
+    if (leftTime === null && rightTime === null) return 0;
+    if (leftTime === null) return 1;
+    if (rightTime === null) return -1;
+    return rightTime - leftTime;
+  });
+}
+
+function compareEventRecent(left: Event, right: Event) {
+  const leftTime = getEventPrimaryTime(left);
+  const rightTime = getEventPrimaryTime(right);
+
+  if (leftTime === null && rightTime === null) return 0;
+  if (leftTime === null) return 1;
+  if (rightTime === null) return -1;
+  return rightTime - leftTime;
+}
+
+function compareEventChronological(left: Event, right: Event) {
+  const leftTime = getEventPrimaryTime(left);
+  const rightTime = getEventPrimaryTime(right);
+
+  if (leftTime === null && rightTime === null) return 0;
+  if (leftTime === null) return 1;
+  if (rightTime === null) return -1;
+  return leftTime - rightTime;
 }
 
 function splitQuery(value?: string) {
@@ -49,32 +103,33 @@ function scoreTerms(value: string, terms: string[], weight: number) {
   return terms.reduce((score, term) => score + (lower.includes(term) ? weight : 0), 0);
 }
 
-function parseDateBoundary(value?: string, endOfDay = false) {
-  if (!value) return null;
+function matchesEventDate(event: Event, date?: string) {
+  if (!date) return true;
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
+  const targetTime = getDateSortTime(toDateOnlyIso(date));
+  if (targetTime === null) return false;
+
+  const start = getEventStartBoundary(event);
+  const end = getEventEndBoundary(event);
+
+  if (start === null && end === null) {
+    return false;
   }
 
-  if (value.length <= 10) {
-    if (endOfDay) {
-      date.setHours(23, 59, 59, 999);
-    } else {
-      date.setHours(0, 0, 0, 0);
-    }
+  if (start !== null && end !== null) {
+    return targetTime >= Math.min(start, end) && targetTime <= Math.max(start, end);
   }
 
-  return date.getTime();
+  return (start ?? end) === targetTime;
 }
 
 export interface TalentFilters {
   query?: string;
   tag?: string;
-  onlyFuture?: boolean;
   editorId?: string;
   tierId?: string;
-  sort?: "relevance" | "recent" | "future" | "archiveCount";
+  mcn?: string;
+  sort?: "alphabetical" | "recent" | "relevance";
 }
 
 export interface EventFilters {
@@ -82,9 +137,7 @@ export interface EventFilters {
   eventStatus?: "future" | "past";
   city?: string;
   talentId?: string;
-  participationStatus?: "confirmed" | "pending";
-  startDate?: string;
-  endDate?: string;
+  date?: string;
   sort?: "relevance" | "upcoming" | "recent" | "lineupSize";
 }
 
@@ -95,20 +148,13 @@ function getArchiveCountForTalent(state: ContentState, talentId: string) {
   );
 }
 
-function getFutureEventCountForTalent(state: ContentState, talentId: string) {
-  return state.lineups.filter(
-    (lineup) =>
-      lineup.talentId === talentId &&
-      state.events.some((event) => event.id === lineup.eventId && event.status === "future")
-  ).length;
-}
-
 function buildTalentSummary(state: ContentState, talent: Talent, relevanceScore?: number): TalentSummary {
   const assetMap = byId(state.assets);
   const relatedEvents = state.events.filter((event) =>
     state.lineups.some((lineup) => lineup.eventId === event.id && lineup.talentId === talent.id)
   );
-  const latestEvent = sortEventsChronologically(relatedEvents).at(-1);
+  const latestEvent = sortEventsByRecent(relatedEvents)[0] ?? null;
+  const recentHint = latestEvent ? [latestEvent.city, latestEvent.name].filter(Boolean).join(" · ") : null;
 
   return {
     id: talent.id,
@@ -117,8 +163,8 @@ function buildTalentSummary(state: ContentState, talent: Talent, relevanceScore?
     bio: talent.bio,
     aliases: talent.aliases,
     tags: talent.tags,
-    cover: assetMap.get(talent.coverAssetId)!,
-    recentHint: latestEvent ? `${latestEvent.city} · ${latestEvent.name}` : null,
+    cover: talent.coverAssetId ? assetMap.get(talent.coverAssetId) ?? null : null,
+    recentHint: recentHint || null,
     hasFutureEvent: relatedEvents.some((event) => event.status === "future"),
     archiveCount: getArchiveCountForTalent(state, talent.id),
     relevanceScore
@@ -137,6 +183,7 @@ function getTalentRelevanceScore(state: ContentState, talent: Talent, terms: str
     scoreTerms(talent.tags.join(" "), terms, 4) +
     scoreTerms(talent.searchKeywords.join(" "), terms, 3) +
     scoreTerms(talent.bio, terms, 2) +
+    scoreTerms(talent.mcn, terms, 2) +
     scoreTerms(
       lineupEvents.map((event) => `${event.name} ${event.city} ${event.venue}`).join(" "),
       terms,
@@ -178,7 +225,7 @@ function buildEventSummary(state: ContentState, event: Event, relevanceScore?: n
       return {
         lineup,
         talent,
-        cover: assetMap.get(talent.coverAssetId)!
+        cover: talent.coverAssetId ? assetMap.get(talent.coverAssetId) ?? null : null
       };
     });
 
@@ -199,7 +246,7 @@ function buildTagSpotlights(state: ContentState): HomepageDiscovery["tagSpotligh
   }
 
   return [...counts.entries()]
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .sort((left, right) => right[1] - left[1] || compareByPinyin(left[0], right[0]))
     .slice(0, 6)
     .map(([tag, count]) => ({
       tag: tag as Talent["tags"][number],
@@ -213,7 +260,7 @@ export function getEditors(state: ContentState) {
 }
 
 export function getHomepageCollections(state: ContentState): HomepageDiscovery {
-  const recentTalents = listTalents(state, { sort: "recent" });
+  const recentTalents = sortByDateDesc(state.talents).map((talent) => buildTalentSummary(state, talent));
   const futureEvents = listEventSummaries(state, { eventStatus: "future", sort: "upcoming" });
 
   return {
@@ -250,11 +297,12 @@ export function listTalents(state: ContentState, filters: TalentFilters = {}): T
         talent.aliases.join(" "),
         talent.tags.join(" "),
         talent.searchKeywords.join(" "),
-        talent.bio
+        talent.bio,
+        talent.mcn
       ];
       const matchesQuery = queryTerms.length === 0 || (relevanceScore > 0 && includesEveryTerm(haystacks, queryTerms));
       const matchesTag = !filters.tag || talent.tags.includes(filters.tag as Talent["tags"][number]);
-      const matchesFuture = !filters.onlyFuture || getFutureEventCountForTalent(state, talent.id) > 0;
+      const matchesMcn = !filters.mcn || talent.mcn === filters.mcn;
 
       let matchesLadder = true;
       if (filters.editorId) {
@@ -267,32 +315,28 @@ export function listTalents(state: ContentState, filters: TalentFilters = {}): T
         }
       }
 
-      return matchesQuery && matchesTag && matchesFuture && matchesLadder;
+      return matchesQuery && matchesTag && matchesMcn && matchesLadder;
     });
 
-  const sort = filters.sort ?? (queryTerms.length > 0 ? "relevance" : "recent");
+  const sort = filters.sort ?? "alphabetical";
 
   filtered.sort((left, right) => {
+    if (sort === "recent") {
+      return Date.parse(right.talent.updatedAt) - Date.parse(left.talent.updatedAt);
+    }
+
     if (sort === "relevance") {
       return (
         right.relevanceScore - left.relevanceScore ||
-        getFutureEventCountForTalent(state, right.talent.id) - getFutureEventCountForTalent(state, left.talent.id) ||
-        Date.parse(right.talent.updatedAt) - Date.parse(left.talent.updatedAt)
+        compareByPinyin(left.talent.nickname, right.talent.nickname) ||
+        left.talent.id.localeCompare(right.talent.id)
       );
     }
-    if (sort === "future") {
-      return (
-        getFutureEventCountForTalent(state, right.talent.id) - getFutureEventCountForTalent(state, left.talent.id) ||
-        Date.parse(right.talent.updatedAt) - Date.parse(left.talent.updatedAt)
-      );
-    }
-    if (sort === "archiveCount") {
-      return (
-        getArchiveCountForTalent(state, right.talent.id) - getArchiveCountForTalent(state, left.talent.id) ||
-        Date.parse(right.talent.updatedAt) - Date.parse(left.talent.updatedAt)
-      );
-    }
-    return Date.parse(right.talent.updatedAt) - Date.parse(left.talent.updatedAt);
+
+    return (
+      compareByPinyin(left.talent.nickname, right.talent.nickname) ||
+      left.talent.id.localeCompare(right.talent.id)
+    );
   });
 
   return filtered.map(({ talent, relevanceScore }) => buildTalentSummary(state, talent, relevanceScore));
@@ -300,8 +344,6 @@ export function listTalents(state: ContentState, filters: TalentFilters = {}): T
 
 export function listEventSummaries(state: ContentState, filters: EventFilters = {}): EventSummary[] {
   const queryTerms = splitQuery(filters.query);
-  const startBoundary = parseDateBoundary(filters.startDate);
-  const endBoundary = parseDateBoundary(filters.endDate, true);
 
   const filtered = state.events
     .map((event) => ({
@@ -335,48 +377,35 @@ export function listEventSummaries(state: ContentState, filters: EventFilters = 
           ));
       const matchesStatus = !filters.eventStatus || event.status === filters.eventStatus;
       const matchesCity = !filters.city || event.city === filters.city;
-      const startsAt = Date.parse(event.startsAt);
-      const matchesStartDate = startBoundary === null || startsAt >= startBoundary;
-      const matchesEndDate = endBoundary === null || startsAt <= endBoundary;
-      const matchesTalent =
-        !filters.talentId || eventLineups.some((lineup) => lineup.talentId === filters.talentId);
-      const matchesParticipation =
-        !filters.participationStatus ||
-        eventLineups.some((lineup) => lineup.status === filters.participationStatus);
+      const matchesTalent = !filters.talentId || eventLineups.some((lineup) => lineup.talentId === filters.talentId);
+      const matchesDate = matchesEventDate(event, filters.date);
 
-      return (
-        matchesQuery &&
-        matchesStatus &&
-        matchesCity &&
-        matchesTalent &&
-        matchesParticipation &&
-        matchesStartDate &&
-        matchesEndDate
-      );
+      return matchesQuery && matchesStatus && matchesCity && matchesTalent && matchesDate;
     });
 
-  const sort =
-    filters.sort ??
-    (queryTerms.length > 0 ? "relevance" : filters.eventStatus === "past" ? "recent" : "upcoming");
+  const sort = filters.sort ?? "recent";
 
   filtered.sort((left, right) => {
     if (sort === "relevance") {
       return (
         right.relevanceScore - left.relevanceScore ||
-        Date.parse(left.event.startsAt) - Date.parse(right.event.startsAt)
+        compareEventRecent(left.event, right.event)
       );
     }
-    if (sort === "recent") {
-      return Date.parse(right.event.startsAt) - Date.parse(left.event.startsAt);
-    }
+
     if (sort === "lineupSize") {
       return (
         state.lineups.filter((lineup) => lineup.eventId === right.event.id).length -
           state.lineups.filter((lineup) => lineup.eventId === left.event.id).length ||
-        Date.parse(left.event.startsAt) - Date.parse(right.event.startsAt)
+        compareEventRecent(left.event, right.event)
       );
     }
-    return Date.parse(left.event.startsAt) - Date.parse(right.event.startsAt);
+
+    if (sort === "upcoming") {
+      return compareEventChronological(left.event, right.event);
+    }
+
+    return compareEventRecent(left.event, right.event);
   });
 
   return filtered.map(({ event, relevanceScore }) => buildEventSummary(state, event, relevanceScore));
@@ -425,7 +454,7 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
 
   const relatedEvents = state.events.filter((event) => relatedEventIds.includes(event.id));
   const futureEvents = sortEventsChronologically(relatedEvents.filter((event) => event.status === "future"));
-  const pastEvents = sortEventsChronologically(relatedEvents.filter((event) => event.status === "past")).reverse();
+  const pastEvents = sortEventsByRecent(relatedEvents.filter((event) => event.status === "past"));
 
   const archiveHits = state.archives.flatMap((archive) =>
     archive.entries.filter((entry) => entry.talentId === talent.id).map(() => archive.eventId)
@@ -453,7 +482,6 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
       ...state.events
         .filter(
           (event) =>
-            event.id !== talent.id &&
             state.lineups.some((lineup) => lineup.eventId === event.id && lineup.talentId === talent.id)
         )
         .map((event) => event.id),
@@ -464,15 +492,17 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
 
   return {
     talent,
-    cover: assetMap.get(talent.coverAssetId)!,
-    representationAssets: talent.representations.map((representation) => ({
-      ...representation,
-      asset: assetMap.get(representation.assetId)!
-    })),
+    cover: talent.coverAssetId ? assetMap.get(talent.coverAssetId) ?? null : null,
+    representationAssets: talent.representations
+      .map((representation) => {
+        const asset = assetMap.get(representation.assetId);
+        return asset ? { ...representation, asset } : null;
+      })
+      .filter(Boolean) as Array<TalentDetail["representationAssets"][number]>,
     futureEvents,
     pastEvents,
     relatedTalents,
-    relatedEvents: relatedEventsForTalent.filter((item) => item.event.event.id !== talent.id),
+    relatedEvents: relatedEventsForTalent,
     editorSummaries: state.editors.map((editor) => {
       const ladder = state.ladders.find((item) => item.editorId === editor.id);
       const tierName = ladder?.tiers.find((tier) => tier.talentIds.includes(talent.id))?.name ?? null;
@@ -507,8 +537,11 @@ export function getEventDetail(state: ContentState, slug: string) {
         .filter((lineup) => lineup.eventId === candidate.id)
         .map((lineup) => lineup.talentId);
       const sharedLineupCount = candidateTalentIds.filter((talentId) => lineupTalentIds.includes(talentId)).length;
-      const cityBonus = candidate.city === event.city ? 1 : 0;
-      const timeDistance = Math.abs(Date.parse(candidate.startsAt) - Date.parse(event.startsAt));
+      const cityBonus = candidate.city && candidate.city === event.city ? 1 : 0;
+      const eventTime = getEventPrimaryTime(event);
+      const candidateTime = getEventPrimaryTime(candidate);
+      const timeDistance =
+        eventTime !== null && candidateTime !== null ? Math.abs(candidateTime - eventTime) : Number.POSITIVE_INFINITY;
       const timeBonus = timeDistance <= 1000 * 60 * 60 * 24 * 30 ? 1 : 0;
       return {
         candidate,
@@ -516,7 +549,11 @@ export function getEventDetail(state: ContentState, slug: string) {
       };
     })
     .filter((item) => item.score > 0)
-    .sort((left, right) => right.score - left.score || Date.parse(left.candidate.startsAt) - Date.parse(right.candidate.startsAt));
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        (getEventPrimaryTime(right.candidate) ?? -Infinity) - (getEventPrimaryTime(left.candidate) ?? -Infinity)
+    );
 
   return {
     event,
@@ -526,12 +563,27 @@ export function getEventDetail(state: ContentState, slug: string) {
       .map((archive) => ({
         editor: editorMap.get(archive.editorId)!,
         archive,
-        entries: archive.entries.map((entry) => ({
-          entry,
-          talent: talentMap.get(entry.talentId)!,
-          sceneAsset: assetMap.get(entry.sceneAssetId)!,
-          sharedPhotoAsset: entry.sharedPhotoAssetId ? assetMap.get(entry.sharedPhotoAssetId) ?? null : null
-        }))
+        entries: archive.entries
+          .map((entry) => {
+            const talent = talentMap.get(entry.talentId);
+            const sceneAsset = assetMap.get(entry.sceneAssetId);
+            if (!talent || !sceneAsset) {
+              return null;
+            }
+
+            return {
+              entry,
+              talent,
+              sceneAsset,
+              sharedPhotoAsset: entry.sharedPhotoAssetId ? assetMap.get(entry.sharedPhotoAssetId) ?? null : null
+            };
+          })
+          .filter(Boolean) as Array<{
+          entry: ArchiveEntry;
+          talent: Talent;
+          sceneAsset: ContentState["assets"][number];
+          sharedPhotoAsset?: ContentState["assets"][number] | null;
+        }>
       })),
     relatedEvents: buildRelatedEventSummaries(
       state,
@@ -571,7 +623,7 @@ export function getLadderByEditor(state: ContentState, editorSlug: string) {
           .filter(Boolean)
           .map((talent) => ({
             talent: talent!,
-            cover: assetMap.get(talent!.coverAssetId)!
+            cover: talent!.coverAssetId ? assetMap.get(talent!.coverAssetId) ?? null : null
           }))
       }))
   };
@@ -627,8 +679,8 @@ export function summarizeDiscoverySections(state: ContentState): DiscoverySectio
     },
     {
       title: "最近更新达人",
-      href: "/talents?sort=recent",
-      description: "按最新更新切入内容库",
+      href: "/talents",
+      description: "按最新维护切入内容库",
       items: homepage.recentTalents
     }
   ];

@@ -35,56 +35,74 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
     notFound();
   }
 
+  const publicInfoRows = [
+    detail.talent.aliases.length > 0 ? { label: "别名", value: detail.talent.aliases.join(" / ") } : null,
+    detail.talent.mcn ? { label: "MCN", value: detail.talent.mcn } : null
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
+  const hasLinks = detail.talent.links.length > 0;
+  const hasPublicInfo = publicInfoRows.length > 0 || hasLinks;
+
   return (
     <main className="mx-auto max-w-7xl px-5 py-14 md:px-8">
       <section className="grid gap-8 md:grid-cols-[0.75fr_1.25fr]">
         <div className="overflow-hidden rounded-[2rem] border border-white/10">
-          <div className="relative aspect-[4/5]">
-            <Image
-              src={detail.cover.url}
-              alt={detail.cover.alt}
-              fill
-              sizes="(min-width: 768px) 34vw, 100vw"
-              className="object-cover"
-            />
+          <div className="relative aspect-[4/3]">
+            {detail.cover ? (
+              <Image
+                src={detail.cover.url}
+                alt={detail.cover.alt}
+                fill
+                sizes="(min-width: 768px) 34vw, 100vw"
+                className="object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),rgba(255,255,255,0.04)_42%,rgba(0,0,0,0.5))]" />
+            )}
           </div>
         </div>
         <div className="space-y-6">
           <div className="space-y-4">
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Talent Detail</p>
             <h1 className="text-5xl text-white">{detail.talent.nickname}</h1>
-            <p className="max-w-3xl text-sm leading-8 text-white/70">{detail.talent.bio}</p>
+            {detail.talent.bio ? (
+              <p className="max-w-3xl text-sm leading-8 text-white/70">{detail.talent.bio}</p>
+            ) : null}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {detail.talent.tags.map((tag) => (
-              <span key={tag} className="rounded-full border border-white/15 px-3 py-1 text-sm text-white/65">
-                {tag}
-              </span>
-            ))}
-            {detail.talent.aliases.map((alias) => (
-              <span key={alias} className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-white/65">
-                {alias}
-              </span>
-            ))}
-          </div>
+          {detail.talent.tags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {detail.talent.tags.map((tag) => (
+                <span key={tag} className="rounded-full border border-white/15 px-3 py-1 text-sm text-white/65">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className="surface rounded-[1.8rem] p-6">
             <p className="text-xs uppercase tracking-[0.25em] text-white/40">公共资料</p>
-            <div className="mt-5 grid gap-6 md:grid-cols-2">
-              <div>
-                <p className="text-sm text-white/45">MCN</p>
-                <p className="mt-2 text-lg text-white">{detail.talent.mcn}</p>
+            {hasPublicInfo ? (
+              <div className="mt-5 grid gap-6 md:grid-cols-2">
+                {publicInfoRows.map((row) => (
+                  <div key={row.label}>
+                    <p className="text-sm text-white/45">{row.label}</p>
+                    <p className="mt-2 text-lg text-white">{row.value}</p>
+                  </div>
+                ))}
+                {hasLinks ? (
+                  <div className={publicInfoRows.length === 1 ? "" : "md:col-span-2"}>
+                    <p className="text-sm text-white/45">常用平台</p>
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      {detail.talent.links.map((link) => (
+                        <a key={link.id} href={link.url} className="text-sm text-[var(--color-accent)]">
+                          {link.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
-              <div>
-                <p className="text-sm text-white/45">常用平台</p>
-                <div className="mt-2 flex flex-wrap gap-3">
-                  {detail.talent.links.map((link) => (
-                    <a key={link.id} href={link.url} className="text-sm text-[var(--color-accent)]">
-                      {link.label}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
+            ) : (
+              <p className="mt-5 text-sm text-white/55">暂无可公开资料。</p>
+            )}
           </div>
           <div className="grid gap-6 md:grid-cols-2">
             <div className="surface rounded-[1.8rem] p-6">
@@ -99,7 +117,7 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
                     >
                       <p className="text-lg text-white">{event.name}</p>
                       <p className="mt-2 text-sm text-white/60">
-                        {event.city} · {formatDateRange(event.startsAt, event.endsAt)}
+                        {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
                       </p>
                     </Link>
                   ))
@@ -120,7 +138,7 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
                     >
                       <p className="text-lg text-white">{event.name}</p>
                       <p className="mt-2 text-sm text-white/60">
-                        {event.city} · {formatDateRange(event.startsAt, event.endsAt)}
+                        {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
                       </p>
                     </Link>
                   ))
@@ -154,6 +172,33 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
           </article>
         ))}
       </section>
+
+      {detail.representationAssets.length > 0 ? (
+        <section className="mt-18">
+          <div className="mb-8 space-y-3">
+            <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Representation</p>
+            <h2 className="text-3xl text-white">代表角色与作品</h2>
+          </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {detail.representationAssets.map((representation) => (
+              <article key={representation.id} className="overflow-hidden rounded-[1.8rem] border border-white/10">
+                <div className="relative aspect-[4/3]">
+                  <Image
+                    src={representation.asset.url}
+                    alt={representation.asset.alt}
+                    fill
+                    sizes="(min-width: 768px) 30vw, 100vw"
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="text-lg text-white">{representation.title}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-18 grid gap-6 lg:grid-cols-2">
         <article className="surface rounded-[1.8rem] p-6">
@@ -192,31 +237,6 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
             )}
           </div>
         </article>
-      </section>
-
-      <section className="mt-18">
-        <div className="mb-8 space-y-3">
-          <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Representation</p>
-          <h2 className="text-3xl text-white">代表角色与作品</h2>
-        </div>
-        <div className="grid gap-6 md:grid-cols-3">
-          {detail.representationAssets.map((representation) => (
-            <article key={representation.id} className="overflow-hidden rounded-[1.8rem] border border-white/10">
-              <div className="relative aspect-[4/3]">
-                <Image
-                  src={representation.asset.url}
-                  alt={representation.asset.alt}
-                  fill
-                  sizes="(min-width: 768px) 30vw, 100vw"
-                  className="object-cover"
-                />
-              </div>
-              <div className="p-5">
-                <p className="text-lg text-white">{representation.title}</p>
-              </div>
-            </article>
-          ))}
-        </div>
       </section>
     </main>
   );

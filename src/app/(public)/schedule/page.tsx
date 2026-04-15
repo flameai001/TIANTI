@@ -10,23 +10,21 @@ export default async function ScheduleRedirectPage({ searchParams }: { searchPar
   const params = await searchParams;
   const nextParams = new URLSearchParams();
 
-  for (const key of ["q", "city", "talent", "from", "to"] as const) {
+  for (const key of ["q", "city", "talent"] as const) {
     const value = readStringParam(params[key]);
     if (value) {
       nextParams.set(key, value);
     }
   }
 
-  const legacyParticipationStatus = readStringParam(params.status);
-  const participationStatus =
-    readStringParam(params.participationStatus) ??
-    (legacyParticipationStatus && ["confirmed", "pending"].includes(legacyParticipationStatus)
-      ? legacyParticipationStatus
-      : undefined);
+  const date =
+    readStringParam(params.date) ??
+    readStringParam(params.from) ??
+    readStringParam(params.to);
 
   nextParams.set("eventStatus", "future");
-  if (participationStatus) {
-    nextParams.set("participationStatus", participationStatus);
+  if (date) {
+    nextParams.set("date", date);
   }
 
   redirect(`/events?${nextParams.toString()}`);

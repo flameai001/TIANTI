@@ -60,7 +60,7 @@ export interface Talent {
   aliases: string[];
   searchKeywords: string[];
   tags: TalentTag[];
-  coverAssetId: string;
+  coverAssetId?: string | null;
   links: TalentLink[];
   representations: TalentRepresentation[];
   updatedAt: string;
@@ -72,7 +72,7 @@ export interface Event {
   name: string;
   aliases: string[];
   searchKeywords: string[];
-  startsAt: string;
+  startsAt?: string | null;
   endsAt?: string | null;
   city: string;
   venue: string;
@@ -150,7 +150,7 @@ export interface TalentSummary {
   bio: string;
   aliases: string[];
   tags: TalentTag[];
-  cover: Asset;
+  cover: Asset | null;
   recentHint: string | null;
   hasFutureEvent: boolean;
   archiveCount: number;
@@ -167,7 +167,7 @@ export interface EventSummary {
   lineups: Array<{
     lineup: EventLineup;
     talent: Talent;
-    cover: Asset;
+    cover: Asset | null;
   }>;
   lineupSize: number;
   relevanceScore?: number;
@@ -180,7 +180,7 @@ export interface RelatedEventSummary {
 
 export interface TalentDetail {
   talent: Talent;
-  cover: Asset;
+  cover: Asset | null;
   representationAssets: Array<TalentRepresentation & { asset: Asset }>;
   futureEvents: Event[];
   pastEvents: Event[];
@@ -199,7 +199,7 @@ export interface EventDetail {
   lineups: Array<{
     lineup: EventLineup;
     talent: Talent;
-    cover: Asset;
+    cover: Asset | null;
   }>;
   archives: Array<{
     editor: EditorProfile;

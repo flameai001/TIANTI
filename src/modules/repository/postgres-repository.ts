@@ -90,16 +90,16 @@ async function loadState(): Promise<ContentState> {
       width: row.width,
       height: row.height
     })),
-    talents: talentRows.map((row) => ({
-      id: row.id,
-      slug: row.slug,
-      nickname: row.nickname,
-      bio: row.bio,
-      mcn: row.mcn,
-      aliases: row.aliases,
-      searchKeywords: row.searchKeywords,
-      coverAssetId: row.coverAssetId,
-      updatedAt: row.updatedAt.toISOString(),
+      talents: talentRows.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        nickname: row.nickname,
+        bio: row.bio,
+        mcn: row.mcn,
+        aliases: row.aliases,
+        searchKeywords: row.searchKeywords,
+        coverAssetId: row.coverAssetId ?? null,
+        updatedAt: row.updatedAt.toISOString(),
       tags: tagRows
         .filter((item) => item.talentId === row.id)
         .map((item) => item.tag) as Talent["tags"],
@@ -120,14 +120,14 @@ async function loadState(): Promise<ContentState> {
           assetId: item.assetId
         }))
     })),
-    events: eventRows.map((row) => ({
-      id: row.id,
-      slug: row.slug,
-      name: row.name,
-      aliases: row.aliases,
-      searchKeywords: row.searchKeywords,
-      startsAt: row.startsAt.toISOString(),
-      endsAt: row.endsAt?.toISOString() ?? null,
+      events: eventRows.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name,
+        aliases: row.aliases,
+        searchKeywords: row.searchKeywords,
+        startsAt: row.startsAt?.toISOString() ?? null,
+        endsAt: row.endsAt?.toISOString() ?? null,
       city: row.city,
       venue: row.venue,
       status: row.status as Event["status"],
@@ -301,7 +301,7 @@ export const postgresRepository: ContentRepository = {
         mcn: talent.mcn,
         aliases: talent.aliases,
         searchKeywords: talent.searchKeywords,
-        coverAssetId: talent.coverAssetId,
+        coverAssetId: talent.coverAssetId ?? null,
         updatedAt: new Date(talent.updatedAt)
       })
       .onConflictDoUpdate({
@@ -313,7 +313,7 @@ export const postgresRepository: ContentRepository = {
           mcn: talent.mcn,
           aliases: talent.aliases,
           searchKeywords: talent.searchKeywords,
-          coverAssetId: talent.coverAssetId,
+          coverAssetId: talent.coverAssetId ?? null,
           updatedAt: new Date(talent.updatedAt)
         }
       });
@@ -335,7 +335,7 @@ export const postgresRepository: ContentRepository = {
         name: event.name,
         aliases: event.aliases,
         searchKeywords: event.searchKeywords,
-        startsAt: new Date(event.startsAt),
+        startsAt: event.startsAt ? new Date(event.startsAt) : null,
         endsAt: event.endsAt ? new Date(event.endsAt) : null,
         city: event.city,
         venue: event.venue,
@@ -350,7 +350,7 @@ export const postgresRepository: ContentRepository = {
           name: event.name,
           aliases: event.aliases,
           searchKeywords: event.searchKeywords,
-          startsAt: new Date(event.startsAt),
+          startsAt: event.startsAt ? new Date(event.startsAt) : null,
           endsAt: event.endsAt ? new Date(event.endsAt) : null,
           city: event.city,
           venue: event.venue,

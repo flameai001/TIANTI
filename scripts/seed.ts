@@ -78,7 +78,7 @@ async function buildSeedState() {
     talents: demoSeedState.talents.map((talent) => ({
       ...talent,
       id: talentIds.get(talent.id)!,
-      coverAssetId: assetIds.get(talent.coverAssetId)!,
+      coverAssetId: talent.coverAssetId ? assetIds.get(talent.coverAssetId) ?? null : null,
       links: talent.links.map((link) => ({
         ...link,
         id: talentLinkIds.get(link.id)!
@@ -194,7 +194,7 @@ async function main() {
       id: event.id,
       slug: event.slug,
       name: event.name,
-      startsAt: new Date(event.startsAt),
+      startsAt: event.startsAt ? new Date(event.startsAt) : null,
       endsAt: event.endsAt ? new Date(event.endsAt) : null,
       city: event.city,
       venue: event.venue,

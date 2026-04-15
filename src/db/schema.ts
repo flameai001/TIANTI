@@ -67,9 +67,7 @@ export const talents = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY[]::text[]`),
-    coverAssetId: uuid("cover_asset_id")
-      .notNull()
-      .references(() => assets.id),
+    coverAssetId: uuid("cover_asset_id").references(() => assets.id),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
   },
   (table) => ({
@@ -122,7 +120,7 @@ export const events = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY[]::text[]`),
-    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }),
     endsAt: timestamp("ends_at", { withTimezone: true }),
     city: text("city").notNull(),
     venue: text("venue").notNull(),

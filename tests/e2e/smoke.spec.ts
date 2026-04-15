@@ -17,22 +17,6 @@ async function login(page: Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
-async function uploadAsset(
-  page: Page,
-  kind: "event_scene" | "shared_photo",
-  filePath: string,
-  title: string,
-  alt: string
-) {
-  const uploader = page.getByTestId("asset-uploader");
-  await uploader.getByTestId("asset-kind").selectOption(kind);
-  await uploader.getByTestId("asset-file").setInputFiles(filePath);
-  await uploader.getByTestId("asset-title").fill(title);
-  await uploader.getByTestId("asset-alt").fill(alt);
-  await uploader.getByTestId("asset-submit").click();
-  await expect(uploader.getByText(`素材“${title}”已上传`)).toBeVisible();
-}
-
 test.beforeEach(async ({ request }) => {
   await resetState(request);
 });
@@ -47,11 +31,6 @@ test("public homepage renders and links into talent detail", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "青鸾" })).toBeVisible();
 });
 
-test("editor can log in and open admin dashboard", async ({ page }) => {
-  await login(page);
-  await expect(page.getByText("凛 的后台")).toBeVisible();
-});
-
 test("legacy schedule and admin event routes redirect into archive views", async ({ page }) => {
   await page.goto("/schedule?q=青鸾&status=confirmed");
   await expect(page).toHaveURL(/\/events\?/);
@@ -59,36 +38,38 @@ test("legacy schedule and admin event routes redirect into archive views", async
   const scheduleUrl = new URL(page.url());
   expect(scheduleUrl.pathname).toBe("/events");
   expect(scheduleUrl.searchParams.get("eventStatus")).toBe("future");
-  expect(scheduleUrl.searchParams.get("participationStatus")).toBe("confirmed");
   expect(scheduleUrl.searchParams.get("q")).toBe("青鸾");
+  expect(scheduleUrl.searchParams.get("participationStatus")).toBeNull();
 
   await login(page);
   await page.goto("/admin/events");
   await expect(page).toHaveURL(/\/admin\/archives$/);
 });
 
-test("editor can create a talent and future event that appear on public pages", async ({ page }) => {
+test("editor can create a talent with inline uploads and publish a future event", async ({ page }) => {
   await login(page);
 
   await page.goto("/admin/talents");
   await page.getByTestId("new-talent-button").click();
   await page.locator('input[name="nickname"]').fill("Star Lume");
-  await page.locator('input[name="slug"]').fill("star-lume");
-  await page.locator('textarea[name="bio"]').fill("A fresh showcase talent for the V1 acceptance flow.");
+  await page.locator('textarea[name="bio"]').fill("A fresh showcase talent for the v3.1 acceptance flow.");
   await page.locator('input[name="mcn"]').fill("Orbit Studio");
   await page.locator('input[name="tags"]').fill("cosplay, 舞台");
+  await page.getByTestId("talent-cover-upload").setInputFiles(sceneUploadPath);
+  await expect(page.getByTestId("talent-cover-select")).not.toHaveValue("");
+  await page.getByTestId("talent-representation-upload-0").setInputFiles(sharedUploadPath);
+  await expect(page.getByTestId("talent-representation-select-0")).not.toHaveValue("");
   await page.getByTestId("save-talent").click();
   await expect(page.getByRole("heading", { name: "编辑 Star Lume" })).toBeVisible();
 
   await page.goto("/admin/archives");
   await page.getByTestId("new-event-button").click();
   await page.locator('input[name="name"]').fill("Starlight Expo");
-  await page.locator('input[name="slug"]').fill("starlight-expo");
-  await page.locator('input[name="startsAt"]').fill("2026-06-01T10:00");
-  await page.locator('input[name="endsAt"]').fill("2026-06-01T18:00");
+  await page.locator('input[name="startsAt"]').fill("2026-06-01");
+  await page.locator('input[name="endsAt"]').fill("2026-06-01");
   await page.locator('input[name="city"]').fill("上海");
   await page.locator('input[name="venue"]').fill("Galaxy Hall");
-  await page.getByTestId("event-note").fill("Acceptance path event for TIANTI V1.");
+  await page.getByTestId("event-note").fill("Acceptance path event for TIANTI v3.1.");
   await page.getByTestId("add-lineup").click();
   await page.getByTestId("lineup-talent-0").selectOption({ label: "Star Lume" });
   await page.getByTestId("lineup-source-0").fill("Official announcement");
@@ -104,6 +85,46 @@ test("editor can create a talent and future event that appear on public pages", 
   await expect(page.getByRole("link", { name: /Starlight Expo/ }).first()).toBeVisible();
 });
 
+test("editor can upload archive assets inline and shared-photo card toggles on the public page", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/archives");
+  await page.getByTestId("archive-note").fill("收尾验收档案备注");
+  await page.getByTestId("add-archive-entry").click();
+  await page.getByTestId("archive-cosplay-0").fill("Archive Test Role");
+  await page.getByTestId("archive-scene-upload-0").setInputFiles(sceneUploadPath);
+  await page.getByTestId("archive-scene-0").selectOption({ label: "poster-crimson" });
+  await page.getByTestId("archive-shared-flag-0").check();
+  await page.getByTestId("archive-shared-upload-0").setInputFiles(sharedUploadPath);
+  await page.getByTestId("archive-shared-0").selectOption({ label: "shared-bloom" });
+  await page.getByTestId("save-archive").click();
+
+  const publicPage = await page.context().newPage();
+  await publicPage.goto("/events/spring-gala-2026");
+  await expect(publicPage.getByText("Archive Test Role")).toBeVisible();
+  await expect(publicPage.getByText("无合照")).toHaveCount(0);
+
+  const sharedButton = publicPage.getByRole("button", { name: "有合照" }).first();
+  const sharedImage = publicPage.locator('img[alt="shared-bloom"]').first();
+  await expect.poll(async () => sharedImage.evaluate((node) => getComputedStyle(node).opacity)).toBe("0");
+  await sharedButton.click();
+  await expect.poll(async () => sharedImage.evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
+  await sharedButton.click();
+  await expect.poll(async () => sharedImage.evaluate((node) => getComputedStyle(node).opacity)).toBe("0");
+  await publicPage.close();
+});
+
+test("public filters apply automatically without a filter button", async ({ page }) => {
+  await page.goto("/talents");
+  await page.locator('select[name="mcn"]').selectOption("浮光社");
+  await expect(page).toHaveURL(/mcn=/);
+  await expect(page.getByText("雁锦")).toBeVisible();
+
+  await page.goto("/events");
+  await page.locator('select[name="eventStatus"]').selectOption("past");
+  await expect(page).toHaveURL(/eventStatus=past/);
+});
+
 test("editor can update ladder title and see it publicly", async ({ page }) => {
   await login(page);
 
@@ -115,28 +136,6 @@ test("editor can update ladder title and see it publicly", async ({ page }) => {
 
   await page.goto("/ladder?editor=lin");
   await expect(page.getByText("凛的天梯榜·收尾验收")).toBeVisible();
-});
-
-test("editor can upload archive assets and publish an archive entry", async ({ page }) => {
-  await login(page);
-
-  await page.goto("/admin/archives");
-  await uploadAsset(page, "event_scene", sceneUploadPath, "Scene Upload", "Scene upload for archive test");
-  await uploadAsset(page, "shared_photo", sharedUploadPath, "Shared Upload", "Shared upload for archive test");
-
-  await page.getByTestId("archive-note").fill("收尾验收档案备注");
-  await page.getByTestId("add-archive-entry").click();
-  await page.getByTestId("archive-cosplay-0").fill("Archive Test Role");
-  await page.getByTestId("archive-scene-0").selectOption({ label: "Scene Upload" });
-  await page.getByTestId("archive-shared-flag-0").check();
-  await page.getByTestId("archive-shared-0").selectOption({ label: "Shared Upload" });
-  await page.getByTestId("save-archive").click();
-  await page.waitForLoadState("networkidle");
-
-  const publicPage = await page.context().newPage();
-  await publicPage.goto("/events/spring-gala-2026");
-  await expect(publicPage.getByText("Archive Test Role")).toBeVisible();
-  await publicPage.close();
 });
 
 test("admin return button routes back to the matching public section", async ({ page }) => {

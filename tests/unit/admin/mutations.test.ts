@@ -1,6 +1,7 @@
 import {
   removeEvent,
   removeTalent,
+  saveEvent,
   saveEventBulk,
   saveTalent,
   saveTalentBulk
@@ -17,22 +18,47 @@ describe("admin mutations", () => {
     await expect(removeTalent("talent-qingluan")).rejects.toThrow();
   });
 
-  it("blocks deleting an event with archives", async () => {
-    await expect(removeEvent("event-mist-lantern")).rejects.toThrow();
+  it("cascades deleting an event with archives", async () => {
+    await removeEvent("event-mist-lantern");
+
+    const state = getMockState();
+    expect(state.events.some((event) => event.id === "event-mist-lantern")).toBe(false);
+    expect(state.lineups.some((lineup) => lineup.eventId === "event-mist-lantern")).toBe(false);
+    expect(state.archives.some((archive) => archive.eventId === "event-mist-lantern")).toBe(false);
   });
 
-  it("creates a new talent with generated slug", async () => {
+  it("creates a new talent with generated slug and search keywords", async () => {
     const saved = await saveTalent({
-      nickname: "new-moon",
-      bio: "fresh test talent",
-      mcn: "independent",
-      coverAssetId: "asset-cover-qingluan",
+      nickname: "Star Lume",
+      bio: "",
+      mcn: "",
+      aliases: ["星露米", "Lume"],
+      coverAssetId: null,
       tags: ["cosplay"],
       links: [],
       representations: []
     });
 
-    expect(saved.slug).toBe("new-moon");
+    expect(saved.slug).toBe("star-lume");
+    expect(saved.searchKeywords).toEqual(expect.arrayContaining(["Star Lume", "星露米", "Lume"]));
+    expect(saved.coverAssetId).toBeNull();
+  });
+
+  it("allows saving an event with blank dates and optional fields", async () => {
+    const saved = await saveEvent({
+      name: "Blank Event",
+      startsAt: null,
+      endsAt: null,
+      city: "",
+      venue: "",
+      status: "future",
+      note: "",
+      lineups: []
+    });
+
+    expect(saved.slug).toBe("blank-event");
+    expect(saved.startsAt).toBeNull();
+    expect(saved.endsAt).toBeNull();
   });
 
   it("bulk adds tags to selected talents", async () => {
@@ -57,9 +83,9 @@ describe("admin mutations", () => {
   it("bulk deletes removable talents and reports blocked rows", async () => {
     const saved = await saveTalent({
       nickname: "bulk-temp",
-      bio: "temporary talent for bulk deletion coverage",
-      mcn: "test-studio",
-      coverAssetId: "asset-cover-qingluan",
+      bio: "",
+      mcn: "",
+      coverAssetId: null,
       tags: [],
       links: [],
       representations: []
@@ -91,18 +117,19 @@ describe("admin mutations", () => {
     expect(state.events.find((event) => event.id === "event-echo-market")?.status).toBe("past");
   });
 
-  it("bulk deletes deletable events and removes their lineups", async () => {
+  it("bulk deletes events and cascades their lineups and archives", async () => {
     const result = await saveEventBulk({
       action: "delete",
-      ids: ["event-echo-market", "missing-event"]
+      ids: ["event-mist-lantern", "missing-event"]
     });
 
-    expect(result.succeededIds).toEqual(["event-echo-market"]);
+    expect(result.succeededIds).toEqual(["event-mist-lantern"]);
     expect(result.blocked).toHaveLength(1);
     expect(result.blocked[0]?.id).toBe("missing-event");
 
     const state = getMockState();
-    expect(state.events.some((event) => event.id === "event-echo-market")).toBe(false);
-    expect(state.lineups.some((lineup) => lineup.eventId === "event-echo-market")).toBe(false);
+    expect(state.events.some((event) => event.id === "event-mist-lantern")).toBe(false);
+    expect(state.lineups.some((lineup) => lineup.eventId === "event-mist-lantern")).toBe(false);
+    expect(state.archives.some((archive) => archive.eventId === "event-mist-lantern")).toBe(false);
   });
 });

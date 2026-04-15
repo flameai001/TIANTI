@@ -1,18 +1,66 @@
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
-export function formatDate(date: string | Date, pattern = "yyyy.MM.dd") {
-  const value = typeof date === "string" ? new Date(date) : date;
+function toDate(value?: string | Date | null) {
+  if (!value) return null;
+  const date = typeof value === "string" ? new Date(value) : value;
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatDate(date?: string | Date | null, pattern = "yyyy.MM.dd") {
+  const value = toDate(date);
+  if (!value) {
+    return "日期待定";
+  }
   return format(value, pattern, { locale: zhCN });
 }
 
-export function formatDateRange(startsAt: string, endsAt?: string | null) {
-  if (!endsAt) {
-    return formatDate(startsAt);
+export function formatDateRange(startsAt?: string | Date | null, endsAt?: string | Date | null) {
+  const start = toDate(startsAt);
+  const end = toDate(endsAt);
+
+  if (!start && !end) {
+    return "日期待定";
   }
 
-  const start = formatDate(startsAt, "MM.dd");
-  const end = formatDate(endsAt, "MM.dd");
-  const year = formatDate(startsAt, "yyyy");
-  return `${year}.${start}-${end}`;
+  if (!start) {
+    return formatDate(end);
+  }
+
+  if (!end) {
+    return formatDate(start);
+  }
+
+  const formattedStart = formatDate(start, "MM.dd");
+  const formattedEnd = formatDate(end, "MM.dd");
+  const year = formatDate(start, "yyyy");
+
+  return formattedStart === formattedEnd ? `${year}.${formattedStart}` : `${year}.${formattedStart}-${formattedEnd}`;
+}
+
+export function toDateInputValue(value?: string | null) {
+  const date = toDate(value);
+  return date ? format(date, "yyyy-MM-dd") : "";
+}
+
+export function toDateOnlyIso(value?: string | null) {
+  if (!value) return null;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  if ([year, month, day].some((part) => Number.isNaN(part))) {
+    return null;
+  }
+
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).toISOString();
+}
+
+export function getDateSortTime(value?: string | Date | null) {
+  const date = toDate(value);
+  return date ? date.getTime() : null;
 }
