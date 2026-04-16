@@ -66,7 +66,6 @@ export default async function EventDetailPage({ params }: { params: Params }) {
         <div className="mt-4 space-y-1 text-sm text-white/60">
           <p>{formatDateRange(detail.event.startsAt, detail.event.endsAt)}</p>
           {detail.event.venue ? <p>{detail.event.venue}</p> : null}
-          {detail.event.aliases.length > 0 ? <p>别名：{detail.event.aliases.join(" / ")}</p> : null}
         </div>
         {detail.event.note ? (
           <p className="mt-6 max-w-3xl text-sm leading-8 text-white/70">{detail.event.note}</p>

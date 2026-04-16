@@ -109,14 +109,14 @@ test("multi-day event lineups are grouped by date in admin, list cards, and deta
 
   await page.goto("/events?eventStatus=future&q=Weekend%20Expo");
   await expect(page.getByText("Weekend Expo")).toBeVisible();
-  await expect(page.getByText("2026.06.01").last()).toBeVisible();
-  await expect(page.getByText("2026.06.02")).toBeVisible();
+  await expect(page.getByText("06.01").last()).toBeVisible();
+  await expect(page.getByText("06.02").last()).toBeVisible();
   await expect(page.getByText("Day 1 source")).toHaveCount(0);
   await expect(page.getByText("Day 2 note")).toHaveCount(0);
 
   await page.goto("/events/weekend-expo");
-  await expect(page.getByText("2026.06.01").last()).toBeVisible();
-  await expect(page.getByText("2026.06.02")).toBeVisible();
+  await expect(page.getByText("06.01").last()).toBeVisible();
+  await expect(page.getByText("06.02").last()).toBeVisible();
   await expect(page.getByText("Day 1 source")).toBeVisible();
   await expect(page.getByText("Day 2 note")).toBeVisible();
 });

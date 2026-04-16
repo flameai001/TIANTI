@@ -15,7 +15,7 @@ export function formatDate(date?: string | Date | null, pattern = "yyyy.MM.dd") 
   return format(value, pattern, { locale: zhCN });
 }
 
-export function formatDateKey(value?: string | null, pattern = "yyyy.MM.dd") {
+export function formatDateKey(value?: string | null, pattern = "MM.dd") {
   return formatDate(toDateOnlyIso(value ?? "") ?? null, pattern);
 }
 
