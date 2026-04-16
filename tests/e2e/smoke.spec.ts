@@ -21,6 +21,10 @@ async function confirmCrop(page: Page, uploadTestId: string) {
   await page.getByTestId(`${uploadTestId}-confirm-crop`).click();
 }
 
+async function waitForArchiveSaved(page: Page) {
+  await expect(page.getByText(/妗ｆ宸蹭繚瀛樺埌|我的档案已保存到/)).toBeVisible();
+}
+
 test.beforeEach(async ({ request }) => {
   await resetState(request);
 });
@@ -129,6 +133,7 @@ test("multi-day event lineups are grouped by date in admin, list cards, and deta
   await confirmCrop(page, "archive-scene-upload-1");
   await page.getByTestId("archive-note").fill("Weekend Expo archive note");
   await page.getByTestId("save-archive").click();
+  await waitForArchiveSaved(page);
 
   await page.goto("/events?eventStatus=future&q=Weekend%20Expo");
   await expect(page.getByText("Weekend Expo")).toBeVisible();
@@ -163,6 +168,7 @@ test("editor can upload archive assets inline and shared-photo card toggles on t
   await expect(page.getByTestId("archive-shared-0")).toHaveCount(0);
   await expect(page.getByTestId("archive-shared-upload-0-clear")).toBeEnabled();
   await page.getByTestId("save-archive").click();
+  await waitForArchiveSaved(page);
 
   const publicPage = await page.context().newPage();
   await publicPage.goto("/events/spring-gala-2026");
