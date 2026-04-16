@@ -46,6 +46,7 @@ export const assets = pgTable("assets", {
   title: text("title").notNull(),
   alt: text("alt").notNull(),
   url: text("url").notNull(),
+  objectKey: text("object_key"),
   width: integer("width").notNull(),
   height: integer("height").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
@@ -196,6 +197,7 @@ export const archiveEntries = pgTable("archive_entries", {
   talentId: uuid("talent_id")
     .notNull()
     .references(() => talents.id, { onDelete: "cascade" }),
+  entryDate: timestamp("entry_date", { withTimezone: true }),
   sceneAssetId: uuid("scene_asset_id")
     .notNull()
     .references(() => assets.id, { onDelete: "cascade" }),

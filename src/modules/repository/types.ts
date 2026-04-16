@@ -15,6 +15,7 @@ export interface ContentRepository {
   getSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null>;
   deleteSessionByTokenHash(tokenHash: string): Promise<void>;
   createAsset(asset: Asset): Promise<Asset>;
+  deleteAsset(id: string): Promise<void>;
   upsertTalent(talent: Talent): Promise<Talent>;
   deleteTalent(id: string): Promise<void>;
   upsertEvent(event: Event): Promise<Event>;

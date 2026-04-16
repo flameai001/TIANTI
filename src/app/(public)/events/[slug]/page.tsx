@@ -134,17 +134,26 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                     {archive.entries.length} 条现场记录
                   </p>
                 </div>
-                <div className="mt-6 grid gap-6 md:grid-cols-2">
-                  {archive.entries.map((entry) => (
-                    <EventArchiveCard
-                      key={entry.entry.id}
-                      talentSlug={entry.talent.slug}
-                      talentName={entry.talent.nickname}
-                      cosplayTitle={entry.entry.cosplayTitle}
-                      recognized={entry.entry.recognized}
-                      sceneAsset={entry.sceneAsset}
-                      sharedPhotoAsset={entry.sharedPhotoAsset}
-                    />
+                <div className="mt-6 space-y-6">
+                  {archive.entryGroups.map((group) => (
+                    <div key={group.date ?? "undated"} className="space-y-4">
+                      {group.label ? (
+                        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-accent)]">{group.label}</p>
+                      ) : null}
+                      <div className="grid gap-6 md:grid-cols-2">
+                        {group.items.map((entry) => (
+                          <EventArchiveCard
+                            key={entry.entry.id}
+                            talentSlug={entry.talent.slug}
+                            talentName={entry.talent.nickname}
+                            cosplayTitle={entry.entry.cosplayTitle}
+                            recognized={entry.entry.recognized}
+                            sceneAsset={entry.sceneAsset}
+                            sharedPhotoAsset={entry.sharedPhotoAsset}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </article>

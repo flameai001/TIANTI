@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
 import { formatDateRange } from "@/lib/date";
 import { buildMetadata } from "@/lib/site";
 import { getTalentPage } from "@/modules/content/service";
@@ -30,6 +31,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function TalentDetailPage({ params }: { params: Params }) {
   const { slug } = await params;
   const detail = await getTalentPage(slug);
+  const coverDisplayPreset = ASSET_DISPLAY_PRESETS.talent_cover;
+  const representationDisplayPreset = ASSET_DISPLAY_PRESETS.talent_representation;
 
   if (!detail) {
     notFound();
@@ -46,7 +49,7 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
     <main className="mx-auto max-w-7xl px-5 py-14 md:px-8">
       <section className="grid gap-8 md:grid-cols-[0.75fr_1.25fr]">
         <div className="overflow-hidden rounded-[2rem] border border-white/10">
-          <div className="relative aspect-[4/3]">
+          <div className="relative" style={{ aspectRatio: coverDisplayPreset.aspectStyle }}>
             {detail.cover ? (
               <Image
                 src={detail.cover.url}
@@ -182,7 +185,7 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
           <div className="grid gap-6 md:grid-cols-3">
             {detail.representationAssets.map((representation) => (
               <article key={representation.id} className="overflow-hidden rounded-[1.8rem] border border-white/10">
-                <div className="relative aspect-[4/3]">
+                <div className="relative" style={{ aspectRatio: representationDisplayPreset.aspectStyle }}>
                   <Image
                     src={representation.asset.url}
                     alt={representation.asset.alt}

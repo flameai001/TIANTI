@@ -1,6 +1,6 @@
 import "server-only";
 
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getR2StorageConfig, isMockStorageMode } from "@/lib/env";
 
@@ -72,4 +72,18 @@ export async function uploadObjectToR2(fileName: string, contentType: string, bo
     objectKey,
     publicUrl: `${config.publicBaseUrl}/${objectKey}`
   };
+}
+
+export async function deleteObjectFromR2(objectKey: string) {
+  if (isMockStorageMode()) {
+    return;
+  }
+
+  const config = getR2StorageConfig();
+  await getR2Client().send(
+    new DeleteObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey
+    })
+  );
 }

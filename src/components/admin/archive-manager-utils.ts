@@ -75,9 +75,9 @@ export function createArchiveDraft(eventId: string | null, archives: EditorArchi
       eventId: "",
       note: "",
       updatedAt: "",
-      entries: []
-    };
-  }
+    entries: []
+  };
+}
 
   return (
     archives.find((archive) => archive.eventId === eventId) ?? {
@@ -124,6 +124,7 @@ export function normalizeArchiveDraft(value: EditorArchive) {
     entries: value.entries.map((entry) => ({
       id: entry.id,
       talentId: entry.talentId,
+      entryDate: entry.entryDate ?? null,
       sceneAssetId: entry.sceneAssetId,
       sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
       cosplayTitle: entry.cosplayTitle.trim(),

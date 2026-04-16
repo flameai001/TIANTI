@@ -30,6 +30,79 @@ describe("domain queries", () => {
     expect(detail?.archives[0]?.entries[0]?.sceneAsset.url).toContain("/media/");
   });
 
+  it("keeps archives grouped by editor and then date, with lineup-date backfill", () => {
+    const state = structuredClone(demoSeedState);
+    state.events.push({
+      id: "event-archive-grouped",
+      slug: "event-archive-grouped",
+      name: "Archive Grouped Event",
+      aliases: [],
+      searchKeywords: [],
+      startsAt: "2026-06-01T12:00:00.000Z",
+      endsAt: "2026-06-02T12:00:00.000Z",
+      city: "",
+      venue: "",
+      status: "future",
+      note: "",
+      updatedAt: "2026-04-11T00:00:00.000Z"
+    });
+    state.lineups.push(
+      {
+        id: "lineup-archive-1",
+        eventId: "event-archive-grouped",
+        talentId: "talent-qingluan",
+        lineupDate: "2026-06-01T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: ""
+      },
+      {
+        id: "lineup-archive-2",
+        eventId: "event-archive-grouped",
+        talentId: "talent-yanjin",
+        lineupDate: "2026-06-02T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: ""
+      }
+    );
+    state.archives.push({
+      id: "archive-grouped",
+      editorId: "editor-lin",
+      eventId: "event-archive-grouped",
+      note: "archive grouped",
+      updatedAt: "2026-04-11T01:00:00.000Z",
+      entries: [
+        {
+          id: "archive-grouped-entry-1",
+          talentId: "talent-qingluan",
+          entryDate: null,
+          sceneAssetId: "asset-scene-1",
+          sharedPhotoAssetId: null,
+          cosplayTitle: "Role One",
+          recognized: true,
+          hasSharedPhoto: false
+        },
+        {
+          id: "archive-grouped-entry-2",
+          talentId: "talent-yanjin",
+          entryDate: "2026-06-02T12:00:00.000Z",
+          sceneAssetId: "asset-scene-2",
+          sharedPhotoAssetId: null,
+          cosplayTitle: "Role Two",
+          recognized: true,
+          hasSharedPhoto: false
+        }
+      ]
+    });
+
+    const detail = getEventDetail(state, "event-archive-grouped");
+
+    expect(detail?.archives).toHaveLength(1);
+    expect(detail?.archives[0]?.entryGroups.map((group) => group.date)).toEqual(["2026-06-01", "2026-06-02"]);
+    expect(detail?.archives[0]?.entryGroups[0]?.items[0]?.entry.entryDate).toBe("2026-06-01T12:00:00.000Z");
+  });
+
   it("groups multi-day lineups in ascending date order and backfills missing lineup dates", () => {
     const state = structuredClone(demoSeedState);
     state.events.push({

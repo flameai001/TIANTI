@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
 import type { Asset } from "@/modules/domain/types";
 
 interface EventArchiveCardProps {
@@ -22,6 +23,7 @@ export function EventArchiveCard({
   talentName,
   talentSlug
 }: EventArchiveCardProps) {
+  const sceneDisplayPreset = ASSET_DISPLAY_PRESETS.event_scene;
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
   const showSharedPhoto = Boolean(sharedPhotoAsset) && (hovered || pinned);
@@ -29,7 +31,8 @@ export function EventArchiveCard({
   return (
     <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
       <div
-        className="relative aspect-[4/3]"
+        className="relative"
+        style={{ aspectRatio: sceneDisplayPreset.aspectStyle }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >

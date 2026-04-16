@@ -1,6 +1,8 @@
 import {
   removeEvent,
   removeTalent,
+  saveArchive,
+  saveAsset,
   saveEvent,
   saveEventBulk,
   saveTalent,
@@ -105,6 +107,92 @@ describe("admin mutations", () => {
         ]
       })
     ).rejects.toThrow("达人阵容的所属日期必须落在活动开始和结束日期之间。");
+  });
+
+  it("requires archive entry dates for multi-day events", async () => {
+    await expect(
+      saveArchive("editor-lin", {
+        eventId: "event-spring-gala",
+        note: "archive note",
+        entries: [
+          {
+            talentId: "talent-qingluan",
+            entryDate: null,
+            sceneAssetId: "asset-scene-1",
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Role One",
+            recognized: true,
+            hasSharedPhoto: false
+          }
+        ]
+      })
+    ).rejects.toThrow("多日活动的每条现场档案记录都必须选择所属日期。");
+  });
+
+  it("rejects archive entry dates outside the event range", async () => {
+    await expect(
+      saveArchive("editor-lin", {
+        eventId: "event-spring-gala",
+        note: "archive note",
+        entries: [
+          {
+            talentId: "talent-qingluan",
+            entryDate: "2026-06-06",
+            sceneAssetId: "asset-scene-1",
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Role One",
+            recognized: true,
+            hasSharedPhoto: false
+          }
+        ]
+      })
+    ).rejects.toThrow("现场档案记录的所属日期必须落在活动开始和结束日期之间。");
+  });
+
+  it("deletes cleanup candidate assets when they are no longer referenced", async () => {
+    const asset = await saveAsset({
+      kind: "talent_cover",
+      title: "unused cover",
+      alt: "unused cover",
+      url: "https://example.com/unused-cover.jpg",
+      width: 300,
+      height: 400,
+      objectKey: null
+    });
+
+    await saveTalent({
+      id: "talent-qingluan",
+      nickname: "青鸾",
+      bio: demoSeedState.talents[0]?.bio ?? "",
+      mcn: demoSeedState.talents[0]?.mcn ?? "",
+      aliases: demoSeedState.talents[0]?.aliases ?? [],
+      coverAssetId: null,
+      tags: demoSeedState.talents[0]?.tags ?? [],
+      links: demoSeedState.talents[0]?.links ?? [],
+      representations: demoSeedState.talents[0]?.representations ?? [],
+      cleanupCandidateAssetIds: [asset.id]
+    });
+
+    expect(getMockState().assets.some((item) => item.id === asset.id)).toBe(false);
+  });
+
+  it("keeps cleanup candidate assets when they are still referenced elsewhere", async () => {
+    const candidateAssetId = "asset-rep-1";
+
+    await saveTalent({
+      id: "talent-qingluan",
+      nickname: "青鸾",
+      bio: demoSeedState.talents[0]?.bio ?? "",
+      mcn: demoSeedState.talents[0]?.mcn ?? "",
+      aliases: demoSeedState.talents[0]?.aliases ?? [],
+      coverAssetId: "asset-cover-qingluan",
+      tags: demoSeedState.talents[0]?.tags ?? [],
+      links: demoSeedState.talents[0]?.links ?? [],
+      representations: demoSeedState.talents[0]?.representations ?? [],
+      cleanupCandidateAssetIds: [candidateAssetId]
+    });
+
+    expect(getMockState().assets.some((item) => item.id === candidateAssetId)).toBe(true);
   });
 
   it("bulk adds tags to selected talents", async () => {

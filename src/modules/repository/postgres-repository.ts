@@ -65,6 +65,23 @@ async function loadState(): Promise<ContentState> {
   const fallbackLineupDateByEventId = new Map(
     eventRows.map((row) => [row.id, row.startsAt ?? row.endsAt ?? null])
   );
+  const uniqueLineupDateByEventAndTalent = new Map<string, Date | null>();
+
+  for (const row of lineupRows) {
+    const key = `${row.eventId}:${row.talentId}`;
+    const resolvedLineupDate = row.lineupDate ?? fallbackLineupDateByEventId.get(row.eventId) ?? null;
+    if (!uniqueLineupDateByEventAndTalent.has(key)) {
+      uniqueLineupDateByEventAndTalent.set(key, resolvedLineupDate);
+      continue;
+    }
+
+    const previous = uniqueLineupDateByEventAndTalent.get(key) ?? null;
+    const previousTime = previous?.getTime() ?? null;
+    const nextTime = resolvedLineupDate?.getTime() ?? null;
+    if (previousTime !== nextTime) {
+      uniqueLineupDateByEventAndTalent.set(key, null);
+    }
+  }
 
   return {
     editors: editorRows.map((row) => ({
@@ -91,6 +108,7 @@ async function loadState(): Promise<ContentState> {
       title: row.title,
       alt: row.alt,
       url: row.url,
+      objectKey: row.objectKey ?? null,
       width: row.width,
       height: row.height
     })),
@@ -176,6 +194,11 @@ async function loadState(): Promise<ContentState> {
         .map((entry) => ({
           id: entry.id,
           talentId: entry.talentId,
+          entryDate:
+            entry.entryDate?.toISOString() ??
+            uniqueLineupDateByEventAndTalent.get(`${row.eventId}:${entry.talentId}`)?.toISOString() ??
+            fallbackLineupDateByEventId.get(row.eventId)?.toISOString() ??
+            null,
           sceneAssetId: entry.sceneAssetId,
           sharedPhotoAssetId: entry.sharedPhotoAssetId,
           cosplayTitle: entry.cosplayTitle,
@@ -289,10 +312,15 @@ export const postgresRepository: ContentRepository = {
       title: asset.title,
       alt: asset.alt,
       url: asset.url,
+      objectKey: asset.objectKey ?? null,
       width: asset.width,
       height: asset.height
     });
     return asset;
+  },
+  async deleteAsset(id) {
+    const db = getDb();
+    await db.delete(assets).where(eq(assets.id, id));
   },
   async upsertTalent(talent) {
     const db = getDb();
@@ -458,6 +486,7 @@ export const postgresRepository: ContentRepository = {
           id: entry.id,
           archiveId: archive.id,
           talentId: entry.talentId,
+          entryDate: entry.entryDate ? new Date(entry.entryDate) : null,
           sceneAssetId: entry.sceneAssetId,
           sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
           cosplayTitle: entry.cosplayTitle,

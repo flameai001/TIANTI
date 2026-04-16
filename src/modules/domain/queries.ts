@@ -4,6 +4,8 @@ import { formatDateKey, getDateOnlyKey, getDateRangeDays, getDateSortTime, isMul
 import { compareByPinyin } from "@/lib/pinyin";
 import type {
   ArchiveEntry,
+  ArchiveEntryDisplayItem,
+  ArchiveEntryGroup,
   ContentState,
   DashboardSummary,
   DiscoverySection,
@@ -315,6 +317,82 @@ function buildLineupGroups(event: Event, lineups: ReturnType<typeof buildResolve
       label: formatDateKey(date),
       items
     }));
+}
+
+function getResolvedArchiveEntryDate(state: ContentState, event: Event, entry: ArchiveEntry) {
+  if (entry.entryDate) {
+    return entry.entryDate;
+  }
+
+  const matchingLineupDates = state.lineups
+    .filter((lineup) => lineup.eventId === event.id && lineup.talentId === entry.talentId)
+    .map((lineup) => getResolvedLineupDate(event, lineup.lineupDate))
+    .filter(Boolean) as string[];
+  const uniqueLineupDates = [...new Set(matchingLineupDates.map((lineupDate) => getDateOnlyKey(lineupDate)).filter(Boolean))];
+
+  if (uniqueLineupDates.length === 1) {
+    return toDateOnlyIso(uniqueLineupDates[0] ?? "") ?? null;
+  }
+
+  return event.startsAt ?? event.endsAt ?? null;
+}
+
+function buildArchiveEntryGroups(event: Event, entries: ArchiveEntryDisplayItem[]) {
+  if (entries.length === 0) {
+    return [];
+  }
+
+  if (!isMultiDayRange(event.startsAt, event.endsAt)) {
+    return [
+      {
+        date: null,
+        label: null,
+        items: entries
+      }
+    ];
+  }
+
+  const grouped = new Map<string, ArchiveEntryDisplayItem[]>();
+  const orderedDates = getDateRangeDays(event.startsAt, event.endsAt);
+  const undatedItems: ArchiveEntryDisplayItem[] = [];
+
+  for (const date of orderedDates) {
+    grouped.set(date, []);
+  }
+
+  for (const item of entries) {
+    const dateKey = getDateOnlyKey(item.entry.entryDate);
+    if (!dateKey) {
+      undatedItems.push(item);
+      continue;
+    }
+
+    const bucket = grouped.get(dateKey);
+    if (!bucket) {
+      undatedItems.push(item);
+      continue;
+    }
+
+    bucket.push(item);
+  }
+
+  const groups: ArchiveEntryGroup[] = [...grouped.entries()]
+    .filter(([, items]) => items.length > 0)
+    .map(([date, items]) => ({
+      date,
+      label: formatDateKey(date),
+      items
+    }));
+
+  if (undatedItems.length > 0) {
+    groups.push({
+      date: null,
+      label: "未分配日期",
+      items: undatedItems
+    });
+  }
+
+  return groups;
 }
 
 function buildEventSummary(state: ContentState, event: Event, relevanceScore?: number): EventSummary {
@@ -654,10 +732,8 @@ export function getEventDetail(state: ContentState, slug: string) {
     lineupGroups,
     archives: state.archives
       .filter((archive) => archive.eventId === event.id)
-      .map((archive) => ({
-        editor: editorMap.get(archive.editorId)!,
-        archive,
-        entries: archive.entries
+      .map((archive) => {
+        const entries = archive.entries
           .map((entry) => {
             const talent = talentMap.get(entry.talentId);
             const sceneAsset = assetMap.get(entry.sceneAssetId);
@@ -666,19 +742,24 @@ export function getEventDetail(state: ContentState, slug: string) {
             }
 
             return {
-              entry,
+              entry: {
+                ...entry,
+                entryDate: getResolvedArchiveEntryDate(state, event, entry)
+              },
               talent,
               sceneAsset,
               sharedPhotoAsset: entry.sharedPhotoAssetId ? assetMap.get(entry.sharedPhotoAssetId) ?? null : null
             };
           })
-          .filter(Boolean) as Array<{
-          entry: ArchiveEntry;
-          talent: Talent;
-          sceneAsset: ContentState["assets"][number];
-          sharedPhotoAsset?: ContentState["assets"][number] | null;
-        }>
-      })),
+          .filter(Boolean) as ArchiveEntryDisplayItem[];
+
+        return {
+          editor: editorMap.get(archive.editorId)!,
+          archive,
+          entries,
+          entryGroups: buildArchiveEntryGroups(event, entries)
+        };
+      }),
     relatedEvents: buildRelatedEventSummaries(
       state,
       relatedEvents.map((item) => item.candidate.id),

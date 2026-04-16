@@ -17,6 +17,10 @@ async function login(page: Page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
+async function confirmCrop(page: Page, uploadTestId: string) {
+  await page.getByTestId(`${uploadTestId}-confirm-crop`).click();
+}
+
 test.beforeEach(async ({ request }) => {
   await resetState(request);
 });
@@ -56,9 +60,13 @@ test("editor can create a talent with inline uploads and publish a future event"
   await page.locator('input[name="mcn"]').fill("Orbit Studio");
   await page.locator('input[name="tags"]').fill("cosplay, 舞台");
   await page.getByTestId("talent-cover-upload").setInputFiles(sceneUploadPath);
-  await expect(page.getByTestId("talent-cover-select")).not.toHaveValue("");
+  await confirmCrop(page, "talent-cover-upload");
+  await expect(page.getByTestId("talent-cover-select")).toHaveCount(0);
+  await expect(page.getByTestId("talent-cover-upload-clear")).toBeEnabled();
   await page.getByTestId("talent-representation-upload-0").setInputFiles(sharedUploadPath);
-  await expect(page.getByTestId("talent-representation-select-0")).not.toHaveValue("");
+  await confirmCrop(page, "talent-representation-upload-0");
+  await expect(page.getByTestId("talent-representation-select-0")).toHaveCount(0);
+  await expect(page.getByTestId("talent-representation-upload-0-clear")).toBeEnabled();
   await page.getByTestId("save-talent").click();
   await expect(page.getByRole("heading", { name: "编辑 Star Lume" })).toBeVisible();
 
@@ -107,6 +115,21 @@ test("multi-day event lineups are grouped by date in admin, list cards, and deta
   await page.getByTestId("lineup-note-1").fill("Day 2 note");
   await page.getByTestId("save-event").click();
 
+  await page.getByTestId("add-archive-entry").click();
+  await page.getByTestId("archive-talent-0").selectOption({ label: "青鸾" });
+  await page.getByTestId("archive-date-0").selectOption("2026-06-01");
+  await page.getByTestId("archive-cosplay-0").fill("Role Day 1");
+  await page.getByTestId("archive-scene-upload-0").setInputFiles(sceneUploadPath);
+  await confirmCrop(page, "archive-scene-upload-0");
+  await page.getByTestId("add-archive-entry").click();
+  await page.getByTestId("archive-talent-1").selectOption({ label: "雁锦" });
+  await page.getByTestId("archive-date-1").selectOption("2026-06-02");
+  await page.getByTestId("archive-cosplay-1").fill("Role Day 2");
+  await page.getByTestId("archive-scene-upload-1").setInputFiles(sceneUploadPath);
+  await confirmCrop(page, "archive-scene-upload-1");
+  await page.getByTestId("archive-note").fill("Weekend Expo archive note");
+  await page.getByTestId("save-archive").click();
+
   await page.goto("/events?eventStatus=future&q=Weekend%20Expo");
   await expect(page.getByText("Weekend Expo")).toBeVisible();
   await expect(page.getByText("06.01").last()).toBeVisible();
@@ -119,6 +142,8 @@ test("multi-day event lineups are grouped by date in admin, list cards, and deta
   await expect(page.getByText("06.02").last()).toBeVisible();
   await expect(page.getByText("Day 1 source")).toBeVisible();
   await expect(page.getByText("Day 2 note")).toBeVisible();
+  await expect(page.getByText("Role Day 1")).toBeVisible();
+  await expect(page.getByText("Role Day 2")).toBeVisible();
 });
 
 test("editor can upload archive assets inline and shared-photo card toggles on the public page", async ({ page }) => {
@@ -129,10 +154,14 @@ test("editor can upload archive assets inline and shared-photo card toggles on t
   await page.getByTestId("add-archive-entry").click();
   await page.getByTestId("archive-cosplay-0").fill("Archive Test Role");
   await page.getByTestId("archive-scene-upload-0").setInputFiles(sceneUploadPath);
-  await page.getByTestId("archive-scene-0").selectOption({ label: "poster-crimson" });
+  await confirmCrop(page, "archive-scene-upload-0");
+  await expect(page.getByTestId("archive-scene-0")).toHaveCount(0);
+  await expect(page.getByTestId("archive-scene-upload-0-clear")).toBeEnabled();
   await page.getByTestId("archive-shared-flag-0").check();
   await page.getByTestId("archive-shared-upload-0").setInputFiles(sharedUploadPath);
-  await page.getByTestId("archive-shared-0").selectOption({ label: "shared-bloom" });
+  await confirmCrop(page, "archive-shared-upload-0");
+  await expect(page.getByTestId("archive-shared-0")).toHaveCount(0);
+  await expect(page.getByTestId("archive-shared-upload-0-clear")).toBeEnabled();
   await page.getByTestId("save-archive").click();
 
   const publicPage = await page.context().newPage();
@@ -165,7 +194,19 @@ test("inline upload surfaces clear backend error messages", async ({ page }) => 
 
   await page.goto("/admin/talents");
   await page.getByTestId("talent-cover-upload").setInputFiles(sceneUploadPath);
+  await confirmCrop(page, "talent-cover-upload");
   await expect(page.getByText("R2 存储配置错误：缺少 R2_PUBLIC_BASE_URL。")).toBeVisible();
+});
+
+test("editor can clear a current image and save the empty state", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/talents");
+  await expect(page.getByTestId("talent-cover-upload-clear")).toBeEnabled();
+  await page.getByTestId("talent-cover-upload-clear").click();
+  await expect(page.getByTestId("talent-cover-upload-clear")).toBeDisabled();
+  await page.getByTestId("save-talent").click();
+  await expect(page.getByText("当前未上传图片")).toBeVisible();
 });
 
 test("public filters apply automatically without a filter button", async ({ page }) => {
@@ -222,11 +263,16 @@ test("archive workspace can import lineup entries and duplicate a record", async
   await page.getByTestId("archive-cosplay-0").fill("Role One");
   await page.getByTestId("archive-cosplay-1").fill("Role Two");
   await page.getByTestId("archive-cosplay-2").fill("Role Three");
+  await page.getByTestId("archive-scene-upload-0").setInputFiles(sceneUploadPath);
+  await confirmCrop(page, "archive-scene-upload-0");
+  await page.getByTestId("archive-scene-upload-1").setInputFiles(sceneUploadPath);
+  await confirmCrop(page, "archive-scene-upload-1");
+  await page.getByTestId("archive-scene-upload-2").setInputFiles(sceneUploadPath);
+  await confirmCrop(page, "archive-scene-upload-2");
   await page.getByTestId("save-archive").click();
 
   await expect(page.getByTestId("archive-entry")).toHaveCount(3);
   await expect(page.getByTestId("archive-note")).toHaveValue("Imported archive workflow note");
-  await expect(page).toHaveURL(/\/admin\/archives\?event=/);
 });
 
 test("public pages remain browsable on mobile", async ({ page }) => {

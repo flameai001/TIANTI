@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
+import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import { InlineAssetUpload } from "@/components/admin/inline-asset-upload";
 import { compareByPinyin } from "@/lib/pinyin";
 import type { TalentBulkResponse } from "@/modules/admin/types";
@@ -112,24 +112,14 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkTags, setBulkTags] = useState("");
   const [liveAssets, setLiveAssets] = useState(assets);
+  const [cleanupCandidateAssetIds, setCleanupCandidateAssetIds] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
   const selectedTalent = liveTalents.find((talent) => talent.id === selectedId) ?? null;
   const [draft, setDraft] = useState<TalentDraft>(() => createTalentDraft(selectedTalent));
 
-  useEffect(() => {
-    setDraft(createTalentDraft(selectedTalent));
-  }, [selectedTalent]);
-
-  const coverAssets = useMemo(
-    () => liveAssets.filter((asset) => asset.kind === "talent_cover"),
-    [liveAssets]
-  );
-  const representationAssets = useMemo(
-    () => liveAssets.filter((asset) => asset.kind === "talent_representation"),
-    [liveAssets]
-  );
+  const assetMap = useMemo(() => new Map(liveAssets.map((asset) => [asset.id, asset])), [liveAssets]);
 
   const filteredTalents = useMemo(
     () =>
@@ -142,6 +132,14 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
   );
 
   const hasSelectedTalents = selectedIds.length > 0;
+
+  function selectTalent(id: string | null) {
+    const nextTalent = liveTalents.find((talent) => talent.id === id) ?? null;
+    setSelectedId(id);
+    setDraft(createTalentDraft(nextTalent));
+    setCleanupCandidateAssetIds([]);
+    setMessage(null);
+  }
 
   function toggleSelectedTalent(id: string, checked: boolean) {
     setSelectedIds((current) =>
@@ -174,6 +172,11 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
     }));
   }
 
+  function enqueueCleanupAssetId(assetId?: string | null) {
+    if (!assetId) return;
+    setCleanupCandidateAssetIds((current) => [...new Set([...current, assetId])]);
+  }
+
   function addRepresentationRow() {
     setDraft((current) => ({
       ...current,
@@ -183,6 +186,8 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
 
   function removeRepresentationRow(index: number) {
     setDraft((current) => {
+      const assetId = current.representations[index]?.assetId ?? "";
+      enqueueCleanupAssetId(assetId || null);
       const next = current.representations.filter((_, itemIndex) => itemIndex !== index);
       return {
         ...current,
@@ -201,6 +206,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       mcn: draft.mcn,
       aliases: splitTags(draft.aliases),
       coverAssetId: draft.coverAssetId || null,
+      cleanupCandidateAssetIds,
       tags: splitTags(draft.tags),
       links: parsePipeRows(draft.linksText).map((row) => ({
         label: row.left,
@@ -236,8 +242,65 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
         return sortTalents(next);
       });
       setSelectedId(data.talent.id);
+      setDraft(createTalentDraft(data.talent));
+      setCleanupCandidateAssetIds([]);
       setMessage(`已保存达人「${data.talent.nickname}」。`);
     });
+  }
+
+  function handleCoverUploaded(asset: Asset) {
+    setLiveAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)]);
+    setDraft((current) => {
+      enqueueCleanupAssetId(current.coverAssetId || null);
+      return { ...current, coverAssetId: asset.id };
+    });
+    setMessage(`已上传并替换封面「${asset.title}」。`);
+  }
+
+  function handleClearCover() {
+    setDraft((current) => {
+      enqueueCleanupAssetId(current.coverAssetId || null);
+      return { ...current, coverAssetId: "" };
+    });
+    setMessage("已清空当前封面，保存后会同步生效。");
+  }
+
+  function handleRepresentationUploaded(index: number, asset: Asset) {
+    setLiveAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)]);
+    setDraft((current) => ({
+      ...current,
+      representations: current.representations.map((representation, itemIndex) => {
+        if (itemIndex !== index) {
+          return representation;
+        }
+
+        enqueueCleanupAssetId(representation.assetId || null);
+        return {
+          ...representation,
+          assetId: asset.id,
+          title: representation.title || asset.title
+        };
+      })
+    }));
+    setMessage(`已上传并替换代表图「${asset.title}」。`);
+  }
+
+  function handleClearRepresentation(index: number) {
+    setDraft((current) => ({
+      ...current,
+      representations: current.representations.map((representation, itemIndex) => {
+        if (itemIndex !== index) {
+          return representation;
+        }
+
+        enqueueCleanupAssetId(representation.assetId || null);
+        return {
+          ...representation,
+          assetId: ""
+        };
+      })
+    }));
+    setMessage("已清空当前代表图，保存后会同步生效。");
   }
 
   async function handleDelete() {
@@ -257,7 +320,10 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       const nextTalents = liveTalents.filter((talent) => talent.id !== selectedTalent.id);
       setLiveTalents(nextTalents);
       setSelectedIds((current) => current.filter((id) => id !== selectedTalent.id));
-      setSelectedId(nextTalents[0]?.id ?? null);
+      const nextSelectedTalent = nextTalents[0] ?? null;
+      setSelectedId(nextSelectedTalent?.id ?? null);
+      setDraft(createTalentDraft(nextSelectedTalent));
+      setCleanupCandidateAssetIds([]);
       setMessage(`已删除达人「${selectedTalent.nickname}」。`);
     });
   }
@@ -394,7 +460,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
           <button
             type="button"
             data-testid="new-talent-button"
-            onClick={() => setSelectedId(null)}
+            onClick={() => selectTalent(null)}
             className="w-full rounded-[1.2rem] border border-dashed border-white/15 px-4 py-4 text-left text-sm text-white/70 transition hover:border-white/30 hover:text-white"
           >
             + 新建达人
@@ -416,7 +482,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                   onChange={(event) => toggleSelectedTalent(talent.id, event.target.checked)}
                   className="mt-1 size-4 rounded border-white/20 bg-black/30"
                 />
-                <button type="button" onClick={() => setSelectedId(talent.id)} className="flex-1 text-left">
+                <button type="button" onClick={() => selectTalent(talent.id)} className="flex-1 text-left">
                   <p className="text-lg text-white">{talent.nickname}</p>
                   <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/40">
                     {talent.tags.join(" · ") || "未设置标签"}
@@ -496,32 +562,16 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm text-white">封面图片</p>
-                  <p className="mt-1 text-xs text-white/45">可直接选择已有素材，也可以在这里上传本地图片。</p>
+                  <p className="mt-1 text-xs text-white/45">当前图片可直接替换或清空，不再从素材池里手动选择。</p>
                 </div>
                 <InlineAssetUpload
                   kind="talent_cover"
                   dataTestId="talent-cover-upload"
-                  onUploaded={(asset) => {
-                    setLiveAssets((current) => [asset, ...current]);
-                    setDraft((current) => ({ ...current, coverAssetId: asset.id }));
-                    setMessage(`已上传并选中封面「${asset.title}」。`);
-                  }}
+                  currentAsset={draft.coverAssetId ? (assetMap.get(draft.coverAssetId) ?? null) : null}
+                  onClear={handleClearCover}
+                  onUploaded={handleCoverUploaded}
                 />
               </div>
-              <select
-                name="coverAssetId"
-                data-testid="talent-cover-select"
-                value={draft.coverAssetId}
-                onChange={(event) => setDraft((current) => ({ ...current, coverAssetId: event.target.value }))}
-                className="w-full rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
-              >
-                <option value="">暂不设置封面</option>
-                {coverAssets.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.title}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <textarea
@@ -537,7 +587,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm text-white">代表图</p>
-                  <p className="mt-1 text-xs text-white/45">标题可留空；上传新图后会自动选中到当前行。</p>
+                  <p className="mt-1 text-xs text-white/45">每一行只维护当前代表图，可直接替换或清空。</p>
                 </div>
                 <button
                   type="button"
@@ -551,26 +601,13 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               <div className="space-y-4">
                 {draft.representations.map((representation, index) => (
                   <div key={representation.id} className="rounded-[1.2rem] border border-white/10 bg-black/20 p-4">
-                    <div className="grid gap-3 md:grid-cols-[1fr_1.2fr_auto]">
+                    <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                       <input
                         value={representation.title}
                         onChange={(event) => updateRepresentation(index, { title: event.target.value })}
                         placeholder="代表图标题"
                         className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
                       />
-                      <select
-                        data-testid={`talent-representation-select-${index}`}
-                        value={representation.assetId}
-                        onChange={(event) => updateRepresentation(index, { assetId: event.target.value })}
-                        className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                      >
-                        <option value="">暂不选择图片</option>
-                        {representationAssets.map((asset) => (
-                          <option key={asset.id} value={asset.id}>
-                            {asset.title}
-                          </option>
-                        ))}
-                      </select>
                       <button
                         type="button"
                         onClick={() => removeRepresentationRow(index)}
@@ -583,14 +620,9 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                       <InlineAssetUpload
                         kind="talent_representation"
                         dataTestId={`talent-representation-upload-${index}`}
-                        onUploaded={(asset) => {
-                          setLiveAssets((current) => [asset, ...current]);
-                          updateRepresentation(index, {
-                            assetId: asset.id,
-                            title: representation.title || asset.title
-                          });
-                          setMessage(`已上传并选中代表图「${asset.title}」。`);
-                        }}
+                        currentAsset={representation.assetId ? (assetMap.get(representation.assetId) ?? null) : null}
+                        onClear={() => handleClearRepresentation(index)}
+                        onUploaded={(asset) => handleRepresentationUploaded(index, asset)}
                       />
                     </div>
                   </div>

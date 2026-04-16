@@ -1,14 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
 import type { TalentSummary } from "@/modules/domain/types";
 
 export function TalentCard({ talent }: { talent: TalentSummary }) {
+  const coverDisplayPreset = ASSET_DISPLAY_PRESETS.talent_cover;
+
   return (
     <Link
       href={`/talents/${talent.slug}`}
       className="group overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/5 transition hover:-translate-y-1 hover:border-white/20"
     >
-      <div className="relative aspect-[3/4] overflow-hidden">
+      <div className="relative overflow-hidden" style={{ aspectRatio: coverDisplayPreset.aspectStyle }}>
         {talent.cover ? (
           <>
             <Image

@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { getR2StorageConfig, isMockStorageMode } from "@/lib/env";
 import { getDateOnlyKey, getDateRangeDays, isMultiDayRange, toDateOnlyIso } from "@/lib/date";
 import { slugify } from "@/lib/slug";
 import type { Talent } from "@/modules/domain/types";
@@ -12,6 +13,7 @@ import type {
   TalentBulkResponse
 } from "@/modules/admin/types";
 import { getContentRepository } from "@/modules/repository";
+import { deleteObjectFromR2 } from "@/storage/r2";
 
 const talentSchema = z.object({
   id: z.string().optional(),
@@ -32,7 +34,8 @@ const talentSchema = z.object({
         assetId: z.string().optional().default("")
       })
     )
-    .default([])
+    .default([]),
+  cleanupCandidateAssetIds: z.array(z.string()).optional().default([])
 });
 
 const eventSchema = z.object({
@@ -79,10 +82,12 @@ const archiveSchema = z.object({
   id: z.string().optional(),
   eventId: z.string(),
   note: z.string().min(1),
+  cleanupCandidateAssetIds: z.array(z.string()).optional().default([]),
   entries: z.array(
     z.object({
       id: z.string().optional(),
       talentId: z.string(),
+      entryDate: z.string().nullable().optional(),
       sceneAssetId: z.string(),
       sharedPhotoAssetId: z.string().nullable().optional(),
       cosplayTitle: z.string().min(1),
@@ -97,6 +102,7 @@ const assetSchema = z.object({
   title: z.string().min(1),
   alt: z.string().min(1),
   url: z.string().url(),
+  objectKey: z.string().nullable().optional(),
   width: z.number().int().positive(),
   height: z.number().int().positive()
 });
@@ -125,6 +131,105 @@ function getValidLineupDateKeys(startsAt?: string | null, endsAt?: string | null
 
   const fallbackDate = getDateOnlyKey(startsAt) ?? getDateOnlyKey(endsAt);
   return fallbackDate ? [fallbackDate] : [];
+}
+
+function getValidArchiveDateKeys(state: Awaited<ReturnType<ReturnType<typeof getContentRepository>["getState"]>>, eventId: string) {
+  const event = state.events.find((item) => item.id === eventId) ?? null;
+  if (!event) {
+    return {
+      event: null,
+      isMultiDayEvent: false,
+      validDateKeys: new Set<string>()
+    };
+  }
+
+  return {
+    event,
+    isMultiDayEvent: isMultiDayRange(event.startsAt ?? null, event.endsAt ?? null),
+    validDateKeys: new Set(getValidLineupDateKeys(event.startsAt ?? null, event.endsAt ?? null))
+  };
+}
+
+function collectReferencedAssetIds(state: Awaited<ReturnType<ReturnType<typeof getContentRepository>["getState"]>>) {
+  const referencedAssetIds = new Set<string>();
+
+  for (const talent of state.talents) {
+    if (talent.coverAssetId) {
+      referencedAssetIds.add(talent.coverAssetId);
+    }
+
+    for (const representation of talent.representations) {
+      referencedAssetIds.add(representation.assetId);
+    }
+  }
+
+  for (const archive of state.archives) {
+    for (const entry of archive.entries) {
+      referencedAssetIds.add(entry.sceneAssetId);
+      if (entry.sharedPhotoAssetId) {
+        referencedAssetIds.add(entry.sharedPhotoAssetId);
+      }
+    }
+  }
+
+  return referencedAssetIds;
+}
+
+function getAssetObjectKeyFromUrl(url: string) {
+  if (isMockStorageMode()) {
+    return null;
+  }
+
+  try {
+    const { publicBaseUrl } = getR2StorageConfig();
+    const normalizedBaseUrl = `${publicBaseUrl}/`;
+    if (!url.startsWith(normalizedBaseUrl)) {
+      return null;
+    }
+
+    return decodeURIComponent(url.slice(normalizedBaseUrl.length));
+  } catch {
+    return null;
+  }
+}
+
+async function cleanupUnusedAssets(candidateIds: string[]) {
+  const repository = getContentRepository();
+  const uniqueIds = dedupeIds(candidateIds.map((id) => id.trim()).filter(Boolean));
+  if (uniqueIds.length === 0) {
+    return;
+  }
+
+  const state = await repository.getState();
+  const referencedAssetIds = collectReferencedAssetIds(state);
+  const assetMap = new Map(state.assets.map((asset) => [asset.id, asset]));
+
+  for (const assetId of uniqueIds) {
+    if (referencedAssetIds.has(assetId)) {
+      continue;
+    }
+
+    const asset = assetMap.get(assetId);
+    if (!asset) {
+      continue;
+    }
+
+    const objectKey = asset.objectKey?.trim() || getAssetObjectKeyFromUrl(asset.url);
+
+    if (objectKey) {
+      try {
+        await deleteObjectFromR2(objectKey);
+      } catch {
+        // Ignore storage deletion issues so save flows are not blocked.
+      }
+    }
+
+    try {
+      await repository.deleteAsset(assetId);
+    } catch {
+      // Ignore concurrent cleanup or stale candidate rows.
+    }
+  }
 }
 
 function formatMissingReason(kind: "达人" | "活动") {
@@ -161,6 +266,7 @@ export async function saveAsset(payload: unknown) {
     title: input.title,
     alt: input.alt,
     url: input.url,
+    objectKey: input.objectKey ?? null,
     width: input.width,
     height: input.height
   });
@@ -179,7 +285,7 @@ export async function saveTalent(payload: unknown) {
 
   await ensureUniqueTalentSlug(id, slug);
 
-  return repository.upsertTalent({
+  const talent = await repository.upsertTalent({
     id,
     slug,
     nickname,
@@ -204,9 +310,12 @@ export async function saveTalent(payload: unknown) {
       .map((item) => ({
         ...item,
         title: item.title || assetTitleMap.get(item.assetId) || "未命名代表图"
-      })),
+    })),
     updatedAt: new Date().toISOString()
   });
+
+  await cleanupUnusedAssets(input.cleanupCandidateAssetIds ?? []);
+  return talent;
 }
 
 export async function removeTalent(id: string) {
@@ -312,22 +421,46 @@ export async function saveLadder(editorId: string, payload: unknown) {
 export async function saveArchive(editorId: string, payload: unknown) {
   const repository = getContentRepository();
   const input = archiveSchema.parse(payload);
-  return repository.saveArchive({
+  const state = await repository.getState();
+  const { event, isMultiDayEvent, validDateKeys } = getValidArchiveDateKeys(state, input.eventId);
+
+  if (!event) {
+    throw new Error("活动不存在或已被删除。");
+  }
+
+  const archive = await repository.saveArchive({
     id: input.id ?? randomUUID(),
     editorId,
     eventId: input.eventId,
     note: input.note,
     updatedAt: new Date().toISOString(),
-    entries: input.entries.map((entry) => ({
-      id: entry.id ?? randomUUID(),
-      talentId: entry.talentId,
-      sceneAssetId: entry.sceneAssetId,
-      sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
-      cosplayTitle: entry.cosplayTitle,
-      recognized: entry.recognized,
-      hasSharedPhoto: entry.hasSharedPhoto
-    }))
+    entries: input.entries.map((entry) => {
+      const entryDate = toDateOnlyIso(entry.entryDate?.trim() ?? "") ?? null;
+      const entryDateKey = getDateOnlyKey(entryDate);
+
+      if (isMultiDayEvent && !entryDate) {
+        throw new Error("多日活动的每条现场档案记录都必须选择所属日期。");
+      }
+
+      if (entryDateKey && validDateKeys.size > 0 && !validDateKeys.has(entryDateKey)) {
+        throw new Error("现场档案记录的所属日期必须落在活动开始和结束日期之间。");
+      }
+
+      return {
+        id: entry.id ?? randomUUID(),
+        talentId: entry.talentId,
+        entryDate,
+        sceneAssetId: entry.sceneAssetId,
+        sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
+        cosplayTitle: entry.cosplayTitle,
+        recognized: entry.recognized,
+        hasSharedPhoto: entry.hasSharedPhoto
+      };
+    })
   });
+
+  await cleanupUnusedAssets(input.cleanupCandidateAssetIds ?? []);
+  return archive;
 }
 
 export async function saveTalentBulk(payload: unknown): Promise<TalentBulkResponse> {

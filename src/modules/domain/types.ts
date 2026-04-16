@@ -35,6 +35,7 @@ export interface Asset {
   title: string;
   alt: string;
   url: string;
+  objectKey?: string | null;
   width: number;
   height: number;
 }
@@ -109,6 +110,7 @@ export interface EditorLadder {
 export interface ArchiveEntry {
   id: string;
   talentId: string;
+  entryDate?: string | null;
   sceneAssetId: string;
   sharedPhotoAssetId?: string | null;
   cosplayTitle: string;
@@ -175,6 +177,19 @@ export interface EventLineupGroup {
   items: EventLineupDisplayItem[];
 }
 
+export interface ArchiveEntryDisplayItem {
+  entry: ArchiveEntry;
+  talent: Talent;
+  sceneAsset: Asset;
+  sharedPhotoAsset?: Asset | null;
+}
+
+export interface ArchiveEntryGroup {
+  date: string | null;
+  label: string | null;
+  items: ArchiveEntryDisplayItem[];
+}
+
 export interface EventSummary {
   event: Event;
   lineups: EventLineupDisplayItem[];
@@ -211,12 +226,8 @@ export interface EventDetail {
   archives: Array<{
     editor: EditorProfile;
     archive: EditorArchive;
-    entries: Array<{
-      entry: ArchiveEntry;
-      talent: Talent;
-      sceneAsset: Asset;
-      sharedPhotoAsset?: Asset | null;
-    }>;
+    entries: ArchiveEntryDisplayItem[];
+    entryGroups: ArchiveEntryGroup[];
   }>;
   relatedEvents: RelatedEventSummary[];
   relatedTalents: RelatedTalentSummary[];

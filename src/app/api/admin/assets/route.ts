@@ -36,15 +36,17 @@ export async function POST(request: Request) {
     });
 
     const bytes = new Uint8Array(await file.arrayBuffer());
+    const uploadResult = isMockStorageMode()
+      ? null
+      : await uploadObjectToR2(file.name, file.type || "application/octet-stream", bytes);
     const url = isMockStorageMode()
       ? `data:${file.type || "application/octet-stream"};base64,${Buffer.from(bytes).toString("base64")}`
-      : (
-          await uploadObjectToR2(file.name, file.type || "application/octet-stream", bytes)
-        ).publicUrl;
+      : uploadResult!.publicUrl;
 
     const asset = await saveAsset({
       ...meta,
-      url
+      url,
+      objectKey: uploadResult?.objectKey ?? null
     });
 
     return NextResponse.json({ asset });

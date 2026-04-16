@@ -55,10 +55,15 @@ function createEditableLineup(talentId = "", lineupDate = ""): EditableLineup {
   };
 }
 
-function createArchiveEntry(talentId = "", sceneAssetId = ""): EditorArchive["entries"][number] {
+function createArchiveEntry(
+  talentId = "",
+  entryDate = "",
+  sceneAssetId = ""
+): EditorArchive["entries"][number] {
   return {
     id: crypto.randomUUID(),
     talentId,
+    entryDate: entryDate || null,
     sceneAssetId,
     sharedPhotoAssetId: null,
     cosplayTitle: "",
@@ -102,9 +107,17 @@ function validateEventDraft(eventDraft: EditableEvent, editableLineups: Editable
   return null;
 }
 
-function validateArchiveDraft(archiveDraft: EditorArchive) {
+function validateArchiveDraft(
+  archiveDraft: EditorArchive,
+  isMultiDayEvent: boolean,
+  validDateKeys: Set<string>
+) {
   for (const entry of archiveDraft.entries) {
     if (!entry.talentId) return "档案条目里还有达人未选择。";
+    if (isMultiDayEvent && !entry.entryDate) return "多日活动的每条现场档案记录都必须选择所属日期。";
+    if (entry.entryDate && validDateKeys.size > 0 && !validDateKeys.has(entry.entryDate)) {
+      return "现场档案记录的所属日期必须落在活动开始和结束日期之间。";
+    }
     if (!entry.sceneAssetId) return "档案条目里还有现场图未选择。";
     if (!entry.cosplayTitle.trim()) return "请为每条档案记录填写角色或作品。";
     if (entry.hasSharedPhoto && !entry.sharedPhotoAssetId) {
@@ -156,6 +169,51 @@ function buildEditableLineupGroups(lineups: EditableLineup[], dateOptions: strin
     : groups;
 }
 
+function buildEditableArchiveGroups(
+  entries: EditorArchive["entries"],
+  dateOptions: string[],
+  isMultiDayEvent: boolean
+) {
+  if (!isMultiDayEvent) {
+    return [
+      {
+        key: "single",
+        label: null,
+        items: entries.map((entry, index) => ({ entry, index }))
+      }
+    ];
+  }
+
+  const groups = dateOptions.map((date) => ({
+    key: date,
+    label: formatDateKey(date),
+    items: [] as Array<{ entry: EditorArchive["entries"][number]; index: number }>
+  }));
+  const groupMap = new Map(groups.map((group) => [group.key, group]));
+  const undatedItems: Array<{ entry: EditorArchive["entries"][number]; index: number }> = [];
+
+  entries.forEach((entry, index) => {
+    const group = entry.entryDate ? groupMap.get(entry.entryDate) : null;
+    if (!group) {
+      undatedItems.push({ entry, index });
+      return;
+    }
+
+    group.items.push({ entry, index });
+  });
+
+  return undatedItems.length > 0
+    ? [
+        ...groups,
+        {
+          key: "undated",
+          label: "未分配日期",
+          items: undatedItems
+        }
+      ]
+    : groups;
+}
+
 export function ArchiveManager({
   events,
   talents,
@@ -174,6 +232,7 @@ export function ArchiveManager({
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [liveAssets, setLiveAssets] = useState(assets);
+  const [cleanupCandidateAssetIds, setCleanupCandidateAssetIds] = useState<string[]>([]);
   const [liveEvents, setLiveEvents] = useState(initialEvents);
   const [liveLineups, setLiveLineups] = useState(lineups);
   const [liveArchives, setLiveArchives] = useState(archives);
@@ -210,20 +269,25 @@ export function ArchiveManager({
     () => createArchiveDraft(selectedEventId, liveArchives),
     [liveArchives, selectedEventId]
   );
+  const assetMap = useMemo(() => new Map(liveAssets.map((asset) => [asset.id, asset])), [liveAssets]);
   const lineupDateOptions = useMemo(
     () => getDateRangeDays(eventDraft.startsAt, eventDraft.endsAt),
     [eventDraft.endsAt, eventDraft.startsAt]
   );
+  const archiveDateOptions = lineupDateOptions;
   const isMultiDayEvent = useMemo(
     () => isMultiDayRange(eventDraft.startsAt, eventDraft.endsAt),
     [eventDraft.endsAt, eventDraft.startsAt]
   );
+  const validArchiveDateKeys = useMemo(() => new Set(archiveDateOptions), [archiveDateOptions]);
   const editableLineupGroups = useMemo(
     () => buildEditableLineupGroups(editableLineups, lineupDateOptions, isMultiDayEvent),
     [editableLineups, isMultiDayEvent, lineupDateOptions]
   );
-  const sceneAssets = useMemo(() => liveAssets.filter((asset) => asset.kind === "event_scene"), [liveAssets]);
-  const sharedAssets = useMemo(() => liveAssets.filter((asset) => asset.kind === "shared_photo"), [liveAssets]);
+  const editableArchiveGroups = useMemo(
+    () => buildEditableArchiveGroups(archiveDraft.entries, archiveDateOptions, isMultiDayEvent),
+    [archiveDateOptions, archiveDraft.entries, isMultiDayEvent]
+  );
   const lineupTalentIds = useMemo(
     () => [...new Set(editableLineups.map((lineup) => lineup.talentId).filter(Boolean))],
     [editableLineups]
@@ -237,7 +301,7 @@ export function ArchiveManager({
     return talents.find((talent) => !usedTalentIds.has(talent.id))?.id ?? talents[0]?.id ?? "";
   }, [editableLineups, talents]);
   const defaultLineupDate = lineupDateOptions[0] ?? "";
-  const defaultSceneAssetId = sceneAssets[0]?.id ?? "";
+  const defaultArchiveEntryDate = archiveDateOptions[0] ?? "";
   const areAllFilteredEventsSelected =
     filteredEvents.length > 0 && filteredEvents.every((event) => selectedEventIds.includes(event.id));
   const isEventDirty =
@@ -253,6 +317,11 @@ export function ArchiveManager({
     return () => setGuard(null);
   }, [hasUnsavedChanges, setGuard]);
 
+  function enqueueCleanupAssetId(assetId?: string | null) {
+    if (!assetId) return;
+    setCleanupCandidateAssetIds((current) => [...new Set([...current, assetId])]);
+  }
+
   function resetDrafts(
     nextEventId: string | null,
     nextEvents = liveEvents,
@@ -264,6 +333,7 @@ export function ArchiveManager({
     setEventDraft(createEventDraft(nextSelectedEvent));
     setEditableLineups(createLineupDrafts(nextSelectedEvent, nextLineups));
     setArchiveDraft(createArchiveDraft(nextEventId, nextArchives));
+    setCleanupCandidateAssetIds([]);
     updateBrowserSelection(nextEventId);
   }
 
@@ -284,6 +354,7 @@ export function ArchiveManager({
     setEventDraft(createEmptyEventDraft());
     setEditableLineups([]);
     setArchiveDraft(createArchiveDraft(null, liveArchives));
+    setCleanupCandidateAssetIds([]);
     updateBrowserSelection(null);
     setMessage(null);
   }
@@ -369,7 +440,7 @@ export function ArchiveManager({
     }
     const eventId = eventDraft.id;
 
-    const validationError = validateArchiveDraft(archiveDraft);
+    const validationError = validateArchiveDraft(archiveDraft, isMultiDayEvent, validArchiveDateKeys);
     if (validationError) {
       setMessage(validationError);
       return;
@@ -387,6 +458,7 @@ export function ArchiveManager({
           id: archiveDraft.id || undefined,
           eventId,
           note: archiveDraft.note,
+          cleanupCandidateAssetIds,
           entries: archiveDraft.entries
         })
       });
@@ -550,7 +622,10 @@ export function ArchiveManager({
       eventId: eventDraft.id ?? current.eventId,
       entries: [
         ...current.entries,
-        ...missingTalentIds.map((talentId) => createArchiveEntry(talentId, defaultSceneAssetId))
+        ...missingTalentIds.map((talentId) => {
+          const lineup = editableLineups.find((item) => item.talentId === talentId);
+          return createArchiveEntry(talentId, lineup?.lineupDate ?? defaultArchiveEntryDate);
+        })
       ]
     }));
     setMessage(`已从当前阵容导入 ${missingTalentIds.length} 条档案记录。`);
@@ -560,7 +635,7 @@ export function ArchiveManager({
     setArchiveDraft((current) => ({
       ...current,
       eventId: eventDraft.id ?? current.eventId,
-      entries: [...current.entries, createArchiveEntry(defaultArchiveTalentId, defaultSceneAssetId)]
+      entries: [...current.entries, createArchiveEntry(defaultArchiveTalentId, defaultArchiveEntryDate)]
     }));
     setMessage(null);
   }
@@ -582,19 +657,61 @@ export function ArchiveManager({
     setMessage("已复制当前档案记录，可继续微调。");
   }
 
+  function removeArchiveEntry(index: number) {
+    const source = archiveDraft.entries[index];
+    if (!source) return;
+
+    enqueueCleanupAssetId(source.sceneAssetId);
+    enqueueCleanupAssetId(source.sharedPhotoAssetId ?? null);
+    setArchiveDraft((current) => ({
+      ...current,
+      entries: current.entries.filter((_, itemIndex) => itemIndex !== index)
+    }));
+  }
+
   function handleSceneUploaded(index: number, asset: Asset) {
-    setLiveAssets((current) => [asset, ...current]);
+    const currentAssetId = archiveDraft.entries[index]?.sceneAssetId ?? null;
+    setLiveAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)]);
+    enqueueCleanupAssetId(currentAssetId);
     updateArchiveEntry(index, { sceneAssetId: asset.id });
-    setMessage(`已上传并选中现场图「${asset.title}」。`);
+    setMessage(`已上传并替换现场图「${asset.title}」。`);
+  }
+
+  function handleClearScene(index: number) {
+    enqueueCleanupAssetId(archiveDraft.entries[index]?.sceneAssetId ?? null);
+    updateArchiveEntry(index, { sceneAssetId: "" });
+    setMessage("已清空当前现场图，保存后会同步生效。");
   }
 
   function handleSharedUploaded(index: number, asset: Asset) {
-    setLiveAssets((current) => [asset, ...current]);
+    const currentSharedAssetId = archiveDraft.entries[index]?.sharedPhotoAssetId ?? null;
+    setLiveAssets((current) => [asset, ...current.filter((item) => item.id !== asset.id)]);
+    enqueueCleanupAssetId(currentSharedAssetId);
     updateArchiveEntry(index, {
       hasSharedPhoto: true,
       sharedPhotoAssetId: asset.id
     });
-    setMessage(`已上传并选中合照「${asset.title}」。`);
+    setMessage(`已上传并替换合照「${asset.title}」。`);
+  }
+
+  function handleSharedToggle(index: number, checked: boolean) {
+    if (!checked) {
+      enqueueCleanupAssetId(archiveDraft.entries[index]?.sharedPhotoAssetId ?? null);
+    }
+
+    updateArchiveEntry(index, {
+      hasSharedPhoto: checked,
+      sharedPhotoAssetId: checked ? archiveDraft.entries[index]?.sharedPhotoAssetId ?? null : null
+    });
+  }
+
+  function handleClearShared(index: number) {
+    enqueueCleanupAssetId(archiveDraft.entries[index]?.sharedPhotoAssetId ?? null);
+    updateArchiveEntry(index, {
+      hasSharedPhoto: false,
+      sharedPhotoAssetId: null
+    });
+    setMessage("已清空当前合照，保存后会同步生效。");
   }
 
   return (
@@ -643,7 +760,7 @@ export function ArchiveManager({
               disabled={pending || selectedEventIds.length === 0}
               className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 disabled:opacity-50"
             >
-              批量设置状态
+              批量设置活动状态
             </button>
             <button
               type="button"
@@ -663,37 +780,30 @@ export function ArchiveManager({
             onClick={handleNewEvent}
             className="w-full rounded-[1.2rem] border border-dashed border-white/15 px-4 py-4 text-left text-sm text-white/70 transition hover:border-white/30 hover:text-white"
           >
-            + 新建活动
+            + 新建活动档案
           </button>
           {filteredEvents.map((event) => {
-            const isSelected = selectedEventId === event.id;
             const isChecked = selectedEventIds.includes(event.id);
+            const eventDateLabel = event.startsAt ? formatDateKey(event.startsAt.slice(0, 10)) : null;
 
             return (
               <div
                 key={event.id}
                 className={`flex items-start gap-3 rounded-[1.2rem] px-3 py-3 transition ${
-                  isSelected ? "bg-white/10" : "bg-black/10 hover:bg-white/6"
+                  selectedEventId === event.id ? "bg-white/10" : "bg-black/10 hover:bg-white/6"
                 }`}
               >
                 <input
                   type="checkbox"
                   aria-label={`选择 ${event.name}`}
                   checked={isChecked}
-                  onChange={(eventInput) => toggleSelectedEvent(event.id, eventInput.target.checked)}
+                  onChange={(nextEvent) => toggleSelectedEvent(event.id, nextEvent.target.checked)}
                   className="mt-1 size-4 rounded border-white/20 bg-black/30"
                 />
                 <button type="button" onClick={() => selectEvent(event.id)} className="flex-1 text-left">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-lg text-white">{event.name}</p>
-                    {isSelected && isEventDirty ? (
-                      <span className="rounded-full border border-amber-300/30 px-2 py-1 text-[11px] text-amber-200">
-                        未保存
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/40">
-                    {event.status === "future" ? "未来活动" : "已结束活动"} · {event.city || "城市待补充"}
+                  <p className="text-lg text-white">{event.name}</p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.18em] text-white/40">
+                    {[event.city || "城市待定", eventDateLabel].filter(Boolean).join(" · ")}
                   </p>
                 </button>
               </div>
@@ -708,7 +818,6 @@ export function ArchiveManager({
             {message}
           </div>
         ) : null}
-
         <section className="surface rounded-[1.8rem] p-6">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
@@ -839,9 +948,7 @@ export function ArchiveManager({
                   <div key={group.key} className="space-y-3">
                     {group.label ? (
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-accent)]">
-                          {group.label}
-                        </p>
+                        <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-accent)]">{group.label}</p>
                         <span className="text-xs text-white/45">{group.items.length} 位达人</span>
                       </div>
                     ) : null}
@@ -950,7 +1057,6 @@ export function ArchiveManager({
             </div>
           </div>
         </section>
-
         {!canEditArchive ? (
           <section className="surface rounded-[1.8rem] px-6 py-10 text-center text-white/68">
             先保存活动基础信息，再开始录入我的现场档案。
@@ -970,7 +1076,7 @@ export function ArchiveManager({
                   </div>
                   <h3 className="mt-3 text-2xl text-white">我的现场档案</h3>
                   <p className="mt-3 text-sm leading-7 text-white/60">
-                    支持从当前阵容一键导入，再按每条记录微调；现场图和合照都可以直接在对应字段旁上传。
+                    现场档案现在也支持按日期分组；图片位只保留当前图、上传新图和清空当前图。
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -1013,129 +1119,128 @@ export function ArchiveManager({
                 还没有现场记录。可以先从当前阵容导入，或者手动新增一条。
               </section>
             ) : (
-              <div className="grid gap-5">
-                {archiveDraft.entries.map((entry, index) => (
-                  <section key={entry.id} data-testid="archive-entry" className="surface rounded-[1.8rem] p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm uppercase tracking-[0.2em] text-white/45">记录 {index + 1}</p>
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          data-testid={`archive-copy-${index}`}
-                          onClick={() => duplicateArchiveEntry(index)}
-                          className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70"
-                        >
-                          复制此条
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setArchiveDraft((current) => ({
-                              ...current,
-                              entries: current.entries.filter((_, itemIndex) => itemIndex !== index)
-                            }))
-                          }
-                          className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-200"
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      <select
-                        data-testid={`archive-talent-${index}`}
-                        value={entry.talentId}
-                        onChange={(event) => updateArchiveEntry(index, { talentId: event.target.value })}
-                        className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                      >
-                        <option value="">暂不选择达人</option>
-                        {talents.map((talent) => (
-                          <option key={talent.id} value={talent.id}>
-                            {talent.nickname}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        data-testid={`archive-scene-${index}`}
-                        value={entry.sceneAssetId}
-                        onChange={(event) => updateArchiveEntry(index, { sceneAssetId: event.target.value })}
-                        className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                      >
-                        <option value="">暂不选择现场图</option>
-                        {sceneAssets.map((asset) => (
-                          <option key={asset.id} value={asset.id}>
-                            {asset.title}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        data-testid={`archive-cosplay-${index}`}
-                        value={entry.cosplayTitle}
-                        onChange={(event) => updateArchiveEntry(index, { cosplayTitle: event.target.value })}
-                        placeholder="角色 / 作品 / 游戏"
-                        className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                      />
-                    </div>
-
-                    <div className="mt-3">
-                      <InlineAssetUpload
-                        kind="event_scene"
-                        dataTestId={`archive-scene-upload-${index}`}
-                        onUploaded={(asset) => handleSceneUploaded(index, asset)}
-                      />
-                    </div>
-
-                    <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr]">
-                      <label className="flex items-center gap-3 rounded-[1rem] border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/70">
-                        <input
-                          data-testid={`archive-recognized-${index}`}
-                          type="checkbox"
-                          checked={entry.recognized}
-                          onChange={(event) => updateArchiveEntry(index, { recognized: event.target.checked })}
-                        />
-                        是否认出
-                      </label>
-                      <label className="flex items-center gap-3 rounded-[1rem] border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/70">
-                        <input
-                          data-testid={`archive-shared-flag-${index}`}
-                          type="checkbox"
-                          checked={entry.hasSharedPhoto}
-                          onChange={(event) =>
-                            updateArchiveEntry(index, {
-                              hasSharedPhoto: event.target.checked,
-                              sharedPhotoAssetId: event.target.checked
-                                ? (entry.sharedPhotoAssetId ?? sharedAssets[0]?.id ?? null)
-                                : null
-                            })
-                          }
-                        />
-                        是否有合照
-                      </label>
-                    </div>
-                    {entry.hasSharedPhoto ? (
-                      <div className="mt-4 space-y-3">
-                        <select
-                          data-testid={`archive-shared-${index}`}
-                          value={entry.sharedPhotoAssetId ?? ""}
-                          onChange={(event) => updateArchiveEntry(index, { sharedPhotoAssetId: event.target.value })}
-                          className="w-full rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                        >
-                          <option value="">暂不选择合照</option>
-                          {sharedAssets.map((asset) => (
-                            <option key={asset.id} value={asset.id}>
-                              {asset.title}
-                            </option>
-                          ))}
-                        </select>
-                        <InlineAssetUpload
-                          kind="shared_photo"
-                          dataTestId={`archive-shared-upload-${index}`}
-                          onUploaded={(asset) => handleSharedUploaded(index, asset)}
-                        />
+              <div className="space-y-5">
+                {editableArchiveGroups.map((group) => (
+                  <div key={group.key} className="space-y-3">
+                    {group.label ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-accent)]">{group.label}</p>
+                        <span className="text-xs text-white/45">{group.items.length} 条记录</span>
                       </div>
                     ) : null}
-                  </section>
+
+                    {group.items.map(({ entry, index }) => (
+                      <section key={entry.id} data-testid="archive-entry" className="surface rounded-[1.8rem] p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-sm uppercase tracking-[0.2em] text-white/45">记录 {index + 1}</p>
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              data-testid={`archive-copy-${index}`}
+                              onClick={() => duplicateArchiveEntry(index)}
+                              className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70"
+                            >
+                              复制此条
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeArchiveEntry(index)}
+                              className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-200"
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </div>
+
+                        <div
+                          className={`mt-4 grid gap-4 ${
+                            isMultiDayEvent ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-2 xl:grid-cols-3"
+                          }`}
+                        >
+                          <select
+                            data-testid={`archive-talent-${index}`}
+                            value={entry.talentId}
+                            onChange={(event) => updateArchiveEntry(index, { talentId: event.target.value })}
+                            className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                          >
+                            <option value="">暂不选择达人</option>
+                            {talents.map((talent) => (
+                              <option key={talent.id} value={talent.id}>
+                                {talent.nickname}
+                              </option>
+                            ))}
+                          </select>
+                          {isMultiDayEvent ? (
+                            <select
+                              data-testid={`archive-date-${index}`}
+                              value={entry.entryDate ?? ""}
+                              onChange={(event) => updateArchiveEntry(index, { entryDate: event.target.value || null })}
+                              className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                            >
+                              <option value="">选择日期</option>
+                              {archiveDateOptions.map((date) => (
+                                <option key={date} value={date}>
+                                  {formatDateKey(date)}
+                                </option>
+                              ))}
+                            </select>
+                          ) : null}
+                          <input
+                            data-testid={`archive-cosplay-${index}`}
+                            value={entry.cosplayTitle}
+                            onChange={(event) => updateArchiveEntry(index, { cosplayTitle: event.target.value })}
+                            placeholder="角色 / 作品 / 游戏"
+                            className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                          />
+                        </div>
+
+                        <div className="mt-4">
+                          <InlineAssetUpload
+                            kind="event_scene"
+                            dataTestId={`archive-scene-upload-${index}`}
+                            currentAsset={entry.sceneAssetId ? (assetMap.get(entry.sceneAssetId) ?? null) : null}
+                            onClear={() => handleClearScene(index)}
+                            onUploaded={(asset) => handleSceneUploaded(index, asset)}
+                            helperText="当前现场图可直接替换或清空，不再从素材池里手动选择。"
+                          />
+                        </div>
+
+                        <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr]">
+                          <label className="flex items-center gap-3 rounded-[1rem] border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/70">
+                            <input
+                              data-testid={`archive-recognized-${index}`}
+                              type="checkbox"
+                              checked={entry.recognized}
+                              onChange={(event) => updateArchiveEntry(index, { recognized: event.target.checked })}
+                            />
+                            是否认出
+                          </label>
+                          <label className="flex items-center gap-3 rounded-[1rem] border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/70">
+                            <input
+                              data-testid={`archive-shared-flag-${index}`}
+                              type="checkbox"
+                              checked={entry.hasSharedPhoto}
+                              onChange={(event) => handleSharedToggle(index, event.target.checked)}
+                            />
+                            是否有合照
+                          </label>
+                        </div>
+
+                        {entry.hasSharedPhoto ? (
+                          <div className="mt-4">
+                            <InlineAssetUpload
+                              kind="shared_photo"
+                              dataTestId={`archive-shared-upload-${index}`}
+                              currentAsset={entry.sharedPhotoAssetId ? (assetMap.get(entry.sharedPhotoAssetId) ?? null) : null}
+                              onClear={() => handleClearShared(index)}
+                              onUploaded={(asset) => handleSharedUploaded(index, asset)}
+                              helperText="当前合照可直接替换或清空，不再从素材池里手动选择。"
+                            />
+                          </div>
+                        ) : null}
+                      </section>
+                    ))}
+                  </div>
                 ))}
               </div>
             )}
