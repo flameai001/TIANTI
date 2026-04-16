@@ -24,18 +24,12 @@ export function EventArchiveCard({
   talentSlug
 }: EventArchiveCardProps) {
   const sceneDisplayPreset = ASSET_DISPLAY_PRESETS.event_scene;
-  const [hovered, setHovered] = useState(false);
-  const [pinned, setPinned] = useState(false);
-  const showSharedPhoto = Boolean(sharedPhotoAsset) && (hovered || pinned);
+  const [isSharedPhotoVisible, setIsSharedPhotoVisible] = useState(false);
+  const showSharedPhoto = Boolean(sharedPhotoAsset) && isSharedPhotoVisible;
 
   return (
     <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
-      <div
-        className="relative"
-        style={{ aspectRatio: sceneDisplayPreset.aspectStyle }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-      >
+      <div className="relative" style={{ aspectRatio: sceneDisplayPreset.aspectStyle }}>
         <Image
           src={sceneAsset.url}
           alt={sceneAsset.alt}
@@ -63,7 +57,7 @@ export function EventArchiveCard({
           {sharedPhotoAsset ? (
             <button
               type="button"
-              onClick={() => setPinned((current) => !current)}
+              onClick={() => setIsSharedPhotoVisible((current) => !current)}
               className="rounded-full border border-white/12 px-2 py-1 text-[11px] tracking-[0.15em] text-white/70 transition hover:border-white/25 hover:text-white"
             >
               有合照
