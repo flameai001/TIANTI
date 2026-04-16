@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Noto_Sans_SC } from "next/font/google";
+import { Noto_Sans_SC, Noto_Serif_SC } from "next/font/google";
 import "@/app/globals.css";
 import { buildMetadata } from "@/lib/site";
 
@@ -9,7 +9,7 @@ const sans = Noto_Sans_SC({
   weight: ["400", "500", "700"]
 });
 
-const display = Cormorant_Garamond({
+const display = Noto_Serif_SC({
   variable: "--font-display",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"]
@@ -17,14 +17,14 @@ const display = Cormorant_Garamond({
 
 export const metadata: Metadata = buildMetadata({
   title: "TIANTI",
-  description: "面向 cosplay 与国风圈层的公开达人展示与活动发现站。",
+  description: "面向 cosplay 与国风内容场景的公开达人、活动与档案浏览站。",
   path: "/"
 });
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN" data-scroll-behavior="smooth">
-      <body className={`${sans.variable} ${display.variable}`}>{children}</body>
+    <html lang="zh-CN" className={`${sans.variable} ${display.variable}`} data-scroll-behavior="smooth">
+      <body>{children}</body>
     </html>
   );
 }

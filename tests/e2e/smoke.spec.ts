@@ -32,7 +32,7 @@ test.beforeEach(async ({ request }) => {
 test("public homepage renders and links into talent detail", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "TIANTI" })).toBeVisible();
-  await page.getByRole("link", { name: "浏览达人" }).click();
+  await page.getByTestId("home-cta-talents").click();
   await expect(page).toHaveURL(/\/talents$/);
   await page.getByRole("link", { name: "青鸾" }).first().click();
   await expect(page).toHaveURL(/\/talents\/qingluan$/);
@@ -175,7 +175,7 @@ test("editor can upload archive assets inline and shared-photo card toggles on t
   await expect(publicPage.getByText("Archive Test Role")).toBeVisible();
   await expect(publicPage.getByText("无合照")).toHaveCount(0);
 
-  const sharedButton = publicPage.getByRole("button", { name: "有合照" }).first();
+  const sharedButton = publicPage.getByTestId("archive-shared-toggle").first();
   const sharedImage = publicPage.locator('img[alt="shared-bloom"]').first();
   await expect.poll(async () => sharedImage.evaluate((node) => getComputedStyle(node).opacity)).toBe("0");
   await sharedButton.click();
@@ -288,11 +288,11 @@ test("public pages remain browsable on mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "TIANTI" })).toBeVisible();
 
   await page.goto("/talents");
-  await expect(page.getByRole("heading", { name: "达人发现" })).toBeVisible();
+  await expect(page.getByTestId("talents-page-title")).toBeVisible();
 
   await page.goto("/events");
-  await expect(page.getByRole("heading", { name: "活动发现" })).toBeVisible();
+  await expect(page.getByTestId("events-page-title")).toBeVisible();
 
   await page.goto("/ladder");
-  await expect(page.getByRole("heading", { name: "双编辑天梯榜" })).toBeVisible();
+  await expect(page.getByTestId("ladder-page-title")).toBeVisible();
 });

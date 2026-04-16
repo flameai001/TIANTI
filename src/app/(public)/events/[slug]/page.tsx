@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EventArchiveCard } from "@/components/site/event-archive-card";
-import { formatDateRange } from "@/lib/date";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
+import { PublicReveal } from "@/components/ui/public-reveal";
+import { SectionFrame } from "@/components/ui/section-frame";
 import { buildAbsoluteUrl, buildMetadata } from "@/lib/site";
+import { formatDateRange } from "@/lib/date";
 import { getEventPage } from "@/modules/content/service";
 
 type Params = Promise<{ slug: string }>;
@@ -15,7 +19,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!detail) {
     return buildMetadata({
       title: "TIANTI | 活动详情",
-      description: "公开活动详情页",
+      description: "TIANTI 的公开活动详情页。",
       path: `/events/${slug}`
     });
   }
@@ -55,133 +59,201 @@ export default async function EventDetailPage({ params }: { params: Params }) {
   };
 
   return (
-    <main className="mx-auto max-w-7xl px-5 py-14 md:px-8">
+    <PageShell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <section className="surface rounded-[2rem] p-6 md:p-8">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs uppercase tracking-[0.25em] text-white/45">
-          <span>{detail.event.city || "城市待定"}</span>
-          <span>{detail.event.status === "future" ? "未来活动" : "已结束活动"}</span>
-        </div>
-        <h1 className="mt-5 text-5xl text-white">{detail.event.name}</h1>
-        <div className="mt-4 space-y-1 text-sm text-white/60">
-          <p>{formatDateRange(detail.event.startsAt, detail.event.endsAt)}</p>
-          {detail.event.venue ? <p>{detail.event.venue}</p> : null}
-        </div>
-        {detail.event.note ? (
-          <p className="mt-6 max-w-3xl text-sm leading-8 text-white/70">{detail.event.note}</p>
-        ) : null}
-      </section>
 
-      <section className="mt-12">
-        <article className="surface rounded-[1.8rem] p-6">
-          <div className="mb-6 space-y-2">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Lineup</p>
-            <h2 className="text-3xl text-white">同场阵容达人</h2>
-          </div>
-          {detail.lineupGroups.length > 0 ? (
+      <PublicReveal>
+        <section className="surface rounded-[2.4rem] p-6 md:p-8">
+          <div className="grid gap-6 md:grid-cols-[1.15fr_0.85fr]">
             <div className="space-y-5">
-              {detail.lineupGroups.map((group) => (
-                <div key={group.date ?? "single"} className="space-y-3">
-                  {group.label ? (
-                    <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-accent)]">{group.label}</p>
-                  ) : null}
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {group.items.map((item) => (
-                      <Link
-                        key={item.lineup.id}
-                        href={`/talents/${item.talent.slug}`}
-                        className="rounded-[1.3rem] border border-white/10 bg-black/20 p-4 transition hover:border-white/20"
-                      >
-                        <p className="text-lg text-white">{item.talent.nickname}</p>
-                        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
-                          {item.lineup.status === "confirmed" ? "已确认" : "待确认"}
-                        </p>
-                        {item.lineup.source ? <p className="mt-3 text-sm text-white/65">{item.lineup.source}</p> : null}
-                        {item.lineup.note ? <p className="mt-2 text-sm text-white/52">{item.lineup.note}</p> : null}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              ))}
+              <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.22em] ui-muted">
+                <span>{detail.event.city || "城市待定"}</span>
+                <span>{detail.event.status === "future" ? "Future Event" : "Archive Event"}</span>
+              </div>
+              <h1 className="text-5xl tracking-[-0.05em] text-[var(--foreground)] md:text-6xl">
+                {detail.event.name}
+              </h1>
+              <div className="space-y-2 text-sm ui-subtle md:text-base">
+                <p>{formatDateRange(detail.event.startsAt, detail.event.endsAt)}</p>
+                {detail.event.venue ? <p>{detail.event.venue}</p> : null}
+              </div>
+              {detail.event.note ? <p className="max-w-3xl text-base leading-8 ui-subtle">{detail.event.note}</p> : null}
             </div>
-          ) : (
-            <p className="text-sm text-white/55">当前没有公开阵容达人。</p>
-          )}
-        </article>
-      </section>
 
-      <section className="mt-12">
-        <div className="mb-6 space-y-2">
-          <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Archive Layers</p>
-          <h2 className="text-3xl text-white">活动现场档案</h2>
-        </div>
-        {detail.archives.length === 0 ? (
-          <div className="surface rounded-[1.8rem] px-6 py-10 text-center text-white/68">
-            {detail.event.status === "future"
-              ? "这场未来活动已经公开基础信息和阵容，现场档案会在活动结束后补充。"
-              : "这场活动暂时还没有公开的现场档案。"}
+            <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1">
+              <div className="ui-stat">
+                <p className="text-sm ui-muted">阵容人数</p>
+                <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">{detail.lineups.length}</p>
+              </div>
+              <div className="ui-stat">
+                <p className="text-sm ui-muted">公开档案</p>
+                <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">{detail.archives.length}</p>
+              </div>
+              <div className="ui-stat">
+                <p className="text-sm ui-muted">相关活动</p>
+                <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">
+                  {detail.relatedEvents.length}
+                </p>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="grid gap-6">
-            {detail.archives.map((archive) => (
-              <article key={archive.archive.id} className="surface rounded-[1.8rem] p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-                  <div>
-                    <p className="text-2xl text-white">{archive.editor.name} 的记录</p>
-                    {archive.archive.note ? <p className="mt-2 text-sm text-white/58">{archive.archive.note}</p> : null}
-                  </div>
-                  <p className="text-xs uppercase tracking-[0.25em] text-white/40">
-                    {archive.entries.length} 条现场记录
-                  </p>
-                </div>
-                <div className="mt-6 space-y-6">
-                  {archive.entryGroups.map((group) => (
-                    <div key={group.date ?? "undated"} className="space-y-4">
+        </section>
+      </PublicReveal>
+
+      <div className="mt-14 space-y-14">
+        <PublicReveal>
+          <SectionFrame
+            eyebrow="Lineup"
+            title="公开阵容"
+            description="阵容仍然是活动页的第一层内容，未来活动与已归档活动都从这里进入。"
+          >
+            <section className="surface rounded-[1.9rem] p-6">
+              {detail.lineupGroups.length > 0 ? (
+                <div className="space-y-6">
+                  {detail.lineupGroups.map((group) => (
+                    <div key={group.date ?? "single"} className="space-y-3">
                       {group.label ? (
-                        <p className="text-sm uppercase tracking-[0.2em] text-[var(--color-accent)]">{group.label}</p>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="ui-kicker">{group.label}</p>
+                          <span className="text-xs ui-muted">{group.items.length} 位达人</span>
+                        </div>
                       ) : null}
-                      <div className="grid gap-6 md:grid-cols-2">
-                        {group.items.map((entry) => (
-                          <EventArchiveCard
-                            key={entry.entry.id}
-                            talentSlug={entry.talent.slug}
-                            talentName={entry.talent.nickname}
-                            cosplayTitle={entry.entry.cosplayTitle}
-                            recognized={entry.entry.recognized}
-                            sceneAsset={entry.sceneAsset}
-                            sharedPhotoAsset={entry.sharedPhotoAsset}
-                          />
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {group.items.map((item) => (
+                          <Link
+                            key={item.lineup.id}
+                            href={`/talents/${item.talent.slug}`}
+                            className="rounded-[1.4rem] border border-[var(--line-soft)] bg-white/76 p-4 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
+                          >
+                            <p className="text-lg text-[var(--foreground)]">{item.talent.nickname}</p>
+                            <p className="mt-2 text-xs uppercase tracking-[0.18em] ui-muted">
+                              {item.lineup.status === "confirmed" ? "Confirmed" : "Pending"}
+                            </p>
+                            {item.lineup.source ? <p className="mt-3 text-sm ui-subtle">{item.lineup.source}</p> : null}
+                            {item.lineup.note ? <p className="mt-2 text-sm ui-subtle">{item.lineup.note}</p> : null}
+                          </Link>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+              ) : (
+                <EmptyState title="暂无公开阵容" description="这场活动还没有公开的阵容信息。" />
+              )}
+            </section>
+          </SectionFrame>
+        </PublicReveal>
 
-      <section className="mt-12">
-        <article className="surface rounded-[1.8rem] p-6">
-          <div className="mb-6 space-y-2">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Related Events</p>
-            <h2 className="text-3xl text-white">相关活动</h2>
-          </div>
-          <div className="space-y-4">
-            {detail.relatedEvents.length > 0 ? (
-              detail.relatedEvents.map((item) => (
-                <Link key={item.event.event.id} href={`/events/${item.event.event.slug}`} className="block border-b border-white/8 pb-4 last:border-none">
-                  <p className="text-lg text-white">{item.event.event.name}</p>
-                  <p className="mt-2 text-sm text-white/60">{item.reason}</p>
-                </Link>
-              ))
+        <PublicReveal>
+          <SectionFrame
+            eyebrow="Archive Layers"
+            title="现场档案"
+            description="从概览进入档案，再从档案继续进入具体人物，是这页的核心阅读顺序。"
+          >
+            {detail.archives.length === 0 ? (
+              <EmptyState
+                title={detail.event.status === "future" ? "档案会在活动结束后补齐" : "暂时没有公开档案"}
+                description={
+                  detail.event.status === "future"
+                    ? "未来活动已经公开了基础信息与阵容，现场档案会在活动结束后逐步补充。"
+                    : "这场活动暂时还没有公开的现场档案内容。"
+                }
+              />
             ) : (
-              <p className="text-sm text-white/55">暂时没有可公开的相关活动。</p>
+              <div className="grid gap-6">
+                {detail.archives.map((archive) => (
+                  <article key={archive.archive.id} className="surface rounded-[1.9rem] p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-4 ui-divider">
+                      <div>
+                        <p className="ui-kicker">{archive.editor.name}</p>
+                        <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">现场记录</h2>
+                        {archive.archive.note ? <p className="mt-3 text-sm leading-7 ui-subtle">{archive.archive.note}</p> : null}
+                      </div>
+                      <p className="text-sm ui-subtle">{archive.entries.length} 条公开记录</p>
+                    </div>
+                    <div className="mt-6 space-y-6">
+                      {archive.entryGroups.map((group) => (
+                        <div key={group.date ?? "undated"} className="space-y-4">
+                          {group.label ? <p className="ui-kicker">{group.label}</p> : null}
+                          <div className="grid gap-6 md:grid-cols-2">
+                            {group.items.map((entry) => (
+                              <EventArchiveCard
+                                key={entry.entry.id}
+                                talentSlug={entry.talent.slug}
+                                talentName={entry.talent.nickname}
+                                cosplayTitle={entry.entry.cosplayTitle}
+                                recognized={entry.entry.recognized}
+                                sceneAsset={entry.sceneAsset}
+                                sharedPhotoAsset={entry.sharedPhotoAsset}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
             )}
-          </div>
-        </article>
-      </section>
-    </main>
+          </SectionFrame>
+        </PublicReveal>
+
+        <PublicReveal>
+          <SectionFrame
+            eyebrow="Related Content"
+            title="继续浏览相关活动与阵容人物"
+            description="活动页不只是一张表单输出，而是继续引导用户扩展阅读。"
+          >
+            <div className="grid gap-6 lg:grid-cols-2">
+              <section className="surface rounded-[1.9rem] p-6">
+                <div className="border-b pb-4 ui-divider">
+                  <p className="ui-kicker">Related Events</p>
+                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">相关活动</h2>
+                </div>
+                <div className="mt-5 space-y-4">
+                  {detail.relatedEvents.length > 0 ? (
+                    detail.relatedEvents.map((item) => (
+                      <Link
+                        key={item.event.event.id}
+                        href={`/events/${item.event.event.slug}`}
+                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
+                      >
+                        <p className="text-lg text-[var(--foreground)]">{item.event.event.name}</p>
+                        <p className="mt-2 text-sm ui-subtle">{item.reason}</p>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm ui-subtle">暂时没有可公开的相关活动。</p>
+                  )}
+                </div>
+              </section>
+
+              <section className="surface rounded-[1.9rem] p-6">
+                <div className="border-b pb-4 ui-divider">
+                  <p className="ui-kicker">Related Talents</p>
+                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">阵容人物</h2>
+                </div>
+                <div className="mt-5 space-y-4">
+                  {detail.relatedTalents.length > 0 ? (
+                    detail.relatedTalents.map((item) => (
+                      <Link
+                        key={item.talent.id}
+                        href={`/talents/${item.talent.slug}`}
+                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
+                      >
+                        <p className="text-lg text-[var(--foreground)]">{item.talent.nickname}</p>
+                        <p className="mt-2 text-sm ui-subtle">{item.reason}</p>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm ui-subtle">暂时没有可公开的相关达人。</p>
+                  )}
+                </div>
+              </section>
+            </div>
+          </SectionFrame>
+        </PublicReveal>
+      </div>
+    </PageShell>
   );
 }

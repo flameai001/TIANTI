@@ -1,8 +1,18 @@
+import Image from "next/image";
 import Link from "next/link";
-import { SectionHeading } from "@/components/site/section-heading";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
+import { SectionFrame } from "@/components/ui/section-frame";
+import { buildMetadata } from "@/lib/site";
 import { getLadderPage, getSiteEditors } from "@/modules/content/service";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export const metadata = buildMetadata({
+  title: "TIANTI | 天梯",
+  description: "从不同编辑视角浏览 TIANTI 的公开排序与梯度。",
+  path: "/ladder"
+});
 
 export default async function LadderPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
@@ -14,62 +24,111 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
   const data = editorSlug ? await getLadderPage(editorSlug) : null;
 
   return (
-    <main className="mx-auto max-w-7xl px-5 py-14 md:px-8">
-      <SectionHeading
-        eyebrow="Ladder Board"
-        title="双编辑天梯榜"
-        description="每位编辑维护自己的梯度与排序。前台只负责公开查看与切换，不承担后台互相查看区。"
+    <PageShell>
+      <SectionFrame
+        eyebrow="Curated Ranking"
+        title="公开排序并不是唯一答案，而是一种编辑视角"
+        description="每位编辑维护自己的梯度和排序。公开页只负责让这些视角更清楚地被浏览。"
+        titleTestId="ladder-page-title"
       />
-      <div className="mt-10 flex flex-wrap gap-3">
-        {editors.map((editor) => {
-          const active = editor.slug === editorSlug;
-          return (
-            <Link
-              key={editor.id}
-              href={`/ladder?editor=${editor.slug}`}
-              className={`rounded-full px-5 py-3 text-sm uppercase tracking-[0.2em] ${
-                active ? "bg-[var(--color-accent)] text-black" : "border border-white/15 text-white/70"
-              }`}
-            >
-              {editor.name}
-            </Link>
-          );
-        })}
-      </div>
-      {data ? (
-        <>
-          <div className="mt-8 surface rounded-[1.8rem] p-6">
-            <h2 className="text-3xl text-white">{data.ladder.title}</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/68">{data.ladder.subtitle}</p>
-          </div>
-          <div className="mt-8 grid gap-6">
-            {data.tiers.map((tier) => (
-              <section key={tier.id} className="surface rounded-[1.8rem] p-6">
-                <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                  <h3 className="text-2xl text-white">{tier.name}</h3>
-                  <p className="text-sm text-white/45">{tier.talents.length} 位达人</p>
+
+      <div className="mt-10 space-y-8">
+        <div className="flex flex-wrap gap-2">
+          {editors.map((editor) => {
+            const active = editor.slug === editorSlug;
+            return (
+              <Link
+                key={editor.id}
+                href={`/ladder?editor=${editor.slug}`}
+                className={`ui-pill px-5 py-3 text-sm ${active ? "border-[rgba(43,109,246,0.22)] bg-[rgba(43,109,246,0.08)] text-[var(--color-accent)]" : ""}`}
+              >
+                {editor.name}
+              </Link>
+            );
+          })}
+        </div>
+
+        {data ? (
+          <>
+            <section className="surface rounded-[2rem] p-6 md:p-7">
+              <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
+                <div className="space-y-3">
+                  <p className="ui-kicker">{data.editor.title}</p>
+                  <h1 className="text-4xl tracking-[-0.04em] text-[var(--foreground)] md:text-5xl">
+                    {data.ladder.title}
+                  </h1>
+                  <p className="max-w-2xl text-sm leading-7 ui-subtle md:text-base">{data.ladder.subtitle}</p>
                 </div>
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1">
+                  <div className="ui-stat">
+                    <p className="text-sm ui-muted">编辑</p>
+                    <p className="mt-2 text-2xl text-[var(--foreground)]">{data.editor.name}</p>
+                  </div>
+                  <div className="ui-stat">
+                    <p className="text-sm ui-muted">梯度数量</p>
+                    <p className="mt-2 text-2xl text-[var(--foreground)]">{data.tiers.length}</p>
+                  </div>
+                  <div className="ui-stat">
+                    <p className="text-sm ui-muted">已入榜达人</p>
+                    <p className="mt-2 text-2xl text-[var(--foreground)]">
+                      {data.tiers.reduce((total, tier) => total + tier.talents.length, 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div className="space-y-6">
+              {data.tiers.map((tier, index) => (
+                <section key={tier.id} className="surface rounded-[2rem] p-6 md:p-7">
+                  <div className="flex flex-wrap items-end justify-between gap-4 border-b pb-4 ui-divider">
+                    <div>
+                      <p className="ui-kicker">Tier {index + 1}</p>
+                      <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">{tier.name}</h2>
+                    </div>
+                    <p className="text-sm ui-subtle">{tier.talents.length} 位达人</p>
+                  </div>
                   {tier.talents.length > 0 ? (
-                    tier.talents.map(({ talent }) => (
-                      <Link
-                        key={talent.id}
-                        href={`/talents/${talent.slug}`}
-                        className="rounded-[1.2rem] border border-white/10 bg-black/15 px-4 py-5 text-white/80 transition hover:border-white/25"
-                      >
-                        <p className="text-xl text-white">{talent.nickname}</p>
-                        <p className="mt-2 text-sm text-white/58">{talent.tags.join(" · ")}</p>
-                      </Link>
-                    ))
+                    <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {tier.talents.map(({ talent, cover }) => (
+                        <Link
+                          key={talent.id}
+                          href={`/talents/${talent.slug}`}
+                          className="overflow-hidden rounded-[1.5rem] border border-[var(--line-soft)] bg-white/76 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
+                        >
+                          <div className="relative aspect-[4/3]">
+                            {cover ? (
+                              <Image
+                                src={cover.url}
+                                alt={cover.alt}
+                                fill
+                                sizes="(min-width: 1280px) 28vw, (min-width: 768px) 42vw, 100vw"
+                                className="object-cover"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(43,109,246,0.12),rgba(255,255,255,0.06)_48%,rgba(24,33,47,0.08))]" />
+                            )}
+                          </div>
+                          <div className="space-y-2 p-5">
+                            <p className="text-xl tracking-[-0.03em] text-[var(--foreground)]">{talent.nickname}</p>
+                            <p className="text-sm ui-subtle">{talent.tags.join(" · ") || "公开资料"}</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
                   ) : (
-                    <p className="text-sm text-white/55">这个梯度还没有放入达人。</p>
+                    <div className="mt-6 rounded-[1.4rem] border border-dashed border-[var(--line-strong)] px-4 py-8 text-sm ui-subtle">
+                      这个梯度还没有公开达人。
+                    </div>
                   )}
-                </div>
-              </section>
-            ))}
-          </div>
-        </>
-      ) : null}
-    </main>
+                </section>
+              ))}
+            </div>
+          </>
+        ) : (
+          <EmptyState title="没有可用的公开天梯" description="当前还没有可展示的编辑排序视角。" />
+        )}
+      </div>
+    </PageShell>
   );
 }

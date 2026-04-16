@@ -28,15 +28,10 @@ export function SignOutButton() {
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={handleSignOut}
-        disabled={pending}
-        className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 disabled:opacity-60"
-      >
+      <button type="button" onClick={handleSignOut} disabled={pending} className="ui-button-secondary px-4 py-2 text-sm">
         {pending ? "退出中..." : "退出登录"}
       </button>
-      {error ? <p className="text-xs text-red-300">{error}</p> : null}
+      {error ? <p className="text-xs text-[#992b35]">{error}</p> : null}
     </div>
   );
 }

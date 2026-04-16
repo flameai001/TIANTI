@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageShell } from "@/components/ui/page-shell";
+import { PublicReveal } from "@/components/ui/public-reveal";
+import { SectionFrame } from "@/components/ui/section-frame";
 import { formatDateRange } from "@/lib/date";
 import { buildMetadata } from "@/lib/site";
 import { getTalentPage } from "@/modules/content/service";
@@ -16,7 +19,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!detail) {
     return buildMetadata({
       title: "TIANTI | 达人详情",
-      description: "公开达人详情页",
+      description: "TIANTI 的公开达人详情页。",
       path: `/talents/${slug}`
     });
   }
@@ -31,8 +34,6 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function TalentDetailPage({ params }: { params: Params }) {
   const { slug } = await params;
   const detail = await getTalentPage(slug);
-  const coverDisplayPreset = ASSET_DISPLAY_PRESETS.talent_cover;
-  const representationDisplayPreset = ASSET_DISPLAY_PRESETS.talent_representation;
 
   if (!detail) {
     notFound();
@@ -40,207 +41,248 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
 
   const publicInfoRows = [
     detail.talent.aliases.length > 0 ? { label: "别名", value: detail.talent.aliases.join(" / ") } : null,
-    detail.talent.mcn ? { label: "MCN", value: detail.talent.mcn } : null
+    detail.talent.mcn ? { label: "所属机构", value: detail.talent.mcn } : null
   ].filter(Boolean) as Array<{ label: string; value: string }>;
-  const hasLinks = detail.talent.links.length > 0;
-  const hasPublicInfo = publicInfoRows.length > 0 || hasLinks;
 
   return (
-    <main className="mx-auto max-w-7xl px-5 py-14 md:px-8">
-      <section className="grid gap-8 md:grid-cols-[0.75fr_1.25fr]">
-        <div className="overflow-hidden rounded-[2rem] border border-white/10">
-          <div className="relative" style={{ aspectRatio: coverDisplayPreset.aspectStyle }}>
-            {detail.cover ? (
-              <Image
-                src={detail.cover.url}
-                alt={detail.cover.alt}
-                fill
-                sizes="(min-width: 768px) 34vw, 100vw"
-                className="object-cover"
-              />
-            ) : (
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),rgba(255,255,255,0.04)_42%,rgba(0,0,0,0.5))]" />
-            )}
-          </div>
-        </div>
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Talent Detail</p>
-            <h1 className="text-5xl text-white">{detail.talent.nickname}</h1>
-            {detail.talent.bio ? (
-              <p className="max-w-3xl text-sm leading-8 text-white/70">{detail.talent.bio}</p>
-            ) : null}
-          </div>
-          {detail.talent.tags.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {detail.talent.tags.map((tag) => (
-                <span key={tag} className="rounded-full border border-white/15 px-3 py-1 text-sm text-white/65">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <div className="surface rounded-[1.8rem] p-6">
-            <p className="text-xs uppercase tracking-[0.25em] text-white/40">公共资料</p>
-            {hasPublicInfo ? (
-              <div className="mt-5 grid gap-6 md:grid-cols-2">
-                {publicInfoRows.map((row) => (
-                  <div key={row.label}>
-                    <p className="text-sm text-white/45">{row.label}</p>
-                    <p className="mt-2 text-lg text-white">{row.value}</p>
-                  </div>
-                ))}
-                {hasLinks ? (
-                  <div className={publicInfoRows.length === 1 ? "" : "md:col-span-2"}>
-                    <p className="text-sm text-white/45">常用平台</p>
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      {detail.talent.links.map((link) => (
-                        <a key={link.id} href={link.url} className="text-sm text-[var(--color-accent)]">
-                          {link.label}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <p className="mt-5 text-sm text-white/55">暂无可公开资料。</p>
-            )}
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="surface rounded-[1.8rem] p-6">
-              <p className="text-xs uppercase tracking-[0.25em] text-white/40">即将参加的活动</p>
-              <div className="mt-5 space-y-4">
-                {detail.futureEvents.length > 0 ? (
-                  detail.futureEvents.map((event) => (
-                    <Link
-                      key={event.id}
-                      href={`/events/${event.slug}`}
-                      className="block border-b border-white/8 pb-4 last:border-none last:pb-0"
-                    >
-                      <p className="text-lg text-white">{event.name}</p>
-                      <p className="mt-2 text-sm text-white/60">
-                        {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
-                      </p>
-                    </Link>
-                  ))
-                ) : (
-                  <p className="text-sm text-white/55">当前没有公开未来活动。</p>
-                )}
-              </div>
-            </div>
-            <div className="surface rounded-[1.8rem] p-6">
-              <p className="text-xs uppercase tracking-[0.25em] text-white/40">已参加活动</p>
-              <div className="mt-5 space-y-4">
-                {detail.pastEvents.length > 0 ? (
-                  detail.pastEvents.map((event) => (
-                    <Link
-                      key={event.id}
-                      href={`/events/${event.slug}`}
-                      className="block border-b border-white/8 pb-4 last:border-none last:pb-0"
-                    >
-                      <p className="text-lg text-white">{event.name}</p>
-                      <p className="mt-2 text-sm text-white/60">
-                        {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
-                      </p>
-                    </Link>
-                  ))
-                ) : (
-                  <p className="text-sm text-white/55">还没有历史活动记录。</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-18 grid gap-6 md:grid-cols-3">
-        {detail.editorSummaries.map((summary) => (
-          <article key={summary.editor.id} className="surface rounded-[1.8rem] p-6">
-            <p className="text-xs uppercase tracking-[0.25em] text-white/40">{summary.editor.name} 的摘要</p>
-            <div className="mt-5 space-y-4">
-              <div>
-                <p className="text-sm text-white/45">天梯位置</p>
-                <p className="mt-1 text-xl text-white">{summary.tierName ?? "未入榜"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-white/45">见过次数</p>
-                <p className="mt-1 text-xl text-white">{summary.seenCount}</p>
-              </div>
-              <div>
-                <p className="text-sm text-white/45">合照次数</p>
-                <p className="mt-1 text-xl text-white">{summary.sharedPhotoCount}</p>
-              </div>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      {detail.representationAssets.length > 0 ? (
-        <section className="mt-18">
-          <div className="mb-8 space-y-3">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Representation</p>
-            <h2 className="text-3xl text-white">代表角色与作品</h2>
-          </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {detail.representationAssets.map((representation) => (
-              <article key={representation.id} className="overflow-hidden rounded-[1.8rem] border border-white/10">
-                <div className="relative" style={{ aspectRatio: representationDisplayPreset.aspectStyle }}>
+    <PageShell>
+      <PublicReveal>
+        <section className="surface overflow-hidden rounded-[2.4rem] p-6 md:p-8">
+          <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
+            <div className="relative overflow-hidden rounded-[1.8rem] bg-[radial-gradient(circle_at_top,rgba(43,109,246,0.12),rgba(255,255,255,0.08)_48%,rgba(24,33,47,0.08))]">
+              <div className="relative aspect-[4/5]">
+                {detail.cover ? (
                   <Image
-                    src={representation.asset.url}
-                    alt={representation.asset.alt}
+                    src={detail.cover.url}
+                    alt={detail.cover.alt}
                     fill
-                    sizes="(min-width: 768px) 30vw, 100vw"
+                    sizes="(min-width: 1024px) 36vw, 100vw"
                     className="object-cover"
                   />
+                ) : null}
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <p className="ui-kicker">Talent Detail</p>
+                <h1 className="text-5xl tracking-[-0.05em] text-[var(--foreground)] md:text-6xl">
+                  {detail.talent.nickname}
+                </h1>
+                <p className="max-w-3xl text-base leading-8 ui-subtle">
+                  {detail.talent.bio || "当前公开页以结构化资料为主，后续内容会继续补齐。"}
+                </p>
+              </div>
+
+              {detail.talent.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {detail.talent.tags.map((tag) => (
+                    <span key={tag} className="ui-pill px-4 py-2 text-sm">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
-                <div className="p-5">
-                  <p className="text-lg text-white">{representation.title}</p>
+              ) : null}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {detail.editorSummaries.map((summary) => (
+                  <div key={summary.editor.id} className="rounded-[1.4rem] border border-[var(--line-soft)] bg-white/72 p-4">
+                    <p className="text-sm ui-muted">{summary.editor.name}</p>
+                    <p className="mt-2 text-lg text-[var(--foreground)]">{summary.tierName ?? "未入榜"}</p>
+                    <div className="mt-3 flex gap-4 text-sm ui-subtle">
+                      <span>{summary.seenCount} 次记录</span>
+                      <span>{summary.sharedPhotoCount} 张合照</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {detail.talent.links.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {detail.talent.links.map((link) => (
+                    <a key={link.id} href={link.url} className="ui-button-secondary px-4 py-2 text-sm">
+                      {link.label}
+                    </a>
+                  ))}
                 </div>
-              </article>
-            ))}
+              ) : null}
+            </div>
           </div>
         </section>
-      ) : null}
+      </PublicReveal>
 
-      <section className="mt-18 grid gap-6 lg:grid-cols-2">
-        <article className="surface rounded-[1.8rem] p-6">
-          <div className="mb-6 space-y-2">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Related Talents</p>
-            <h2 className="text-3xl text-white">相关达人</h2>
-          </div>
-          <div className="space-y-4">
-            {detail.relatedTalents.length > 0 ? (
-              detail.relatedTalents.map((item) => (
-                <Link key={item.talent.id} href={`/talents/${item.talent.slug}`} className="block border-b border-white/8 pb-4 last:border-none">
-                  <p className="text-lg text-white">{item.talent.nickname}</p>
-                  <p className="mt-2 text-sm text-white/60">{item.reason}</p>
-                </Link>
-              ))
+      <div className="mt-14 space-y-14">
+        <PublicReveal>
+          <SectionFrame
+            eyebrow="Public Profile"
+            title="公开资料与活动路径"
+            description="基础资料、未来活动与过往活动分别承担不同阅读职责，让信息层级更清楚。"
+          >
+            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+              <section className="surface rounded-[1.9rem] p-6">
+                <div className="border-b pb-4 ui-divider">
+                  <p className="ui-kicker">Public Info</p>
+                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">公开资料</h2>
+                </div>
+                {publicInfoRows.length > 0 ? (
+                  <div className="mt-5 space-y-5">
+                    {publicInfoRows.map((row) => (
+                      <div key={row.label}>
+                        <p className="text-sm ui-muted">{row.label}</p>
+                        <p className="mt-2 text-lg text-[var(--foreground)]">{row.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-5 text-sm ui-subtle">当前还没有更多可公开资料。</p>
+                )}
+              </section>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <section className="surface rounded-[1.9rem] p-6">
+                  <div className="border-b pb-4 ui-divider">
+                    <p className="ui-kicker">Upcoming</p>
+                    <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">即将参与</h2>
+                  </div>
+                  <div className="mt-5 space-y-4">
+                    {detail.futureEvents.length > 0 ? (
+                      detail.futureEvents.map((event) => (
+                        <Link
+                          key={event.id}
+                          href={`/events/${event.slug}`}
+                          className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
+                        >
+                          <p className="text-lg text-[var(--foreground)]">{event.name}</p>
+                          <p className="mt-2 text-sm ui-subtle">
+                            {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
+                          </p>
+                        </Link>
+                      ))
+                    ) : (
+                      <p className="text-sm ui-subtle">当前没有公开的未来活动。</p>
+                    )}
+                  </div>
+                </section>
+
+                <section className="surface rounded-[1.9rem] p-6">
+                  <div className="border-b pb-4 ui-divider">
+                    <p className="ui-kicker">Archive</p>
+                    <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">历史出现</h2>
+                  </div>
+                  <div className="mt-5 space-y-4">
+                    {detail.pastEvents.length > 0 ? (
+                      detail.pastEvents.map((event) => (
+                        <Link
+                          key={event.id}
+                          href={`/events/${event.slug}`}
+                          className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
+                        >
+                          <p className="text-lg text-[var(--foreground)]">{event.name}</p>
+                          <p className="mt-2 text-sm ui-subtle">
+                            {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
+                          </p>
+                        </Link>
+                      ))
+                    ) : (
+                      <p className="text-sm ui-subtle">还没有可公开的历史活动记录。</p>
+                    )}
+                  </div>
+                </section>
+              </div>
+            </div>
+          </SectionFrame>
+        </PublicReveal>
+
+        <PublicReveal>
+          <SectionFrame
+            eyebrow="Representation"
+            title="代表图像"
+            description="用图像作为中段阅读重心，减少纯文字堆叠带来的疲劳。"
+          >
+            {detail.representationAssets.length > 0 ? (
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {detail.representationAssets.map((representation) => (
+                  <article key={representation.id} className="surface overflow-hidden rounded-[1.9rem]">
+                    <div className="relative aspect-[4/5]">
+                      <Image
+                        src={representation.asset.url}
+                        alt={representation.asset.alt}
+                        fill
+                        sizes="(min-width: 1280px) 28vw, (min-width: 768px) 42vw, 100vw"
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="p-5">
+                      <p className="text-lg text-[var(--foreground)]">{representation.title}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-white/55">暂时没有可公开的相关达人。</p>
+              <EmptyState
+                title="暂时没有公开代表图像"
+                description="后续如果补充代表图或角色图，会优先出现在这一段。"
+              />
             )}
-          </div>
-        </article>
-        <article className="surface rounded-[1.8rem] p-6">
-          <div className="mb-6 space-y-2">
-            <p className="text-xs uppercase tracking-[0.35em] text-[var(--color-accent)]">Related Events</p>
-            <h2 className="text-3xl text-white">相关活动</h2>
-          </div>
-          <div className="space-y-4">
-            {detail.relatedEvents.length > 0 ? (
-              detail.relatedEvents.map((item) => (
-                <Link key={item.event.event.id} href={`/events/${item.event.event.slug}`} className="block border-b border-white/8 pb-4 last:border-none">
-                  <p className="text-lg text-white">{item.event.event.name}</p>
-                  <p className="mt-2 text-sm text-white/60">{item.reason}</p>
-                </Link>
-              ))
-            ) : (
-              <p className="text-sm text-white/55">暂时没有可公开的相关活动。</p>
-            )}
-          </div>
-        </article>
-      </section>
-    </main>
+          </SectionFrame>
+        </PublicReveal>
+
+        <PublicReveal>
+          <SectionFrame
+            eyebrow="Related Content"
+            title="继续阅读相关人物与活动"
+            description="从共现关系和活动上下文继续扩展浏览，而不是在单页上停住。"
+          >
+            <div className="grid gap-6 lg:grid-cols-2">
+              <section className="surface rounded-[1.9rem] p-6">
+                <div className="border-b pb-4 ui-divider">
+                  <p className="ui-kicker">Related Talents</p>
+                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">相关达人</h2>
+                </div>
+                <div className="mt-5 space-y-4">
+                  {detail.relatedTalents.length > 0 ? (
+                    detail.relatedTalents.map((item) => (
+                      <Link
+                        key={item.talent.id}
+                        href={`/talents/${item.talent.slug}`}
+                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
+                      >
+                        <p className="text-lg text-[var(--foreground)]">{item.talent.nickname}</p>
+                        <p className="mt-2 text-sm ui-subtle">{item.reason}</p>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm ui-subtle">暂时没有可公开的相关达人。</p>
+                  )}
+                </div>
+              </section>
+
+              <section className="surface rounded-[1.9rem] p-6">
+                <div className="border-b pb-4 ui-divider">
+                  <p className="ui-kicker">Related Events</p>
+                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">相关活动</h2>
+                </div>
+                <div className="mt-5 space-y-4">
+                  {detail.relatedEvents.length > 0 ? (
+                    detail.relatedEvents.map((item) => (
+                      <Link
+                        key={item.event.event.id}
+                        href={`/events/${item.event.event.slug}`}
+                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
+                      >
+                        <p className="text-lg text-[var(--foreground)]">{item.event.event.name}</p>
+                        <p className="mt-2 text-sm ui-subtle">{item.reason}</p>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm ui-subtle">暂时没有可公开的相关活动。</p>
+                  )}
+                </div>
+              </section>
+            </div>
+          </SectionFrame>
+        </PublicReveal>
+      </div>
+    </PageShell>
   );
 }

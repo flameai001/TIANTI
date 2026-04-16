@@ -28,7 +28,7 @@ export function EventArchiveCard({
   const showSharedPhoto = Boolean(sharedPhotoAsset) && isSharedPhotoVisible;
 
   return (
-    <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
+    <div className="surface overflow-hidden rounded-[1.6rem]">
       <div className="relative" style={{ aspectRatio: sceneDisplayPreset.aspectStyle }}>
         <Image
           src={sceneAsset.url}
@@ -48,19 +48,20 @@ export function EventArchiveCard({
         ) : null}
       </div>
       <div className="space-y-3 p-5">
-        <Link href={`/talents/${talentSlug}`} className="text-xl text-white">
+        <Link href={`/talents/${talentSlug}`} className="text-xl tracking-[-0.03em] text-[var(--foreground)]">
           {talentName}
         </Link>
-        <p className="text-sm text-white/60">{cosplayTitle}</p>
-        <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.15em] text-white/55">
-          <span>{recognized ? "已认出" : "未认出"}</span>
+        <p className="text-sm ui-subtle">{cosplayTitle}</p>
+        <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.15em] ui-muted">
+          <span>{recognized ? "已识别" : "未识别"}</span>
           {sharedPhotoAsset ? (
             <button
               type="button"
+              data-testid="archive-shared-toggle"
               onClick={() => setIsSharedPhotoVisible((current) => !current)}
-              className="rounded-full border border-white/12 px-2 py-1 text-[11px] tracking-[0.15em] text-white/70 transition hover:border-white/25 hover:text-white"
+              className="rounded-full border border-[var(--line-soft)] px-3 py-1 text-[11px] tracking-[0.15em] transition hover:border-[rgba(43,109,246,0.22)] hover:text-[var(--foreground)]"
             >
-              有合照
+              合照切换
             </button>
           ) : null}
         </div>

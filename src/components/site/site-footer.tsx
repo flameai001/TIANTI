@@ -1,28 +1,38 @@
+import Link from "next/link";
+
+const navItems = [
+  { href: "/", label: "首页" },
+  { href: "/talents", label: "达人" },
+  { href: "/events", label: "活动" },
+  { href: "/ladder", label: "天梯" },
+  { href: "/search", label: "搜索" }
+];
+
 export function SiteFooter() {
   return (
-    <footer className="border-t border-white/10 bg-black/60">
-      <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 text-sm text-white/65 md:grid-cols-[1.4fr_1fr_1fr] md:px-8">
-        <div className="space-y-3">
-          <p className="font-display text-2xl tracking-[0.2em] text-white">TIANTI</p>
-          <p className="max-w-md leading-7">
-            面向 cosplay 与国风圈层的公开展示与活动信息站。当前站点以演示内容运行，视觉与信息架构已按正式版本搭好。
+    <footer className="mt-10 border-t border-[var(--line-soft)] bg-[rgba(248,251,255,0.72)]">
+      <div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 md:grid-cols-[1.15fr_0.95fr_1fr] md:px-8">
+        <div className="space-y-4">
+          <p className="font-display text-3xl tracking-[0.18em] text-[var(--foreground)]">TIANTI</p>
+          <p className="max-w-md text-sm leading-7 ui-subtle">
+            用统一的浏览入口连接达人、活动、公开档案与编辑视角，让内容本身成为第一层体验。
           </p>
         </div>
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.35em] text-white/45">Sections</p>
-          <ul className="space-y-2">
-            <li>首页 / 达人 / 天梯榜</li>
-            <li>活动档案 / 搜索入口</li>
-            <li>编辑后台 / 双编辑视角</li>
-          </ul>
+          <p className="ui-kicker">Navigate</p>
+          <div className="flex flex-wrap gap-2">
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href} className="ui-pill px-4 py-2 text-sm">
+                {item.label}
+              </Link>
+            ))}
+          </div>
         </div>
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.35em] text-white/45">Status</p>
-          <ul className="space-y-2">
-            <li>公开站可直接浏览</li>
-            <li>后台支持双编辑演示登录</li>
-            <li>数据库与 R2 预留了后续接线点</li>
-          </ul>
+          <p className="ui-kicker">Positioning</p>
+          <p className="text-sm leading-7 ui-subtle">
+            公开站负责展示、浏览与发现，后台负责维护、录入与结构化编辑，共享同一套产品语言。
+          </p>
         </div>
       </div>
     </footer>

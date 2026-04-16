@@ -5,17 +5,17 @@ import { GuardedLink } from "@/components/admin/guarded-link";
 import { cn } from "@/lib/cn";
 
 const navItems = [
-  { href: "/admin", label: "仪表盘" },
-  { href: "/admin/talents", label: "达人" },
-  { href: "/admin/ladder", label: "天梯榜" },
-  { href: "/admin/archives", label: "活动档案" }
+  { href: "/admin", label: "Overview" },
+  { href: "/admin/talents", label: "Talents" },
+  { href: "/admin/archives", label: "Events & Archives" },
+  { href: "/admin/ladder", label: "Ladder" }
 ];
 
 export function AdminNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-3">
+    <nav className="flex flex-wrap gap-2">
       {navItems.map((item) => {
         const active = pathname === item.href;
         return (
@@ -23,10 +23,8 @@ export function AdminNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "rounded-full border px-4 py-2 text-sm transition",
-              active
-                ? "border-transparent bg-[var(--color-accent)] text-black"
-                : "border-white/12 bg-black/15 text-white/70 hover:border-white/25 hover:text-white"
+              "ui-pill px-4 py-2 text-sm",
+              active && "border-[rgba(43,109,246,0.22)] bg-[rgba(43,109,246,0.08)] text-[var(--color-accent)]"
             )}
           >
             {item.label}

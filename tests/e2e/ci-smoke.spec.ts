@@ -20,7 +20,7 @@ test.beforeEach(async ({ request }) => {
 test("public homepage renders and links into talent detail", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "TIANTI" })).toBeVisible();
-  await page.getByRole("link", { name: "浏览达人" }).click();
+  await page.getByTestId("home-cta-talents").click();
   await expect(page).toHaveURL(/\/talents$/);
   await page.getByRole("link", { name: "青鸾" }).first().click();
   await expect(page).toHaveURL(/\/talents\/qingluan$/);
