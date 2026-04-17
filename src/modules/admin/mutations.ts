@@ -119,6 +119,10 @@ const eventBulkSchema = z.object({
   status: z.enum(["future", "past"]).optional()
 });
 
+const editorNameSchema = z.object({
+  name: z.string().trim().min(1).max(24)
+});
+
 function dedupeIds(ids: string[]) {
   return [...new Set(ids)];
 }
@@ -270,6 +274,13 @@ export async function saveAsset(payload: unknown) {
     width: input.width,
     height: input.height
   });
+}
+
+export async function saveEditorName(editorId: string, payload: unknown) {
+  const repository = getContentRepository();
+  const input = editorNameSchema.parse(payload);
+
+  return repository.updateEditorName(editorId, input.name);
 }
 
 export async function saveTalent(payload: unknown) {

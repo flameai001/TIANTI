@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EditorNameForm } from "@/components/admin/editor-name-form";
 import { AdminPanel } from "@/components/ui/admin-panel";
 import { formatDate } from "@/lib/date";
 import { requireAuthenticatedEditor } from "@/lib/session";
@@ -48,20 +49,28 @@ export default async function AdminDashboardPage() {
         >
           <div className="grid gap-3">
             <Link href="/admin/talents" className="ui-pill justify-between px-4 py-3 text-sm">
-              Talents
+              达人
               <span className="ui-muted">列表与编辑</span>
             </Link>
             <Link href="/admin/archives" className="ui-pill justify-between px-4 py-3 text-sm">
-              Events & Archives
+              活动与档案
               <span className="ui-muted">活动、阵容、现场档案</span>
             </Link>
             <Link href="/admin/ladder" className="ui-pill justify-between px-4 py-3 text-sm">
-              Ladder
+              天梯
               <span className="ui-muted">公开排序与梯度</span>
             </Link>
           </div>
         </AdminPanel>
       </div>
+
+      <AdminPanel
+        eyebrow="Profile"
+        title="编辑者昵称"
+        description="你可以在这里修改自己的显示昵称。登录邮箱和权限不变，公开天梯与详情页中的编辑者名称会同步更新。"
+      >
+        <EditorNameForm currentName={editor.name} />
+      </AdminPanel>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <AdminPanel eyebrow="Recent Talents" title="最近更新的达人">

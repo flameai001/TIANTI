@@ -5,10 +5,10 @@ import { GuardedLink } from "@/components/admin/guarded-link";
 import { cn } from "@/lib/cn";
 
 const navItems = [
-  { href: "/admin", label: "Overview" },
-  { href: "/admin/talents", label: "Talents" },
-  { href: "/admin/archives", label: "Events & Archives" },
-  { href: "/admin/ladder", label: "Ladder" }
+  { href: "/admin", label: "总览" },
+  { href: "/admin/talents", label: "达人" },
+  { href: "/admin/archives", label: "活动与档案" },
+  { href: "/admin/ladder", label: "天梯" }
 ];
 
 export function AdminNav() {

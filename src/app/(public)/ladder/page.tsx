@@ -40,7 +40,9 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
               <Link
                 key={editor.id}
                 href={`/ladder?editor=${editor.slug}`}
-                className={`ui-pill px-5 py-3 text-sm ${active ? "border-[rgba(43,109,246,0.22)] bg-[rgba(43,109,246,0.08)] text-[var(--color-accent)]" : ""}`}
+                className={`ui-pill px-5 py-3 text-sm ${
+                  active ? "border-[rgba(43,109,246,0.22)] bg-[rgba(43,109,246,0.08)] text-[var(--color-accent)]" : ""
+                }`}
               >
                 {editor.name}
               </Link>
@@ -94,7 +96,7 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
                         <Link
                           key={talent.id}
                           href={`/talents/${talent.slug}`}
-                          className="overflow-hidden rounded-[1.5rem] border border-[var(--line-soft)] bg-white/76 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
+                          className="surface-strong overflow-hidden rounded-[1.5rem] transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
                         >
                           <div className="relative aspect-[4/3]">
                             {cover ? (

@@ -123,7 +123,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                           <Link
                             key={item.lineup.id}
                             href={`/talents/${item.talent.slug}`}
-                            className="rounded-[1.4rem] border border-[var(--line-soft)] bg-white/76 p-4 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
+                            className="surface-strong rounded-[1.4rem] p-4 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
                           >
                             <p className="text-lg text-[var(--foreground)]">{item.talent.nickname}</p>
                             <p className="mt-2 text-xs uppercase tracking-[0.18em] ui-muted">

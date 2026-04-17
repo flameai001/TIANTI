@@ -239,6 +239,20 @@ test("editor can update ladder title and see it publicly", async ({ page }) => {
   await expect(page.getByText("凛的天梯榜·收尾验收")).toBeVisible();
 });
 
+test("editor can rename their display name and see it reflected publicly", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin");
+  await page.getByTestId("editor-name-input").fill("凛编辑");
+  await page.getByTestId("save-editor-name").click();
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByTestId("editor-name-input")).toHaveValue("凛编辑");
+
+  await page.goto("/ladder?editor=lin");
+  await expect(page.getByRole("paragraph").filter({ hasText: "凛编辑" })).toBeVisible();
+});
+
 test("admin return button routes back to the matching public section", async ({ page }) => {
   await login(page);
 

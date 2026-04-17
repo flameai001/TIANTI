@@ -29,7 +29,7 @@ export function EventCard({ item }: { item: EventSummary }) {
               {group.label ? <p className="ui-kicker">{group.label}</p> : null}
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {group.items.map((lineup) => (
-                  <div key={lineup.lineup.id} className="rounded-[1.15rem] border border-[var(--line-soft)] bg-white/78 p-3">
+                  <div key={lineup.lineup.id} className="surface-strong rounded-[1.15rem] p-3">
                     <p className="text-sm text-[var(--foreground)]">{lineup.talent.nickname}</p>
                     <p className="mt-2 text-[11px] uppercase tracking-[0.16em] ui-muted">
                       {lineup.lineup.status === "confirmed" ? "Confirmed" : "Pending"}

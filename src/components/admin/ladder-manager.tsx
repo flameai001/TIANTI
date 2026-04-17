@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { StatusNotice } from "@/components/ui/status-notice";
 import type { EditorLadder, Talent } from "@/modules/domain/types";
 
 interface LadderManagerProps {
@@ -33,6 +34,12 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
     }));
   }
 
+  function handleDropToPool() {
+    if (!dragging) return;
+    moveTalent(dragging.talentId, dragging.fromTierId, "");
+    setDragging(null);
+  }
+
   async function handleSave() {
     setMessage(null);
     startTransition(async () => {
@@ -60,13 +67,15 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
             data-testid="ladder-title"
             value={draft.title}
             onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
-            className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
+            className="ui-input"
+            placeholder="天梯标题"
           />
           <input
             data-testid="ladder-subtitle"
             value={draft.subtitle}
             onChange={(event) => setDraft((current) => ({ ...current, subtitle: event.target.value }))}
-            className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
+            className="ui-input"
+            placeholder="天梯副标题"
           />
         </div>
       </section>
@@ -74,21 +83,28 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
       <section className="surface rounded-[1.8rem] p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">Ladder Pool</p>
-            <h2 className="mt-3 text-2xl text-white">未入榜达人</h2>
+            <p className="ui-kicker">Unranked Pool</p>
+            <h2 className="mt-3 text-2xl text-[var(--foreground)]">未入榜达人</h2>
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div
+          className="mt-5 flex min-h-24 flex-wrap gap-3 rounded-[1.2rem] border border-dashed border-[var(--line-strong)] bg-white/70 p-4"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={handleDropToPool}
+        >
           {unassignedTalents.map((talent) => (
             <div
               key={talent.id}
               draggable
               onDragStart={() => setDragging({ talentId: talent.id, fromTierId: "" })}
-              className="rounded-full border border-white/12 bg-black/20 px-4 py-2 text-sm text-white/75"
+              className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)]"
             >
               {talent.nickname}
             </div>
           ))}
+          {unassignedTalents.length === 0 ? (
+            <div className="flex min-h-10 items-center text-sm ui-subtle">把达人拖回这里即可移出榜单</div>
+          ) : null}
         </div>
       </section>
 
@@ -118,7 +134,7 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
                       )
                     }))
                   }
-                  className="w-full rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-lg outline-none"
+                  className="ui-input"
                 />
                 <button
                   type="button"
@@ -131,33 +147,39 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
                         .map((item, itemIndex) => ({ ...item, order: itemIndex }))
                     }))
                   }
-                  className="rounded-full border border-white/12 px-3 py-2 text-xs text-white/55 disabled:opacity-30"
+                  className="ui-button-secondary px-3 py-2 text-xs disabled:opacity-30"
                 >
                   删除
                 </button>
               </div>
+
               <div className="mt-4 space-y-3">
                 {tier.talentIds.map((talentId) => {
                   const talent = talentMap.get(talentId);
                   if (!talent) return null;
+
                   return (
                     <div
                       key={talentId}
                       draggable
                       onDragStart={() => setDragging({ talentId, fromTierId: tier.id })}
-                      className="rounded-[1.2rem] border border-white/10 bg-black/15 px-4 py-4 text-sm text-white/80"
+                      className="rounded-[1.2rem] border border-[var(--line-soft)] bg-[var(--surface-strong)] px-4 py-4 text-sm text-[var(--foreground)]"
                     >
-                      <p className="text-lg text-white">{talent.nickname}</p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/45">{talent.tags.join(" · ")}</p>
+                      <p className="text-lg text-[var(--foreground)]">{talent.nickname}</p>
+                      <p className="mt-2 text-xs uppercase tracking-[0.2em] ui-muted">
+                        {talent.tags.join(" · ") || "未设置标签"}
+                      </p>
                     </div>
                   );
                 })}
+
                 {tier.talentIds.length === 0 ? (
-                  <div className="rounded-[1.2rem] border border-dashed border-white/10 px-4 py-8 text-center text-sm text-white/45">
-                    拖拽达人到这里
+                  <div className="rounded-[1.2rem] border border-dashed border-[var(--line-strong)] px-4 py-8 text-center text-sm ui-subtle">
+                    把达人拖到这里
                   </div>
                 ) : null}
               </div>
+
               <div className="mt-4">
                 <select
                   defaultValue=""
@@ -167,7 +189,7 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
                     moveTalent(talentId, "", tier.id);
                     event.currentTarget.value = "";
                   }}
-                  className="w-full rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                  className="ui-select"
                 >
                   <option value="">快速加入达人</option>
                   {unassignedTalents.map((talent) => (
@@ -177,6 +199,7 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
                   ))}
                 </select>
               </div>
+
               {index === draft.tiers.length - 1 ? (
                 <button
                   type="button"
@@ -195,7 +218,7 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
                       ]
                     }))
                   }
-                  className="mt-4 rounded-full border border-white/12 px-4 py-2 text-sm text-white/70"
+                  className="ui-button-secondary mt-4 text-sm"
                 >
                   + 新增梯度
                 </button>
@@ -204,16 +227,17 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
           ))}
       </div>
 
-      {message ? <p className="text-sm text-amber-200">{message}</p> : null}
+      {message ? <StatusNotice variant="error">{message}</StatusNotice> : null}
+
       <div className="flex justify-end">
         <button
           type="button"
           onClick={handleSave}
           data-testid="save-ladder"
           disabled={pending}
-          className="rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm uppercase tracking-[0.25em] text-black disabled:opacity-60"
+          className="ui-button-primary text-sm disabled:opacity-60"
         >
-          {pending ? "保存中..." : "保存天梯榜"}
+          {pending ? "保存中..." : "保存天梯"}
         </button>
       </div>
     </div>

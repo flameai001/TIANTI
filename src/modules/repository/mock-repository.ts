@@ -19,6 +19,29 @@ export const mockRepository: ContentRepository = {
     const editor = getMockState().editors.find((item) => item.email.toLowerCase() === email.toLowerCase());
     return editor ? structuredClone(editor) : null;
   },
+  async updateEditorName(editorId, name) {
+    let nextEditor: ContentState["editors"][number] | null = null;
+
+    replaceState((state) => {
+      const index = state.editors.findIndex((item) => item.id === editorId);
+      if (index < 0) {
+        throw new Error("当前编辑者不存在。");
+      }
+
+      state.editors[index] = {
+        ...state.editors[index],
+        name
+      };
+      nextEditor = structuredClone(state.editors[index]);
+      return state;
+    });
+
+    if (!nextEditor) {
+      throw new Error("当前编辑者不存在。");
+    }
+
+    return nextEditor;
+  },
   async createSession(session) {
     replaceState((state) => {
       state.sessions = state.sessions.filter((item) => item.id !== session.id);

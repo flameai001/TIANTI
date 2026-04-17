@@ -11,6 +11,7 @@ import type {
 export interface ContentRepository {
   getState(): Promise<ContentState>;
   findEditorByEmail(email: string): Promise<ContentState["editors"][number] | null>;
+  updateEditorName(editorId: string, name: string): Promise<ContentState["editors"][number]>;
   createSession(session: SessionRecord): Promise<void>;
   getSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null>;
   deleteSessionByTokenHash(tokenHash: string): Promise<void>;

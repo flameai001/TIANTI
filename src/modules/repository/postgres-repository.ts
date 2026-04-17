@@ -275,6 +275,35 @@ export const postgresRepository: ContentRepository = {
         }
       : null;
   },
+  async updateEditorName(editorId, name) {
+    const db = getDb();
+
+    await db
+      .update(editors)
+      .set({
+        name,
+        updatedAt: new Date()
+      })
+      .where(eq(editors.id, editorId));
+
+    const rows = await db.select().from(editors).where(eq(editors.id, editorId)).limit(1);
+    const row = rows[0];
+    if (!row) {
+      throw new Error("当前编辑者不存在。");
+    }
+
+    return {
+      id: row.id,
+      slug: row.slug as ContentState["editors"][number]["slug"],
+      name: row.name,
+      title: row.title,
+      bio: row.bio,
+      accent: row.accent,
+      intro: row.intro,
+      email: row.email,
+      passwordHash: row.passwordHash
+    };
+  },
   async createSession(session) {
     const db = getDb();
     await db.insert(sessions).values({

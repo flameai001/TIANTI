@@ -84,9 +84,20 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
                 </div>
               ) : null}
 
+              {publicInfoRows.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {publicInfoRows.map((row) => (
+                    <div key={row.label} className="surface-strong rounded-[1.4rem] p-4">
+                      <p className="text-sm ui-muted">{row.label}</p>
+                      <p className="mt-2 text-lg text-[var(--foreground)]">{row.value}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
               <div className="grid gap-4 md:grid-cols-2">
                 {detail.editorSummaries.map((summary) => (
-                  <div key={summary.editor.id} className="rounded-[1.4rem] border border-[var(--line-soft)] bg-white/72 p-4">
+                  <div key={summary.editor.id} className="surface-strong rounded-[1.4rem] p-4">
                     <p className="text-sm ui-muted">{summary.editor.name}</p>
                     <p className="mt-2 text-lg text-[var(--foreground)]">{summary.tierName ?? "未入榜"}</p>
                     <div className="mt-3 flex gap-4 text-sm ui-subtle">
@@ -114,81 +125,60 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
       <div className="mt-14 space-y-14">
         <PublicReveal>
           <SectionFrame
-            eyebrow="Public Profile"
-            title="公开资料与活动路径"
-            description="基础资料、未来活动与过往活动分别承担不同阅读职责，让信息层级更清楚。"
+            eyebrow="Activity Path"
+            title="从未来活动到历史记录"
+            description="先看即将发生的公开活动，再回到已经完成归档的历史出现，阅读路径更顺。"
           >
-            <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="grid gap-6 md:grid-cols-2">
               <section className="surface rounded-[1.9rem] p-6">
                 <div className="border-b pb-4 ui-divider">
-                  <p className="ui-kicker">Public Info</p>
-                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">公开资料</h2>
+                  <p className="ui-kicker">Upcoming</p>
+                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">即将参与</h2>
                 </div>
-                {publicInfoRows.length > 0 ? (
-                  <div className="mt-5 space-y-5">
-                    {publicInfoRows.map((row) => (
-                      <div key={row.label}>
-                        <p className="text-sm ui-muted">{row.label}</p>
-                        <p className="mt-2 text-lg text-[var(--foreground)]">{row.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-5 text-sm ui-subtle">当前还没有更多可公开资料。</p>
-                )}
+                <div className="mt-5 space-y-4">
+                  {detail.futureEvents.length > 0 ? (
+                    detail.futureEvents.map((event) => (
+                      <Link
+                        key={event.id}
+                        href={`/events/${event.slug}`}
+                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
+                      >
+                        <p className="text-lg text-[var(--foreground)]">{event.name}</p>
+                        <p className="mt-2 text-sm ui-subtle">
+                          {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
+                        </p>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm ui-subtle">当前没有公开的未来活动。</p>
+                  )}
+                </div>
               </section>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <section className="surface rounded-[1.9rem] p-6">
-                  <div className="border-b pb-4 ui-divider">
-                    <p className="ui-kicker">Upcoming</p>
-                    <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">即将参与</h2>
-                  </div>
-                  <div className="mt-5 space-y-4">
-                    {detail.futureEvents.length > 0 ? (
-                      detail.futureEvents.map((event) => (
-                        <Link
-                          key={event.id}
-                          href={`/events/${event.slug}`}
-                          className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
-                        >
-                          <p className="text-lg text-[var(--foreground)]">{event.name}</p>
-                          <p className="mt-2 text-sm ui-subtle">
-                            {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
-                          </p>
-                        </Link>
-                      ))
-                    ) : (
-                      <p className="text-sm ui-subtle">当前没有公开的未来活动。</p>
-                    )}
-                  </div>
-                </section>
-
-                <section className="surface rounded-[1.9rem] p-6">
-                  <div className="border-b pb-4 ui-divider">
-                    <p className="ui-kicker">Archive</p>
-                    <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">历史出现</h2>
-                  </div>
-                  <div className="mt-5 space-y-4">
-                    {detail.pastEvents.length > 0 ? (
-                      detail.pastEvents.map((event) => (
-                        <Link
-                          key={event.id}
-                          href={`/events/${event.slug}`}
-                          className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
-                        >
-                          <p className="text-lg text-[var(--foreground)]">{event.name}</p>
-                          <p className="mt-2 text-sm ui-subtle">
-                            {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
-                          </p>
-                        </Link>
-                      ))
-                    ) : (
-                      <p className="text-sm ui-subtle">还没有可公开的历史活动记录。</p>
-                    )}
-                  </div>
-                </section>
-              </div>
+              <section className="surface rounded-[1.9rem] p-6">
+                <div className="border-b pb-4 ui-divider">
+                  <p className="ui-kicker">Archive</p>
+                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">历史出现</h2>
+                </div>
+                <div className="mt-5 space-y-4">
+                  {detail.pastEvents.length > 0 ? (
+                    detail.pastEvents.map((event) => (
+                      <Link
+                        key={event.id}
+                        href={`/events/${event.slug}`}
+                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
+                      >
+                        <p className="text-lg text-[var(--foreground)]">{event.name}</p>
+                        <p className="mt-2 text-sm ui-subtle">
+                          {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
+                        </p>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-sm ui-subtle">还没有可公开的历史活动记录。</p>
+                  )}
+                </div>
+              </section>
             </div>
           </SectionFrame>
         </PublicReveal>
