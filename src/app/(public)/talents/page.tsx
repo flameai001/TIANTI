@@ -22,6 +22,7 @@ export default async function TalentsPage({ searchParams }: { searchParams: Sear
   const tag = typeof params.tag === "string" ? params.tag : undefined;
   const selectedEditorSlug = typeof params.editor === "string" ? params.editor : "";
   const mcn = typeof params.mcn === "string" ? params.mcn : undefined;
+  const hasSchedule = typeof params.hasSchedule === "string" && params.hasSchedule === "1";
   const state = await getContentState();
   const tags = [...new Set(state.talents.flatMap((talent) => talent.tags))].sort(compareByPinyin);
   const mcns = [...new Set(state.talents.map((talent) => talent.mcn).filter(Boolean))].sort(compareByPinyin);
@@ -35,6 +36,7 @@ export default async function TalentsPage({ searchParams }: { searchParams: Sear
     tag,
     editorId: selectedEditor?.id,
     tierId,
+    hasSchedule,
     mcn
   });
 
@@ -42,7 +44,8 @@ export default async function TalentsPage({ searchParams }: { searchParams: Sear
     tag ? `标签：${tag}` : null,
     mcn ? `MCN：${mcn}` : null,
     selectedEditor ? `${selectedEditor.name} 的视角` : null,
-    tierId ? `梯度：${selectedLadder?.tiers.find((tier) => tier.id === tierId)?.name}` : null
+    tierId ? `梯度：${selectedLadder?.tiers.find((tier) => tier.id === tierId)?.name}` : null,
+    hasSchedule ? "有行程" : null
   ].filter(Boolean);
 
   return (
@@ -56,61 +59,74 @@ export default async function TalentsPage({ searchParams }: { searchParams: Sear
 
       <div className="mt-10 space-y-8">
         <FilterBar>
-          <AutoFilterForm className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.35fr_1fr_1fr_1fr_1fr]">
-            <input
-              name="q"
-              defaultValue={q}
-              placeholder="搜索昵称、别名、标签、MCN 或关键词"
-              className="ui-input rounded-full"
-              data-testid="talent-filter-search"
-            />
-            <select name="tag" defaultValue={tag ?? ""} data-auto-submit="true" className="ui-select rounded-full">
-              <option value="">全部标签</option>
-              {tags.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-            <select name="mcn" defaultValue={mcn ?? ""} data-auto-submit="true" className="ui-select rounded-full">
-              <option value="">全部 MCN</option>
-              {mcns.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-            <select
-              name="editor"
-              defaultValue={selectedEditor?.slug ?? ""}
-              data-auto-submit="true"
-              data-reset-target="tier"
-              className="ui-select rounded-full"
-            >
-              <option value="">全部编辑视角</option>
-              {state.editors.map((editor) => (
-                <option key={editor.id} value={editor.slug}>
-                  {editor.name}
-                </option>
-              ))}
-            </select>
-            <select
-              name="tier"
-              defaultValue={tierId ?? ""}
-              disabled={!selectedLadder}
-              data-auto-submit="true"
-              className="ui-select rounded-full disabled:opacity-45"
-            >
-              <option value="">{selectedLadder ? "全部梯度" : "先选择编辑视角"}</option>
-              {selectedLadder?.tiers
-                .slice()
-                .sort((left, right) => left.order - right.order)
-                .map((tier) => (
-                  <option key={tier.id} value={tier.id}>
-                    {tier.name}
+          <AutoFilterForm className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.35fr_1fr_1fr_1fr_1fr]">
+              <input
+                name="q"
+                defaultValue={q}
+                placeholder="搜索昵称、别名、标签、MCN 或关键词"
+                className="ui-input rounded-full"
+                data-testid="talent-filter-search"
+              />
+              <select name="tag" defaultValue={tag ?? ""} data-auto-submit="true" className="ui-select rounded-full">
+                <option value="">全部标签</option>
+                {tags.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
                   </option>
                 ))}
-            </select>
+              </select>
+              <select name="mcn" defaultValue={mcn ?? ""} data-auto-submit="true" className="ui-select rounded-full">
+                <option value="">全部 MCN</option>
+                {mcns.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="editor"
+                defaultValue={selectedEditor?.slug ?? ""}
+                data-auto-submit="true"
+                data-reset-target="tier"
+                className="ui-select rounded-full"
+              >
+                <option value="">全部编辑视角</option>
+                {state.editors.map((editor) => (
+                  <option key={editor.id} value={editor.slug}>
+                    {editor.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="tier"
+                defaultValue={tierId ?? ""}
+                disabled={!selectedLadder}
+                data-auto-submit="true"
+                className="ui-select rounded-full disabled:opacity-45"
+              >
+                <option value="">{selectedLadder ? "全部梯度" : "先选择编辑视角"}</option>
+                {selectedLadder?.tiers
+                  .slice()
+                  .sort((left, right) => left.order - right.order)
+                  .map((tier) => (
+                    <option key={tier.id} value={tier.id}>
+                      {tier.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <label className="inline-flex items-center gap-3 rounded-full border border-[var(--line-soft)] px-4 py-3 text-sm text-[var(--foreground)]">
+              <input
+                type="checkbox"
+                name="hasSchedule"
+                value="1"
+                defaultChecked={hasSchedule}
+                data-auto-submit="true"
+              />
+              只看有行程的达人
+            </label>
           </AutoFilterForm>
         </FilterBar>
 
@@ -140,7 +156,7 @@ export default async function TalentsPage({ searchParams }: { searchParams: Sear
         ) : (
           <EmptyState
             title="没有匹配的达人"
-            description="可以尝试放宽标签、MCN 或编辑视角，重新打开更宽的浏览范围。"
+            description="可以尝试放宽标签、MCN、行程或编辑视角，重新打开更宽的浏览范围。"
           />
         )}
       </div>

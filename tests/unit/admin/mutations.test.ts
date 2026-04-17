@@ -14,6 +14,12 @@ import { getMockState, setMockState } from "@/modules/repository/mock-store";
 describe("admin mutations", () => {
   beforeEach(() => {
     setMockState(structuredClone(demoSeedState));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-17T12:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("blocks deleting a referenced talent", async () => {
@@ -236,19 +242,51 @@ describe("admin mutations", () => {
     expect(getMockState().talents.some((talent) => talent.id === saved.id)).toBe(false);
   });
 
-  it("bulk updates event status", async () => {
-    const result = await saveEventBulk({
-      action: "set_status",
-      ids: ["event-spring-gala", "event-echo-market"],
-      status: "past"
+  it("derives event status from dates when saving", async () => {
+    const savedFuture = await saveEvent({
+      id: "event-echo-market",
+      name: "Echo Market Archive",
+      startsAt: "2026-04-19",
+      endsAt: "2026-04-20",
+      city: "",
+      venue: "",
+      note: "",
+      lineups: []
     });
 
-    expect(result.succeededIds).toEqual(["event-spring-gala", "event-echo-market"]);
-    expect(result.blocked).toHaveLength(0);
+    const savedPast = await saveEvent({
+      id: "event-mist-lantern",
+      name: "Mist Lantern Festival",
+      startsAt: "2026-03-22",
+      endsAt: "2026-03-22",
+      city: "",
+      venue: "",
+      note: "",
+      lineups: []
+    });
 
-    const state = getMockState();
-    expect(state.events.find((event) => event.id === "event-spring-gala")?.status).toBe("past");
-    expect(state.events.find((event) => event.id === "event-echo-market")?.status).toBe("past");
+    expect(savedFuture.status).toBe("future");
+    expect(savedPast.status).toBe("past");
+  });
+
+  it("allows saving archive entries without a scene asset", async () => {
+    const archive = await saveArchive("editor-lin", {
+      eventId: "event-mist-lantern",
+      note: "archive note",
+      entries: [
+        {
+          talentId: "talent-qingluan",
+          entryDate: "2026-03-22",
+          sceneAssetId: null,
+          sharedPhotoAssetId: null,
+          cosplayTitle: "Role One",
+          recognized: true,
+          hasSharedPhoto: false
+        }
+      ]
+    });
+
+    expect(archive.entries[0]?.sceneAssetId).toBeNull();
   });
 
   it("bulk deletes events and cascades their lineups and archives", async () => {

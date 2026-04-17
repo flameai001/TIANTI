@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { StatusNotice } from "@/components/ui/status-notice";
 import { useAdminUnsavedChanges } from "@/components/admin/admin-unsaved-changes";
 
 export function SignOutButton() {
@@ -31,7 +32,7 @@ export function SignOutButton() {
       <button type="button" onClick={handleSignOut} disabled={pending} className="ui-button-secondary px-4 py-2 text-sm">
         {pending ? "退出中..." : "退出登录"}
       </button>
-      {error ? <p className="text-xs text-[#992b35]">{error}</p> : null}
+      {error ? <StatusNotice variant="error">{error}</StatusNotice> : null}
     </div>
   );
 }

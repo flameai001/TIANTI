@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
 import { InlineAssetUpload } from "@/components/admin/inline-asset-upload";
 import { useAdminUnsavedChanges } from "@/components/admin/admin-unsaved-changes";
+import { StatusNotice } from "@/components/ui/status-notice";
 import {
   createArchiveDraft,
   createEmptyEventDraft,
@@ -14,7 +15,14 @@ import {
   type EditableEvent,
   type EditableLineup
 } from "@/components/admin/archive-manager-utils";
-import { formatDateKey, getDateRangeDays, getDateSortTime, isMultiDayRange, toDateOnlyIso } from "@/lib/date";
+import {
+  deriveEventTemporalStatus,
+  formatDateKey,
+  getDateRangeDays,
+  getDateSortTime,
+  isMultiDayRange,
+  toDateOnlyIso
+} from "@/lib/date";
 import type { BulkActionResult } from "@/modules/admin/types";
 import type { Asset, EditorArchive, Event, EventLineup, Talent } from "@/modules/domain/types";
 
@@ -30,7 +38,19 @@ interface ArchiveManagerProps {
 const UNSAVED_MESSAGE = "当前活动仍有未保存的修改，离开后会丢失。确定继续吗？";
 
 function sortEventsForManager(value: Event[]) {
+  const statusOrder = {
+    future: 0,
+    undated: 1,
+    past: 2
+  } as const;
+
   return [...value].sort((left, right) => {
+    const leftStatus = deriveEventTemporalStatus(left.startsAt ?? null, left.endsAt ?? null);
+    const rightStatus = deriveEventTemporalStatus(right.startsAt ?? null, right.endsAt ?? null);
+    if (statusOrder[leftStatus] !== statusOrder[rightStatus]) {
+      return statusOrder[leftStatus] - statusOrder[rightStatus];
+    }
+
     const leftTime = getDateSortTime(left.startsAt ?? left.endsAt ?? null);
     const rightTime = getDateSortTime(right.startsAt ?? right.endsAt ?? null);
 
@@ -118,7 +138,6 @@ function validateArchiveDraft(
     if (entry.entryDate && validDateKeys.size > 0 && !validDateKeys.has(entry.entryDate)) {
       return "现场档案记录的所属日期必须落在活动开始和结束日期之间。";
     }
-    if (!entry.sceneAssetId) return "档案条目里还有现场图未选择。";
     if (!entry.cosplayTitle.trim()) return "请为每条档案记录填写角色或作品。";
     if (entry.hasSharedPhoto && !entry.sharedPhotoAssetId) {
       return "已勾选合照的档案条目必须选择一张合照素材。";
@@ -237,7 +256,6 @@ export function ArchiveManager({
   const [liveLineups, setLiveLineups] = useState(lineups);
   const [liveArchives, setLiveArchives] = useState(archives);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
-  const [bulkEventStatus, setBulkEventStatus] = useState<"future" | "past">("future");
   const [selectedEventId, setSelectedEventId] = useState<string | null>(initialEventId);
   const [eventDraft, setEventDraft] = useState<EditableEvent>(() =>
     createEventDraft(initialEvents.find((event) => event.id === initialEventId) ?? null)
@@ -391,7 +409,6 @@ export function ArchiveManager({
       endsAt: eventDraft.endsAt || null,
       city: eventDraft.city,
       venue: eventDraft.venue,
-      status: eventDraft.status,
       note: eventDraft.note,
       lineups: editableLineups
     };
@@ -510,7 +527,7 @@ export function ArchiveManager({
     });
   }
 
-  async function handleBulkEventAction(action: "set_status" | "delete") {
+  async function handleBulkEventAction() {
     if (selectedEventIds.length === 0) {
       setMessage("请先勾选至少一个活动。");
       return;
@@ -521,10 +538,7 @@ export function ArchiveManager({
       return;
     }
 
-    if (
-      action === "delete" &&
-      !window.confirm(`确定批量删除 ${selectedEventIds.length} 个活动吗？这会同时删除这些活动的阵容和关联档案。`)
-    ) {
+    if (!window.confirm(`确定批量删除 ${selectedEventIds.length} 个活动吗？这会同时删除这些活动的阵容和关联档案。`)) {
       return;
     }
 
@@ -537,9 +551,8 @@ export function ArchiveManager({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          action,
-          ids: selectedEventIds,
-          status: action === "set_status" ? bulkEventStatus : undefined
+          action: "delete",
+          ids: selectedEventIds
         })
       });
 
@@ -551,40 +564,18 @@ export function ArchiveManager({
         return;
       }
 
-      if (action === "delete") {
-        const removedIds = new Set(data.result.succeededIds);
-        const nextEvents = liveEvents.filter((event) => !removedIds.has(event.id));
-        const nextLineups = liveLineups.filter((lineup) => !removedIds.has(lineup.eventId));
-        const nextArchives = liveArchives.filter((archive) => !removedIds.has(archive.eventId));
-        const nextSelectedEventId = removedIds.has(selectedEventId ?? "")
-          ? (nextEvents[0]?.id ?? null)
-          : selectedEventId;
-
-        setLiveEvents(nextEvents);
-        setLiveLineups(nextLineups);
-        setLiveArchives(nextArchives);
-        setSelectedEventIds((current) => current.filter((id) => !removedIds.has(id)));
-        resetDrafts(nextSelectedEventId, nextEvents, nextLineups, nextArchives);
-        setMessage(buildBulkSummary(data.result, "已批量删除活动"));
-        return;
-      }
-
-      const updatedIds = new Set(data.result.succeededIds);
-      const updatedAt = new Date().toISOString();
-      const nextEvents = sortEventsForManager(
-        liveEvents.map((event) =>
-          updatedIds.has(event.id) ? { ...event, status: bulkEventStatus, updatedAt } : event
-        )
-      );
+      const removedIds = new Set(data.result.succeededIds);
+      const nextEvents = liveEvents.filter((event) => !removedIds.has(event.id));
+      const nextLineups = liveLineups.filter((lineup) => !removedIds.has(lineup.eventId));
+      const nextArchives = liveArchives.filter((archive) => !removedIds.has(archive.eventId));
+      const nextSelectedEventId = removedIds.has(selectedEventId ?? "") ? (nextEvents[0]?.id ?? null) : selectedEventId;
 
       setLiveEvents(nextEvents);
-      resetDrafts(selectedEventId, nextEvents, liveLineups, liveArchives);
-      setMessage(
-        buildBulkSummary(
-          data.result,
-          `已批量设置活动状态为${bulkEventStatus === "future" ? "未来" : "已结束"}`
-        )
-      );
+      setLiveLineups(nextLineups);
+      setLiveArchives(nextArchives);
+      setSelectedEventIds((current) => current.filter((id) => !removedIds.has(id)));
+      resetDrafts(nextSelectedEventId, nextEvents, nextLineups, nextArchives);
+      setMessage(buildBulkSummary(data.result, "已批量删除活动"));
     });
   }
 
@@ -743,29 +734,11 @@ export function ArchiveManager({
         </div>
         <div className="mt-4 rounded-[1.4rem] border border-white/10 bg-black/15 p-4">
           <p className="text-xs uppercase tracking-[0.25em] text-white/45">Bulk Actions</p>
-          <select
-            value={bulkEventStatus}
-            data-testid="bulk-event-status"
-            onChange={(event) => setBulkEventStatus(event.target.value as "future" | "past")}
-            className="mt-3 w-full rounded-[1rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
-          >
-            <option value="future">未来</option>
-            <option value="past">已结束</option>
-          </select>
           <div className="mt-3 grid gap-3">
             <button
               type="button"
-              data-testid="bulk-set-event-status"
-              onClick={() => handleBulkEventAction("set_status")}
-              disabled={pending || selectedEventIds.length === 0}
-              className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 disabled:opacity-50"
-            >
-              批量设置活动状态
-            </button>
-            <button
-              type="button"
               data-testid="bulk-delete-events"
-              onClick={() => handleBulkEventAction("delete")}
+              onClick={handleBulkEventAction}
               disabled={pending || selectedEventIds.length === 0}
               className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-200 disabled:opacity-50"
             >
@@ -813,11 +786,7 @@ export function ArchiveManager({
       </aside>
 
       <section className="space-y-6">
-        {message ? (
-          <div className="rounded-[1.4rem] border border-amber-300/20 bg-amber-200/10 px-4 py-3 text-sm text-amber-100">
-            {message}
-          </div>
-        ) : null}
+        {message ? <StatusNotice variant="warning">{message}</StatusNotice> : null}
         <section className="surface rounded-[1.8rem] p-6">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
@@ -848,7 +817,7 @@ export function ArchiveManager({
           </div>
 
           <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4">
               <input
                 name="name"
                 value={eventDraft.name}
@@ -856,20 +825,6 @@ export function ArchiveManager({
                 placeholder="活动名称"
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
-              <select
-                name="status"
-                value={eventDraft.status}
-                onChange={(event) =>
-                  setEventDraft((current) => ({
-                    ...current,
-                    status: event.target.value as EditableEvent["status"]
-                  }))
-                }
-                className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
-              >
-                <option value="future">未来</option>
-                <option value="past">已结束</option>
-              </select>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <input
@@ -1222,7 +1177,7 @@ export function ArchiveManager({
                               checked={entry.hasSharedPhoto}
                               onChange={(event) => handleSharedToggle(index, event.target.checked)}
                             />
-                            是否有合照
+                            是否有集邮
                           </label>
                         </div>
 

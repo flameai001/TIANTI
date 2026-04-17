@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { StatusNotice } from "@/components/ui/status-notice";
 
 interface EditorNameFormProps {
@@ -8,6 +9,7 @@ interface EditorNameFormProps {
 }
 
 export function EditorNameForm({ currentName }: EditorNameFormProps) {
+  const router = useRouter();
   const [name, setName] = useState(currentName);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,8 +35,8 @@ export function EditorNameForm({ currentName }: EditorNameFormProps) {
       }
 
       setName(data.editor.name);
-      setMessage("昵称已更新，页面会保留当前工作上下文。");
-      window.location.reload();
+      setMessage("昵称已更新，后台顶部和公开页面会同步刷新。");
+      router.refresh();
     });
   }
 
@@ -59,7 +61,7 @@ export function EditorNameForm({ currentName }: EditorNameFormProps) {
           {pending ? "保存中..." : "保存昵称"}
         </button>
       </div>
-      <p className="text-xs ui-muted">这个昵称会同步显示在后台顶部、公开天梯和达人详情页的编辑者视角中。</p>
+      <p className="text-xs ui-muted">这个昵称会同步显示在后台顶部、公开首页、天梯和详情页里的编辑者视角中。</p>
       {message ? <StatusNotice variant="success">{message}</StatusNotice> : null}
       {error ? <StatusNotice variant="error">{error}</StatusNotice> : null}
     </div>

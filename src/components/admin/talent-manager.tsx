@@ -98,7 +98,7 @@ function createTalentDraft(talent?: Talent | null): TalentDraft {
         ? talent.representations.map((item) => ({
             id: item.id,
             title: item.title,
-            assetId: item.assetId
+            assetId: item.assetId ?? ""
           }))
         : [createRepresentationDraft()]
   };

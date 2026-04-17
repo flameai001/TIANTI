@@ -7,15 +7,17 @@ import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
 import type { Asset } from "@/modules/domain/types";
 
 interface EventArchiveCardProps {
+  canToggleSharedPhoto?: boolean;
   cosplayTitle: string;
   recognized: boolean;
-  sceneAsset: Asset;
+  sceneAsset?: Asset | null;
   sharedPhotoAsset?: Asset | null;
   talentName: string;
   talentSlug: string;
 }
 
 export function EventArchiveCard({
+  canToggleSharedPhoto = false,
   cosplayTitle,
   recognized,
   sceneAsset,
@@ -30,13 +32,17 @@ export function EventArchiveCard({
   return (
     <div className="surface overflow-hidden rounded-[1.6rem]">
       <div className="relative" style={{ aspectRatio: sceneDisplayPreset.aspectStyle }}>
-        <Image
-          src={sceneAsset.url}
-          alt={sceneAsset.alt}
-          fill
-          sizes="(min-width: 768px) 42vw, 100vw"
-          className="object-cover"
-        />
+        {sceneAsset ? (
+          <Image
+            src={sceneAsset.url}
+            alt={sceneAsset.alt}
+            fill
+            sizes="(min-width: 768px) 42vw, 100vw"
+            className="object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-transparent" />
+        )}
         {sharedPhotoAsset ? (
           <Image
             src={sharedPhotoAsset.url}
@@ -52,17 +58,21 @@ export function EventArchiveCard({
           {talentName}
         </Link>
         <p className="text-sm ui-subtle">{cosplayTitle}</p>
-        <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.15em] ui-muted">
-          <span>{recognized ? "已识别" : "未识别"}</span>
+        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.15em] ui-muted">
+          <span>{recognized ? "已认出" : "未认出"}</span>
           {sharedPhotoAsset ? (
-            <button
-              type="button"
-              data-testid="archive-shared-toggle"
-              onClick={() => setIsSharedPhotoVisible((current) => !current)}
-              className="rounded-full border border-[var(--line-soft)] px-3 py-1 text-[11px] tracking-[0.15em] transition hover:border-[rgba(43,109,246,0.22)] hover:text-[var(--foreground)]"
-            >
-              合照切换
-            </button>
+            canToggleSharedPhoto ? (
+              <button
+                type="button"
+                data-testid="archive-shared-toggle"
+                onClick={() => setIsSharedPhotoVisible((current) => !current)}
+                className="rounded-full border border-[var(--line-soft)] px-3 py-1 text-[11px] tracking-[0.15em] transition hover:border-[rgba(43,109,246,0.22)] hover:text-[var(--foreground)]"
+              >
+                已集邮
+              </button>
+            ) : (
+              <span>已集邮</span>
+            )
           ) : null}
         </div>
       </div>

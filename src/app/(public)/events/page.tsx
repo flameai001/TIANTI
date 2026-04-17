@@ -38,6 +38,8 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
   const cities = [...new Set(state.events.map((event) => event.city).filter(Boolean))].sort(compareByPinyin);
   const requestedCity = typeof params.city === "string" ? params.city : undefined;
   const city = requestedCity && cities.includes(requestedCity) ? requestedCity : undefined;
+  const requestedEditorSlug = typeof params.editor === "string" ? params.editor : undefined;
+  const selectedEditor = state.editors.find((editor) => editor.slug === requestedEditorSlug) ?? null;
   const requestedTalentId = typeof params.talent === "string" ? params.talent : undefined;
   const talentId = state.talents.some((talent) => talent.id === requestedTalentId) ? requestedTalentId : undefined;
   const date = typeof params.date === "string" ? params.date : undefined;
@@ -45,6 +47,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
     query: q,
     eventStatus,
     city,
+    editorId: selectedEditor?.id,
     talentId,
     date,
     sort
@@ -63,7 +66,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
 
       <div className="mt-10 space-y-8">
         <FilterBar>
-          <AutoFilterForm className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.25fr_0.85fr_0.85fr_1fr_0.95fr_0.85fr]">
+          <AutoFilterForm className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.2fr_0.85fr_0.85fr_0.95fr_1fr_0.95fr_0.85fr]">
             <input
               name="q"
               defaultValue={q}
@@ -86,6 +89,19 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
               {cities.map((item) => (
                 <option key={item} value={item}>
                   {item}
+                </option>
+              ))}
+            </select>
+            <select
+              name="editor"
+              defaultValue={selectedEditor?.slug ?? ""}
+              data-auto-submit="true"
+              className="ui-select rounded-full"
+            >
+              <option value="">全部编辑者</option>
+              {state.editors.map((editor) => (
+                <option key={editor.id} value={editor.slug}>
+                  {editor.name}
                 </option>
               ))}
             </select>
@@ -138,7 +154,7 @@ export default async function EventsPage({ searchParams }: { searchParams: Searc
         ) : (
           <EmptyState
             title="没有匹配的活动"
-            description="可以放宽活动状态、日期或阵容条件，重新回到更宽的浏览范围。"
+            description="可以放宽活动状态、日期、编辑者或阵容条件，重新回到更宽的浏览范围。"
           />
         )}
       </div>

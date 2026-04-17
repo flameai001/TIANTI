@@ -11,6 +11,40 @@ import { buildMetadata } from "@/lib/site";
 import { getTalentPage } from "@/modules/content/service";
 
 type Params = Promise<{ slug: string }>;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function parsePageParam(value: string | string[] | undefined) {
+  if (typeof value !== "string") {
+    return 1;
+  }
+
+  const nextValue = Number.parseInt(value, 10);
+  return Number.isFinite(nextValue) && nextValue > 0 ? nextValue : 1;
+}
+
+function buildPageHref(
+  slug: string,
+  currentUpcomingPage: number,
+  currentHistoryPage: number,
+  field: "upcomingPage" | "historyPage",
+  value: number
+) {
+  const params = new URLSearchParams();
+
+  const nextUpcomingPage = field === "upcomingPage" ? value : currentUpcomingPage;
+  const nextHistoryPage = field === "historyPage" ? value : currentHistoryPage;
+
+  if (nextUpcomingPage > 1) {
+    params.set("upcomingPage", String(nextUpcomingPage));
+  }
+
+  if (nextHistoryPage > 1) {
+    params.set("historyPage", String(nextHistoryPage));
+  }
+
+  const suffix = params.toString();
+  return suffix ? `/talents/${slug}?${suffix}` : `/talents/${slug}`;
+}
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
@@ -31,13 +65,30 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   });
 }
 
-export default async function TalentDetailPage({ params }: { params: Params }) {
+export default async function TalentDetailPage({
+  params,
+  searchParams
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   const { slug } = await params;
+  const query = await searchParams;
   const detail = await getTalentPage(slug);
 
   if (!detail) {
     notFound();
   }
+
+  const upcomingPage = parsePageParam(query.upcomingPage);
+  const historyPage = parsePageParam(query.historyPage);
+  const pageSize = 4;
+  const totalUpcomingPages = Math.max(1, Math.ceil(detail.futureEvents.length / pageSize));
+  const totalHistoryPages = Math.max(1, Math.ceil(detail.pastEvents.length / pageSize));
+  const safeUpcomingPage = Math.min(upcomingPage, totalUpcomingPages);
+  const safeHistoryPage = Math.min(historyPage, totalHistoryPages);
+  const pagedUpcomingEvents = detail.futureEvents.slice((safeUpcomingPage - 1) * pageSize, safeUpcomingPage * pageSize);
+  const pagedHistoryEvents = detail.pastEvents.slice((safeHistoryPage - 1) * pageSize, safeHistoryPage * pageSize);
 
   const publicInfoRows = [
     detail.talent.aliases.length > 0 ? { label: "别名", value: detail.talent.aliases.join(" / ") } : null,
@@ -49,7 +100,7 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
       <PublicReveal>
         <section className="surface overflow-hidden rounded-[2.4rem] p-6 md:p-8">
           <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
-            <div className="relative overflow-hidden rounded-[1.8rem] bg-[radial-gradient(circle_at_top,rgba(43,109,246,0.12),rgba(255,255,255,0.08)_48%,rgba(24,33,47,0.08))]">
+            <div className="relative overflow-hidden rounded-[1.8rem] bg-transparent">
               <div className="relative aspect-[4/5]">
                 {detail.cover ? (
                   <Image
@@ -59,7 +110,9 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
                     sizes="(min-width: 1024px) 36vw, 100vw"
                     className="object-cover"
                   />
-                ) : null}
+                ) : (
+                  <div className="absolute inset-0 bg-transparent" />
+                )}
               </div>
             </div>
 
@@ -102,7 +155,7 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
                     <p className="mt-2 text-lg text-[var(--foreground)]">{summary.tierName ?? "未入榜"}</p>
                     <div className="mt-3 flex gap-4 text-sm ui-subtle">
                       <span>{summary.seenCount} 次记录</span>
-                      <span>{summary.sharedPhotoCount} 张合照</span>
+                      <span>{summary.sharedPhotoCount} 次集邮</span>
                     </div>
                   </div>
                 ))}
@@ -136,23 +189,43 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
                   <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">即将参与</h2>
                 </div>
                 <div className="mt-5 space-y-4">
-                  {detail.futureEvents.length > 0 ? (
-                    detail.futureEvents.map((event) => (
+                  {pagedUpcomingEvents.length > 0 ? (
+                    pagedUpcomingEvents.map((item) => (
                       <Link
-                        key={event.id}
-                        href={`/events/${event.slug}`}
+                        key={item.event.id}
+                        href={`/events/${item.event.slug}`}
                         className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
                       >
-                        <p className="text-lg text-[var(--foreground)]">{event.name}</p>
+                        <p className="text-lg text-[var(--foreground)]">{item.event.name}</p>
                         <p className="mt-2 text-sm ui-subtle">
-                          {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
+                          {[item.event.city, formatDateRange(item.event.startsAt, item.event.endsAt)].filter(Boolean).join(" 路 ")}
                         </p>
+                        <p className="mt-2 text-sm ui-subtle">{item.detailText || "暂未录入备注"}</p>
                       </Link>
                     ))
                   ) : (
                     <p className="text-sm ui-subtle">当前没有公开的未来活动。</p>
                   )}
                 </div>
+                {totalUpcomingPages > 1 ? (
+                  <div className="mt-6 flex items-center justify-between gap-3">
+                    <Link
+                      href={buildPageHref(slug, Math.max(1, safeUpcomingPage - 1), safeHistoryPage, "upcomingPage", Math.max(1, safeUpcomingPage - 1))}
+                      className={`ui-button-secondary text-sm ${safeUpcomingPage === 1 ? "pointer-events-none opacity-45" : ""}`}
+                    >
+                      上一页
+                    </Link>
+                    <p className="text-sm ui-subtle">
+                      {safeUpcomingPage} / {totalUpcomingPages}
+                    </p>
+                    <Link
+                      href={buildPageHref(slug, Math.min(totalUpcomingPages, safeUpcomingPage + 1), safeHistoryPage, "upcomingPage", Math.min(totalUpcomingPages, safeUpcomingPage + 1))}
+                      className={`ui-button-secondary text-sm ${safeUpcomingPage === totalUpcomingPages ? "pointer-events-none opacity-45" : ""}`}
+                    >
+                      下一页
+                    </Link>
+                  </div>
+                ) : null}
               </section>
 
               <section className="surface rounded-[1.9rem] p-6">
@@ -161,46 +234,66 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
                   <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">历史出现</h2>
                 </div>
                 <div className="mt-5 space-y-4">
-                  {detail.pastEvents.length > 0 ? (
-                    detail.pastEvents.map((event) => (
+                  {pagedHistoryEvents.length > 0 ? (
+                    pagedHistoryEvents.map((item) => (
                       <Link
-                        key={event.id}
-                        href={`/events/${event.slug}`}
+                        key={item.event.id}
+                        href={`/events/${item.event.slug}`}
                         className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
                       >
-                        <p className="text-lg text-[var(--foreground)]">{event.name}</p>
+                        <p className="text-lg text-[var(--foreground)]">{item.event.name}</p>
                         <p className="mt-2 text-sm ui-subtle">
-                          {[event.city, formatDateRange(event.startsAt, event.endsAt)].filter(Boolean).join(" · ")}
+                          {[item.event.city, formatDateRange(item.event.startsAt, item.event.endsAt)].filter(Boolean).join(" 路 ")}
                         </p>
+                        <p className="mt-2 text-sm ui-subtle">{item.detailText || "暂未录入角色 / 作品 / 游戏"}</p>
                       </Link>
                     ))
                   ) : (
                     <p className="text-sm ui-subtle">还没有可公开的历史活动记录。</p>
                   )}
                 </div>
+                {totalHistoryPages > 1 ? (
+                  <div className="mt-6 flex items-center justify-between gap-3">
+                    <Link
+                      href={buildPageHref(slug, safeUpcomingPage, Math.max(1, safeHistoryPage - 1), "historyPage", Math.max(1, safeHistoryPage - 1))}
+                      className={`ui-button-secondary text-sm ${safeHistoryPage === 1 ? "pointer-events-none opacity-45" : ""}`}
+                    >
+                      上一页
+                    </Link>
+                    <p className="text-sm ui-subtle">
+                      {safeHistoryPage} / {totalHistoryPages}
+                    </p>
+                    <Link
+                      href={buildPageHref(slug, safeUpcomingPage, Math.min(totalHistoryPages, safeHistoryPage + 1), "historyPage", Math.min(totalHistoryPages, safeHistoryPage + 1))}
+                      className={`ui-button-secondary text-sm ${safeHistoryPage === totalHistoryPages ? "pointer-events-none opacity-45" : ""}`}
+                    >
+                      下一页
+                    </Link>
+                  </div>
+                ) : null}
               </section>
             </div>
           </SectionFrame>
         </PublicReveal>
 
         <PublicReveal>
-          <SectionFrame
-            eyebrow="Representation"
-            title="代表图像"
-            description="用图像作为中段阅读重心，减少纯文字堆叠带来的疲劳。"
-          >
+          <SectionFrame eyebrow="Representation" title="代表图像" description="用图像作为中段阅读重心，减少纯文字堆叠带来的疲劳。">
             {detail.representationAssets.length > 0 ? (
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {detail.representationAssets.map((representation) => (
                   <article key={representation.id} className="surface overflow-hidden rounded-[1.9rem]">
                     <div className="relative aspect-[4/5]">
-                      <Image
-                        src={representation.asset.url}
-                        alt={representation.asset.alt}
-                        fill
-                        sizes="(min-width: 1280px) 28vw, (min-width: 768px) 42vw, 100vw"
-                        className="object-cover"
-                      />
+                      {representation.asset ? (
+                        <Image
+                          src={representation.asset.url}
+                          alt={representation.asset.alt}
+                          fill
+                          sizes="(min-width: 1280px) 28vw, (min-width: 768px) 42vw, 100vw"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-transparent" />
+                      )}
                     </div>
                     <div className="p-5">
                       <p className="text-lg text-[var(--foreground)]">{representation.title}</p>
@@ -209,67 +302,8 @@ export default async function TalentDetailPage({ params }: { params: Params }) {
                 ))}
               </div>
             ) : (
-              <EmptyState
-                title="暂时没有公开代表图像"
-                description="后续如果补充代表图或角色图，会优先出现在这一段。"
-              />
+              <EmptyState title="暂时没有公开代表图像" description="后续如果补充代表图或角色图，会优先出现在这一段。" />
             )}
-          </SectionFrame>
-        </PublicReveal>
-
-        <PublicReveal>
-          <SectionFrame
-            eyebrow="Related Content"
-            title="继续阅读相关人物与活动"
-            description="从共现关系和活动上下文继续扩展浏览，而不是在单页上停住。"
-          >
-            <div className="grid gap-6 lg:grid-cols-2">
-              <section className="surface rounded-[1.9rem] p-6">
-                <div className="border-b pb-4 ui-divider">
-                  <p className="ui-kicker">Related Talents</p>
-                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">相关达人</h2>
-                </div>
-                <div className="mt-5 space-y-4">
-                  {detail.relatedTalents.length > 0 ? (
-                    detail.relatedTalents.map((item) => (
-                      <Link
-                        key={item.talent.id}
-                        href={`/talents/${item.talent.slug}`}
-                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
-                      >
-                        <p className="text-lg text-[var(--foreground)]">{item.talent.nickname}</p>
-                        <p className="mt-2 text-sm ui-subtle">{item.reason}</p>
-                      </Link>
-                    ))
-                  ) : (
-                    <p className="text-sm ui-subtle">暂时没有可公开的相关达人。</p>
-                  )}
-                </div>
-              </section>
-
-              <section className="surface rounded-[1.9rem] p-6">
-                <div className="border-b pb-4 ui-divider">
-                  <p className="ui-kicker">Related Events</p>
-                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">相关活动</h2>
-                </div>
-                <div className="mt-5 space-y-4">
-                  {detail.relatedEvents.length > 0 ? (
-                    detail.relatedEvents.map((item) => (
-                      <Link
-                        key={item.event.event.id}
-                        href={`/events/${item.event.event.slug}`}
-                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
-                      >
-                        <p className="text-lg text-[var(--foreground)]">{item.event.event.name}</p>
-                        <p className="mt-2 text-sm ui-subtle">{item.reason}</p>
-                      </Link>
-                    ))
-                  ) : (
-                    <p className="text-sm ui-subtle">暂时没有可公开的相关活动。</p>
-                  )}
-                </div>
-              </section>
-            </div>
           </SectionFrame>
         </PublicReveal>
       </div>

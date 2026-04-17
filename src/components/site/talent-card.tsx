@@ -35,7 +35,7 @@ export function TalentCard({ talent }: { talent: TalentSummary }) {
         </div>
         {talent.hasFutureEvent ? (
           <span className="absolute bottom-5 right-5 rounded-full bg-[var(--color-accent)] px-3 py-1 text-[11px] tracking-[0.16em] text-white">
-            Upcoming
+            有行程
           </span>
         ) : null}
       </div>

@@ -1,6 +1,8 @@
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
+const SHANGHAI_TIME_ZONE = "Asia/Shanghai";
+
 function toDate(value?: string | Date | null) {
   if (!value) return null;
   const date = typeof value === "string" ? new Date(value) : value;
@@ -72,6 +74,34 @@ export function toDateOnlyIso(value?: string | null) {
 export function getDateSortTime(value?: string | Date | null) {
   const date = toDate(value);
   return date ? date.getTime() : null;
+}
+
+export function getTimeZoneDateKey(value: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+
+  return formatter.format(value);
+}
+
+export function getShanghaiDateKey(value = new Date()) {
+  return getTimeZoneDateKey(value, SHANGHAI_TIME_ZONE);
+}
+
+export function deriveEventTemporalStatus(
+  startsAt?: string | Date | null,
+  endsAt?: string | Date | null,
+  now = new Date()
+) {
+  const boundaryDateKey = getDateOnlyKey(endsAt ?? startsAt ?? null);
+  if (!boundaryDateKey) {
+    return "undated" as const;
+  }
+
+  return boundaryDateKey < getShanghaiDateKey(now) ? ("past" as const) : ("future" as const);
 }
 
 function parseDateKey(value: string) {

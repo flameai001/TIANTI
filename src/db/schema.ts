@@ -99,9 +99,7 @@ export const talentAssets = pgTable("talent_assets", {
   talentId: uuid("talent_id")
     .notNull()
     .references(() => talents.id, { onDelete: "cascade" }),
-  assetId: uuid("asset_id")
-    .notNull()
-    .references(() => assets.id, { onDelete: "cascade" }),
+  assetId: uuid("asset_id").references(() => assets.id, { onDelete: "cascade" }),
   role: text("role").notNull(),
   label: text("label").notNull(),
   sortOrder: integer("sort_order").notNull().default(0)
@@ -198,9 +196,7 @@ export const archiveEntries = pgTable("archive_entries", {
     .notNull()
     .references(() => talents.id, { onDelete: "cascade" }),
   entryDate: timestamp("entry_date", { withTimezone: true }),
-  sceneAssetId: uuid("scene_asset_id")
-    .notNull()
-    .references(() => assets.id, { onDelete: "cascade" }),
+  sceneAssetId: uuid("scene_asset_id").references(() => assets.id, { onDelete: "cascade" }),
   sharedPhotoAssetId: uuid("shared_photo_asset_id").references(() => assets.id, {
     onDelete: "set null"
   }),

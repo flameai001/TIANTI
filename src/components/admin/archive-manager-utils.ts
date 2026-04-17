@@ -8,7 +8,6 @@ export interface EditableEvent {
   endsAt: string;
   city: string;
   venue: string;
-  status: "future" | "past";
   note: string;
 }
 
@@ -28,7 +27,6 @@ export function createEmptyEventDraft(): EditableEvent {
     endsAt: "",
     city: "",
     venue: "",
-    status: "future",
     note: ""
   };
 }
@@ -45,7 +43,6 @@ export function createEventDraft(event?: Event | null): EditableEvent {
     endsAt: toDateInputValue(event.endsAt),
     city: event.city,
     venue: event.venue,
-    status: event.status,
     note: event.note
   };
 }
@@ -99,7 +96,6 @@ export function normalizeEventDraft(value: EditableEvent) {
     endsAt: value.endsAt,
     city: value.city.trim(),
     venue: value.venue.trim(),
-    status: value.status,
     note: value.note.trim()
   };
 }

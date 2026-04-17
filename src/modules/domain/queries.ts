@@ -1,6 +1,14 @@
 import "server-only";
 
-import { formatDateKey, getDateOnlyKey, getDateRangeDays, getDateSortTime, isMultiDayRange, toDateOnlyIso } from "@/lib/date";
+import {
+  deriveEventTemporalStatus,
+  formatDateKey,
+  getDateOnlyKey,
+  getDateRangeDays,
+  getDateSortTime,
+  isMultiDayRange,
+  toDateOnlyIso
+} from "@/lib/date";
 import { compareByPinyin } from "@/lib/pinyin";
 import type {
   ArchiveEntry,
@@ -8,9 +16,11 @@ import type {
   ArchiveEntryGroup,
   ContentState,
   DashboardSummary,
+  DerivedEventStatus,
   DiscoverySection,
   EditorLadder,
   Event,
+  EventDetail,
   EventSummary,
   HomepageDiscovery,
   LadderTier,
@@ -19,6 +29,7 @@ import type {
   SiteSearchResult,
   Talent,
   TalentDetail,
+  TalentEventTimelineItem,
   TalentSummary
 } from "@/modules/domain/types";
 
@@ -86,6 +97,28 @@ function compareEventChronological(left: Event, right: Event) {
   return leftTime - rightTime;
 }
 
+function getEventTemporalStatus(event: Event): DerivedEventStatus {
+  return deriveEventTemporalStatus(event.startsAt, event.endsAt);
+}
+
+function hasArchiveEntriesForEvent(state: ContentState, eventId: string) {
+  return state.archives.some((archive) => archive.eventId === eventId && archive.entries.length > 0);
+}
+
+function getArchiveEditorIdsForEvent(state: ContentState, eventId: string) {
+  return [
+    ...new Set(
+      state.archives
+        .filter((archive) => archive.eventId === eventId && archive.entries.length > 0)
+        .map((archive) => archive.editorId)
+    )
+  ];
+}
+
+function collectDistinctTexts(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
 function splitQuery(value?: string) {
   return (value ?? "")
     .trim()
@@ -130,6 +163,7 @@ export interface TalentFilters {
   tag?: string;
   editorId?: string;
   tierId?: string;
+  hasSchedule?: boolean;
   mcn?: string;
   sort?: "alphabetical" | "recent" | "relevance";
 }
@@ -138,6 +172,7 @@ export interface EventFilters {
   query?: string;
   eventStatus?: "future" | "past";
   city?: string;
+  editorId?: string;
   talentId?: string;
   date?: string;
   sort?: "relevance" | "upcoming" | "recent" | "lineupSize";
@@ -167,7 +202,7 @@ function buildTalentSummary(state: ContentState, talent: Talent, relevanceScore?
     tags: talent.tags,
     cover: talent.coverAssetId ? assetMap.get(talent.coverAssetId) ?? null : null,
     recentHint: recentHint || null,
-    hasFutureEvent: relatedEvents.some((event) => event.status === "future"),
+    hasFutureEvent: relatedEvents.some((event) => getEventTemporalStatus(event) === "future"),
     archiveCount: getArchiveCountForTalent(state, talent.id),
     relevanceScore
   };
@@ -400,6 +435,7 @@ function buildEventSummary(state: ContentState, event: Event, relevanceScore?: n
 
   return {
     event,
+    temporalStatus: getEventTemporalStatus(event),
     lineups,
     lineupGroups: buildLineupGroups(event, lineups),
     lineupSize: lineups.length,
@@ -431,11 +467,13 @@ export function getEditors(state: ContentState) {
 
 export function getHomepageCollections(state: ContentState): HomepageDiscovery {
   const recentTalents = sortByDateDesc(state.talents).map((talent) => buildTalentSummary(state, talent));
-  const futureEvents = listEventSummaries(state, { eventStatus: "future", sort: "upcoming" });
+  const futureEvents = listEventSummaries(state, { eventStatus: "future", sort: "lineupSize" }).sort(
+    (left, right) => right.lineupSize - left.lineupSize || compareEventChronological(left.event, right.event)
+  );
 
   return {
     featuredTalents: recentTalents.slice(0, 3),
-    futureEvents: futureEvents.slice(0, 3),
+    futureEvents: futureEvents.slice(0, 2),
     recentTalents: recentTalents.slice(0, 6),
     tagSpotlights: buildTagSpotlights(state),
     editorSpotlights: state.editors.map((editor) => ({
@@ -473,6 +511,14 @@ export function listTalents(state: ContentState, filters: TalentFilters = {}): T
       const matchesQuery = queryTerms.length === 0 || (relevanceScore > 0 && includesEveryTerm(haystacks, queryTerms));
       const matchesTag = !filters.tag || talent.tags.includes(filters.tag as Talent["tags"][number]);
       const matchesMcn = !filters.mcn || talent.mcn === filters.mcn;
+      const matchesSchedule =
+        !filters.hasSchedule ||
+        state.lineups
+          .filter((lineup) => lineup.talentId === talent.id)
+          .some((lineup) => {
+            const event = state.events.find((item) => item.id === lineup.eventId);
+            return event ? getEventTemporalStatus(event) === "future" : false;
+          });
 
       let matchesLadder = true;
       if (filters.editorId) {
@@ -485,7 +531,7 @@ export function listTalents(state: ContentState, filters: TalentFilters = {}): T
         }
       }
 
-      return matchesQuery && matchesTag && matchesMcn && matchesLadder;
+      return matchesQuery && matchesTag && matchesMcn && matchesSchedule && matchesLadder;
     });
 
   const sort = filters.sort ?? "alphabetical";
@@ -522,6 +568,7 @@ export function listEventSummaries(state: ContentState, filters: EventFilters = 
     }))
     .filter(({ event, relevanceScore }) => {
       const eventLineups = state.lineups.filter((lineup) => lineup.eventId === event.id);
+      const temporalStatus = getEventTemporalStatus(event);
       const lineupText = eventLineups
         .map((lineup) => {
           const talent = state.talents.find((item) => item.id === lineup.talentId);
@@ -545,12 +592,14 @@ export function listEventSummaries(state: ContentState, filters: EventFilters = 
             ],
             queryTerms
           ));
-      const matchesStatus = !filters.eventStatus || event.status === filters.eventStatus;
+      const matchesStatus = !filters.eventStatus || temporalStatus === filters.eventStatus;
       const matchesCity = !filters.city || event.city === filters.city;
+      const matchesEditor =
+        !filters.editorId || getArchiveEditorIdsForEvent(state, event.id).includes(filters.editorId);
       const matchesTalent = !filters.talentId || eventLineups.some((lineup) => lineup.talentId === filters.talentId);
       const matchesDate = matchesEventDate(event, filters.date);
 
-      return matchesQuery && matchesStatus && matchesCity && matchesTalent && matchesDate;
+      return matchesQuery && matchesStatus && matchesCity && matchesEditor && matchesTalent && matchesDate;
     });
 
   const sort = filters.sort ?? "recent";
@@ -613,6 +662,57 @@ function buildRelatedEventSummaries(
     }));
 }
 
+function buildTalentFutureTimelineItems(state: ContentState, talentId: string): TalentEventTimelineItem[] {
+  const futureEventIds = [
+    ...new Set(state.lineups.filter((lineup) => lineup.talentId === talentId).map((lineup) => lineup.eventId))
+  ];
+
+  return sortEventsByRecent(
+    state.events.filter((event) => futureEventIds.includes(event.id) && getEventTemporalStatus(event) === "future")
+  ).map((event) => ({
+    event,
+    temporalStatus: getEventTemporalStatus(event),
+    detailText:
+      collectDistinctTexts(
+        state.lineups
+          .filter((lineup) => lineup.eventId === event.id && lineup.talentId === talentId)
+          .map((lineup) => lineup.note)
+      ).join(" / ") || null
+  }));
+}
+
+function buildTalentPastTimelineItems(state: ContentState, talentId: string): TalentEventTimelineItem[] {
+  const pastEventIds = [
+    ...new Set(
+      state.archives.flatMap((archive) =>
+        archive.entries.filter((entry) => entry.talentId === talentId).map(() => archive.eventId)
+      )
+    )
+  ];
+
+  return sortEventsByRecent(
+    state.events.filter(
+      (event) =>
+        pastEventIds.includes(event.id) &&
+        getEventTemporalStatus(event) === "past" &&
+        hasArchiveEntriesForEvent(state, event.id)
+    )
+  ).map((event) => ({
+    event,
+    temporalStatus: getEventTemporalStatus(event),
+    detailText:
+      collectDistinctTexts(
+        state.archives.flatMap((archive) =>
+          archive.eventId !== event.id
+            ? []
+            : archive.entries
+                .filter((entry) => entry.talentId === talentId)
+                .map((entry) => entry.cosplayTitle)
+        )
+      ).join(" / ") || null
+  }));
+}
+
 export function getTalentDetail(state: ContentState, slug: string): TalentDetail | null {
   const assetMap = byId(state.assets);
   const talent = state.talents.find((item) => item.slug === slug);
@@ -622,9 +722,8 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
     .filter((lineup) => lineup.talentId === talent.id)
     .map((lineup) => lineup.eventId);
 
-  const relatedEvents = state.events.filter((event) => relatedEventIds.includes(event.id));
-  const futureEvents = sortEventsChronologically(relatedEvents.filter((event) => event.status === "future"));
-  const pastEvents = sortEventsByRecent(relatedEvents.filter((event) => event.status === "past"));
+  const futureEvents = buildTalentFutureTimelineItems(state, talent.id);
+  const pastEvents = buildTalentPastTimelineItems(state, talent.id);
 
   const archiveHits = state.archives.flatMap((archive) =>
     archive.entries.filter((entry) => entry.talentId === talent.id).map(() => archive.eventId)
@@ -664,11 +763,10 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
     talent,
     cover: talent.coverAssetId ? assetMap.get(talent.coverAssetId) ?? null : null,
     representationAssets: talent.representations
-      .map((representation) => {
-        const asset = assetMap.get(representation.assetId);
-        return asset ? { ...representation, asset } : null;
-      })
-      .filter(Boolean) as Array<TalentDetail["representationAssets"][number]>,
+      .map((representation) => ({
+        ...representation,
+        asset: representation.assetId ? assetMap.get(representation.assetId) ?? null : null
+      })),
     futureEvents,
     pastEvents,
     relatedTalents,
@@ -690,7 +788,7 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
   };
 }
 
-export function getEventDetail(state: ContentState, slug: string) {
+export function getEventDetail(state: ContentState, slug: string): EventDetail | null {
   const event = state.events.find((item) => item.slug === slug);
   if (!event) return null;
 
@@ -736,8 +834,7 @@ export function getEventDetail(state: ContentState, slug: string) {
         const entries = archive.entries
           .map((entry) => {
             const talent = talentMap.get(entry.talentId);
-            const sceneAsset = assetMap.get(entry.sceneAssetId);
-            if (!talent || !sceneAsset) {
+            if (!talent) {
               return null;
             }
 
@@ -747,19 +844,22 @@ export function getEventDetail(state: ContentState, slug: string) {
                 entryDate: getResolvedArchiveEntryDate(state, event, entry)
               },
               talent,
-              sceneAsset,
+              sceneAsset: entry.sceneAssetId ? assetMap.get(entry.sceneAssetId) ?? null : null,
               sharedPhotoAsset: entry.sharedPhotoAssetId ? assetMap.get(entry.sharedPhotoAssetId) ?? null : null
             };
           })
           .filter(Boolean) as ArchiveEntryDisplayItem[];
 
-        return {
+        return entries.length > 0
+          ? {
           editor: editorMap.get(archive.editorId)!,
           archive,
           entries,
           entryGroups: buildArchiveEntryGroups(event, entries)
-        };
-      }),
+            }
+          : null;
+      })
+      .filter(Boolean) as EventDetail["archives"],
     relatedEvents: buildRelatedEventSummaries(
       state,
       relatedEvents.map((item) => item.candidate.id),
@@ -819,7 +919,9 @@ export function getDashboardSummary(state: ContentState, editorId: string): Dash
   return {
     recentTalents: sortByDateDesc(state.talents).slice(0, 4),
     recentEvents: sortByDateDesc(state.events).slice(0, 4),
-    upcomingEvents: sortEventsChronologically(state.events.filter((event) => event.status === "future")).slice(0, 4),
+    upcomingEvents: sortEventsChronologically(
+      state.events.filter((event) => getEventTemporalStatus(event) === "future")
+    ).slice(0, 4),
     myRecentArchives: sortByDateDesc(state.archives.filter((archive) => archive.editorId === editorId)).slice(0, 4)
   };
 }

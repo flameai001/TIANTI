@@ -30,7 +30,7 @@ export default async function HomePage() {
                 浏览达人
               </Link>
               <Link
-                href="/events?eventStatus=future&sort=upcoming"
+                href="/events?eventStatus=future&sort=lineupSize"
                 data-testid="home-cta-events"
                 className="ui-button-secondary text-sm"
               >
@@ -42,7 +42,7 @@ export default async function HomePage() {
             <div className="grid gap-4">
               <div className="surface rounded-[1.7rem] p-5">
                 <p className="ui-kicker">Highlights</p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                   <div className="ui-stat">
                     <p className="text-sm ui-muted">近期活动</p>
                     <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">
@@ -53,12 +53,6 @@ export default async function HomePage() {
                     <p className="text-sm ui-muted">更新达人</p>
                     <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">
                       {homepage.recentTalents.length}
-                    </p>
-                  </div>
-                  <div className="ui-stat">
-                    <p className="text-sm ui-muted">编辑视角</p>
-                    <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">
-                      {homepage.editorSpotlights.length}
                     </p>
                   </div>
                 </div>
@@ -99,24 +93,26 @@ export default async function HomePage() {
           </SectionFrame>
         </PublicReveal>
 
-        <PublicReveal>
-          <SectionFrame
-            eyebrow="Upcoming Events"
-            title="优先看到即将发生的活动"
-            description="把时间、城市、阵容与进入详情页的路径压缩到同一屏，让发现与跳转更直接。"
-            actions={
-              <Link href="/events?eventStatus=future&sort=upcoming" className="ui-button-secondary text-sm">
-                查看全部活动
-              </Link>
-            }
-          >
-            <div className="grid gap-6">
-              {homepage.futureEvents.map((event) => (
-                <EventCard key={event.event.id} item={event} />
-              ))}
-            </div>
-          </SectionFrame>
-        </PublicReveal>
+        {homepage.futureEvents.length > 0 ? (
+          <PublicReveal>
+            <SectionFrame
+              eyebrow="Upcoming Events"
+              title="优先看到即将发生的活动"
+              description="按阵容规模优先浏览未来活动，把时间、城市、阵容与详情入口压缩到同一屏。"
+              actions={
+                <Link href="/events?eventStatus=future&sort=lineupSize" className="ui-button-secondary text-sm">
+                  查看全部活动
+                </Link>
+              }
+            >
+              <div className="grid gap-6">
+                {homepage.futureEvents.map((event) => (
+                  <EventCard key={event.event.id} item={event} />
+                ))}
+              </div>
+            </SectionFrame>
+          </PublicReveal>
+        ) : null}
 
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <PublicReveal>
@@ -151,7 +147,7 @@ export default async function HomePage() {
             <section className="surface rounded-[2rem] p-6 md:p-7">
               <div className="border-b pb-4 ui-divider">
                 <p className="ui-kicker">Recent Talents</p>
-                <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">最新更新</h2>
+                <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">最近达人</h2>
               </div>
               <div className="mt-5 space-y-4">
                 {homepage.recentTalents.slice(0, 4).map((talent) => (
@@ -171,30 +167,6 @@ export default async function HomePage() {
             </section>
           </PublicReveal>
         </div>
-
-        <PublicReveal>
-          <section className="surface rounded-[2rem] p-6 md:p-7">
-            <div className="grid gap-6 md:grid-cols-[1.15fr_0.85fr] md:items-end">
-              <div className="space-y-3">
-                <p className="ui-kicker">Unified Search</p>
-                <h2 className="text-3xl tracking-[-0.03em] text-[var(--foreground)] md:text-5xl">
-                  用统一检索继续深入浏览
-                </h2>
-                <p className="max-w-2xl text-sm leading-7 ui-subtle md:text-base">
-                  搜索会同时覆盖达人与活动。适合从昵称、城市、标签、阵容或活动名快速切入。
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3 md:justify-end">
-                <Link href="/search" className="ui-button-primary text-sm">
-                  打开全站搜索
-                </Link>
-                <Link href="/events" className="ui-button-secondary text-sm">
-                  浏览全部活动
-                </Link>
-              </div>
-            </div>
-          </section>
-        </PublicReveal>
       </div>
     </PageShell>
   );

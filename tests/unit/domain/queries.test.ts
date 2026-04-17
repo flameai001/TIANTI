@@ -27,7 +27,7 @@ describe("domain queries", () => {
     const detail = getEventDetail(demoSeedState, "mist-lantern-festival");
     expect(detail).not.toBeNull();
     expect(detail?.archives).toHaveLength(2);
-    expect(detail?.archives[0]?.entries[0]?.sceneAsset.url).toContain("/media/");
+    expect(detail?.archives[0]?.entries[0]?.sceneAsset?.url).toContain("/media/");
   });
 
   it("keeps archives grouped by editor and then date, with lineup-date backfill", () => {
@@ -261,5 +261,64 @@ describe("domain queries", () => {
     const result = searchSite(demoSeedState, "青鸾", "events");
     expect(result.talents).toHaveLength(0);
     expect(result.events.length).toBeGreaterThan(0);
+  });
+
+  it("filters talents by whether they have a future schedule", () => {
+    const filtered = listTalents(demoSeedState, { hasSchedule: true });
+    expect(filtered.map((item) => item.slug)).toEqual(["qingluan", "yanjin", "yunmo", "zhaoying"]);
+  });
+
+  it("filters events by editor archive presence", () => {
+    const filtered = listEventSummaries(demoSeedState, { editorId: "editor-lin" });
+    expect(filtered.map((item) => item.event.id)).toContain("event-mist-lantern");
+    expect(filtered.map((item) => item.event.id)).not.toContain("event-spring-gala");
+  });
+
+  it("keeps event archive entries even when the scene asset is missing", () => {
+    const state = structuredClone(demoSeedState);
+    state.archives[0]!.entries[0] = {
+      ...state.archives[0]!.entries[0]!,
+      sceneAssetId: null
+    };
+
+    const detail = getEventDetail(state, "mist-lantern-festival");
+    expect(detail?.archives[0]?.entries[0]?.sceneAsset).toBeNull();
+  });
+
+  it("builds talent timeline details from lineup notes and archive roles", () => {
+    const detail = getTalentDetail(demoSeedState, "qingluan");
+
+    expect(detail?.futureEvents[0]?.detailText).toContain("主视觉第一轮海报已出现");
+    expect(detail?.pastEvents[0]?.detailText).toContain("《花朝记》春庭版");
+  });
+
+  it("excludes past events without archive entries from talent history", () => {
+    const state = structuredClone(demoSeedState);
+    state.events.push({
+      id: "event-past-no-archive",
+      slug: "event-past-no-archive",
+      name: "Past Without Archive",
+      aliases: [],
+      searchKeywords: [],
+      startsAt: "2026-03-01T12:00:00.000Z",
+      endsAt: "2026-03-01T12:00:00.000Z",
+      city: "",
+      venue: "",
+      status: "future",
+      note: "",
+      updatedAt: "2026-03-02T00:00:00.000Z"
+    });
+    state.lineups.push({
+      id: "lineup-past-no-archive",
+      eventId: "event-past-no-archive",
+      talentId: "talent-qingluan",
+      lineupDate: "2026-03-01T12:00:00.000Z",
+      status: "confirmed",
+      source: "",
+      note: "Past lineup only"
+    });
+
+    const detail = getTalentDetail(state, "qingluan");
+    expect(detail?.pastEvents.map((item) => item.event.id)).not.toContain("event-past-no-archive");
   });
 });

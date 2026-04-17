@@ -3,6 +3,9 @@ import { formatDateRange } from "@/lib/date";
 import type { EventSummary } from "@/modules/domain/types";
 
 export function EventCard({ item }: { item: EventSummary }) {
+  const statusLabel =
+    item.temporalStatus === "future" ? "未来活动" : item.temporalStatus === "past" ? "已结束活动" : "待定活动";
+
   return (
     <Link
       href={`/events/${item.event.slug}`}
@@ -11,7 +14,7 @@ export function EventCard({ item }: { item: EventSummary }) {
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3 text-[11px] uppercase tracking-[0.22em] ui-muted">
           <span>{item.event.city || "城市待定"}</span>
-          <span>{item.event.status === "future" ? "Future Event" : "Archive Event"}</span>
+          <span>{statusLabel}</span>
         </div>
         <div className="space-y-3">
           <h3 className="text-3xl tracking-[-0.04em] text-[var(--foreground)]">{item.event.name}</h3>

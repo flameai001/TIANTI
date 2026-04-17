@@ -6,8 +6,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { PublicReveal } from "@/components/ui/public-reveal";
 import { SectionFrame } from "@/components/ui/section-frame";
+import { deriveEventTemporalStatus, formatDateRange } from "@/lib/date";
+import { getAuthenticatedEditor } from "@/lib/session";
 import { buildAbsoluteUrl, buildMetadata } from "@/lib/site";
-import { formatDateRange } from "@/lib/date";
 import { getEventPage } from "@/modules/content/service";
 
 type Params = Promise<{ slug: string }>;
@@ -33,10 +34,14 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function EventDetailPage({ params }: { params: Params }) {
   const { slug } = await params;
-  const detail = await getEventPage(slug);
+  const [detail, viewer] = await Promise.all([getEventPage(slug), getAuthenticatedEditor()]);
   if (!detail) {
     notFound();
   }
+
+  const temporalStatus = deriveEventTemporalStatus(detail.event.startsAt, detail.event.endsAt);
+  const statusLabel =
+    temporalStatus === "future" ? "未来活动" : temporalStatus === "past" ? "已结束活动" : "待定活动";
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -44,10 +49,11 @@ export default async function EventDetailPage({ params }: { params: Params }) {
     name: detail.event.name,
     ...(detail.event.startsAt ? { startDate: detail.event.startsAt } : {}),
     ...(detail.event.endsAt ? { endDate: detail.event.endsAt } : {}),
-    eventStatus:
-      detail.event.status === "future"
-        ? "https://schema.org/EventScheduled"
-        : "https://schema.org/EventCompleted",
+    ...(temporalStatus === "future"
+      ? { eventStatus: "https://schema.org/EventScheduled" }
+      : temporalStatus === "past"
+        ? { eventStatus: "https://schema.org/EventCompleted" }
+        : {}),
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     location: {
       "@type": "Place",
@@ -68,7 +74,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.22em] ui-muted">
                 <span>{detail.event.city || "城市待定"}</span>
-                <span>{detail.event.status === "future" ? "Future Event" : "Archive Event"}</span>
+                <span>{statusLabel}</span>
               </div>
               <h1 className="text-5xl tracking-[-0.05em] text-[var(--foreground)] md:text-6xl">
                 {detail.event.name}
@@ -80,7 +86,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
               {detail.event.note ? <p className="max-w-3xl text-base leading-8 ui-subtle">{detail.event.note}</p> : null}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1">
+            <div className="grid gap-3">
               <div className="ui-stat">
                 <p className="text-sm ui-muted">阵容人数</p>
                 <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">{detail.lineups.length}</p>
@@ -89,12 +95,6 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                 <p className="text-sm ui-muted">公开档案</p>
                 <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">{detail.archives.length}</p>
               </div>
-              <div className="ui-stat">
-                <p className="text-sm ui-muted">相关活动</p>
-                <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">
-                  {detail.relatedEvents.length}
-                </p>
-              </div>
             </div>
           </div>
         </section>
@@ -102,11 +102,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
 
       <div className="mt-14 space-y-14">
         <PublicReveal>
-          <SectionFrame
-            eyebrow="Lineup"
-            title="公开阵容"
-            description="阵容仍然是活动页的第一层内容，未来活动与已归档活动都从这里进入。"
-          >
+          <SectionFrame eyebrow="Lineup" title="公开阵容" description="阵容仍然是活动页的第一层内容，未来活动与已归档活动都从这里进入。">
             <section className="surface rounded-[1.9rem] p-6">
               {detail.lineupGroups.length > 0 ? (
                 <div className="space-y-6">
@@ -145,16 +141,12 @@ export default async function EventDetailPage({ params }: { params: Params }) {
         </PublicReveal>
 
         <PublicReveal>
-          <SectionFrame
-            eyebrow="Archive Layers"
-            title="现场档案"
-            description="从概览进入档案，再从档案继续进入具体人物，是这页的核心阅读顺序。"
-          >
+          <SectionFrame eyebrow="Archive Layers" title="现场档案" description="从概览进入档案，再从档案继续进入具体人物，是这页的核心阅读顺序。">
             {detail.archives.length === 0 ? (
               <EmptyState
-                title={detail.event.status === "future" ? "档案会在活动结束后补齐" : "暂时没有公开档案"}
+                title={temporalStatus === "future" ? "档案会在活动结束后补齐" : "暂无公开档案"}
                 description={
-                  detail.event.status === "future"
+                  temporalStatus === "future"
                     ? "未来活动已经公开了基础信息与阵容，现场档案会在活动结束后逐步补充。"
                     : "这场活动暂时还没有公开的现场档案内容。"
                 }
@@ -179,6 +171,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                             {group.items.map((entry) => (
                               <EventArchiveCard
                                 key={entry.entry.id}
+                                canToggleSharedPhoto={Boolean(viewer)}
                                 talentSlug={entry.talent.slug}
                                 talentName={entry.talent.nickname}
                                 cosplayTitle={entry.entry.cosplayTitle}
@@ -195,62 +188,6 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                 ))}
               </div>
             )}
-          </SectionFrame>
-        </PublicReveal>
-
-        <PublicReveal>
-          <SectionFrame
-            eyebrow="Related Content"
-            title="继续浏览相关活动与阵容人物"
-            description="活动页不只是一张表单输出，而是继续引导用户扩展阅读。"
-          >
-            <div className="grid gap-6 lg:grid-cols-2">
-              <section className="surface rounded-[1.9rem] p-6">
-                <div className="border-b pb-4 ui-divider">
-                  <p className="ui-kicker">Related Events</p>
-                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">相关活动</h2>
-                </div>
-                <div className="mt-5 space-y-4">
-                  {detail.relatedEvents.length > 0 ? (
-                    detail.relatedEvents.map((item) => (
-                      <Link
-                        key={item.event.event.id}
-                        href={`/events/${item.event.event.slug}`}
-                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
-                      >
-                        <p className="text-lg text-[var(--foreground)]">{item.event.event.name}</p>
-                        <p className="mt-2 text-sm ui-subtle">{item.reason}</p>
-                      </Link>
-                    ))
-                  ) : (
-                    <p className="text-sm ui-subtle">暂时没有可公开的相关活动。</p>
-                  )}
-                </div>
-              </section>
-
-              <section className="surface rounded-[1.9rem] p-6">
-                <div className="border-b pb-4 ui-divider">
-                  <p className="ui-kicker">Related Talents</p>
-                  <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">阵容人物</h2>
-                </div>
-                <div className="mt-5 space-y-4">
-                  {detail.relatedTalents.length > 0 ? (
-                    detail.relatedTalents.map((item) => (
-                      <Link
-                        key={item.talent.id}
-                        href={`/talents/${item.talent.slug}`}
-                        className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
-                      >
-                        <p className="text-lg text-[var(--foreground)]">{item.talent.nickname}</p>
-                        <p className="mt-2 text-sm ui-subtle">{item.reason}</p>
-                      </Link>
-                    ))
-                  ) : (
-                    <p className="text-sm ui-subtle">暂时没有可公开的相关达人。</p>
-                  )}
-                </div>
-              </section>
-            </div>
           </SectionFrame>
         </PublicReveal>
       </div>

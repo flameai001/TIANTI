@@ -432,19 +432,19 @@ export function InlineAssetUpload({
         <p className="text-[11px] text-white/42">
           {helperText ?? `上传前会按前台比例 ${preset.ratioLabel} 裁剪`}
         </p>
-        {message ? <p className="text-xs text-white/52">{message}</p> : null}
+        {message ? <p className="text-xs text-[#734d07]">{message}</p> : null}
       </div>
 
       {cropSession ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/82 px-4 py-6">
-          <div className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-[#0d0d10] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.45)] md:p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(244,248,255,0.82)] px-4 py-6 backdrop-blur-sm">
+          <div className="surface w-full max-w-3xl rounded-[2rem] p-5 shadow-[0_24px_80px_rgba(24,33,47,0.18)] md:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-2">
                 <p className="text-xs uppercase tracking-[0.28em] text-[var(--color-accent)]">Crop Before Upload</p>
-                <h3 className="text-2xl text-white">
+                <h3 className="text-2xl text-[var(--foreground)]">
                   按 {preset.cropTitle} 比例 {preset.ratioLabel} 裁剪
                 </h3>
-                <p className="max-w-2xl text-sm leading-7 text-white/60">
+                <p className="max-w-2xl text-sm leading-7 ui-subtle">
                   {preset.cropHint} 拖动画面调整取景，滑动缩放后再上传。
                 </p>
               </div>
@@ -452,18 +452,18 @@ export function InlineAssetUpload({
                 type="button"
                 onClick={closeCropSession}
                 disabled={pending}
-                className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 disabled:opacity-50"
+                className="ui-button-secondary px-4 py-2 text-sm disabled:opacity-50"
               >
                 取消
               </button>
             </div>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-              <div className="rounded-[1.6rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),rgba(255,255,255,0.02)_50%,rgba(0,0,0,0.4))] p-4">
+              <div className="surface-strong rounded-[1.6rem] p-4">
                 <div
                   ref={cropFrameRef}
                   data-testid={dataTestId ? `${dataTestId}-crop-frame` : undefined}
-                  className="relative mx-auto w-full max-w-[25rem] overflow-hidden rounded-[1.35rem] border border-white/12 bg-black/25 touch-none"
+                  className="relative mx-auto w-full max-w-[25rem] overflow-hidden rounded-[1.35rem] border border-[var(--line-soft)] bg-white/80 touch-none"
                   style={{ aspectRatio: preset.aspectStyle }}
                   onPointerDown={handleCropPointerDown}
                   onPointerMove={handleCropPointerMove}
@@ -482,21 +482,21 @@ export function InlineAssetUpload({
                       transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`
                     }}
                   />
-                  <div className="pointer-events-none absolute inset-0 border border-white/18" />
+                  <div className="pointer-events-none absolute inset-0 border border-[var(--line-soft)]" />
                   <div className="pointer-events-none absolute inset-0 grid grid-cols-3">
-                    <span className="border-r border-white/10" />
-                    <span className="border-r border-white/10" />
+                    <span className="border-r border-[var(--line-soft)]" />
+                    <span className="border-r border-[var(--line-soft)]" />
                     <span />
                   </div>
                   <div className="pointer-events-none absolute inset-0 grid grid-rows-3">
-                    <span className="border-b border-white/10" />
-                    <span className="border-b border-white/10" />
+                    <span className="border-b border-[var(--line-soft)]" />
+                    <span className="border-b border-[var(--line-soft)]" />
                     <span />
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-5 rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
+              <div className="surface-strong space-y-5 rounded-[1.6rem] p-5">
                 <div>
                   <p className="text-sm text-white">缩放</p>
                   <div className="mt-3 flex items-center gap-4">
@@ -510,13 +510,13 @@ export function InlineAssetUpload({
                       onChange={(event) => setScale(Number(event.target.value))}
                       className="w-full accent-[var(--color-accent)]"
                     />
-                    <span className="w-14 text-right text-sm text-white/58">
+                    <span className="w-14 text-right text-sm ui-subtle">
                       {Math.round((safeScale / minScale) * 100)}%
                     </span>
                   </div>
                 </div>
 
-                <div className="grid gap-3 rounded-[1.2rem] border border-white/10 bg-black/20 p-4 text-sm text-white/58">
+                <div className="grid gap-3 rounded-[1.2rem] border border-[var(--line-soft)] bg-white/80 p-4 text-sm ui-subtle">
                   <p>原图尺寸：{cropSession.width} × {cropSession.height}</p>
                   <p>裁剪比例：{preset.ratioLabel}</p>
                   <p>输出将自动匹配当前前台显示比例。</p>
@@ -530,7 +530,7 @@ export function InlineAssetUpload({
                       setScale(minScale);
                     }}
                     disabled={pending}
-                    className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 disabled:opacity-50"
+                    className="ui-button-secondary px-4 py-2 text-sm disabled:opacity-50"
                   >
                     重置取景
                   </button>

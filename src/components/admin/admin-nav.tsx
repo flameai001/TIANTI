@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 const navItems = [
   { href: "/admin", label: "总览" },
   { href: "/admin/talents", label: "达人" },
-  { href: "/admin/archives", label: "活动与档案" },
+  { href: "/admin/archives", label: "活动" },
   { href: "/admin/ladder", label: "天梯" }
 ];
 

@@ -86,7 +86,7 @@ async function buildSeedState() {
       representations: talent.representations.map((representation) => ({
         ...representation,
         id: talentRepresentationIds.get(representation.id)!,
-        assetId: assetIds.get(representation.assetId)!
+        assetId: representation.assetId ? assetIds.get(representation.assetId) ?? null : null
       }))
     })),
     events: demoSeedState.events.map((event) => ({
@@ -118,7 +118,7 @@ async function buildSeedState() {
         ...entry,
         id: archiveEntryIds.get(entry.id)!,
         talentId: talentIds.get(entry.talentId)!,
-        sceneAssetId: assetIds.get(entry.sceneAssetId)!,
+        sceneAssetId: entry.sceneAssetId ? assetIds.get(entry.sceneAssetId) ?? null : null,
         sharedPhotoAssetId: entry.sharedPhotoAssetId ? assetIds.get(entry.sharedPhotoAssetId)! : null
       }))
     }))

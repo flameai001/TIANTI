@@ -61,20 +61,26 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
                   </h1>
                   <p className="max-w-2xl text-sm leading-7 ui-subtle md:text-base">{data.ladder.subtitle}</p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1">
+                <div className="grid gap-3">
                   <div className="ui-stat">
                     <p className="text-sm ui-muted">编辑</p>
                     <p className="mt-2 text-2xl text-[var(--foreground)]">{data.editor.name}</p>
-                  </div>
-                  <div className="ui-stat">
-                    <p className="text-sm ui-muted">梯度数量</p>
-                    <p className="mt-2 text-2xl text-[var(--foreground)]">{data.tiers.length}</p>
                   </div>
                   <div className="ui-stat">
                     <p className="text-sm ui-muted">已入榜达人</p>
                     <p className="mt-2 text-2xl text-[var(--foreground)]">
                       {data.tiers.reduce((total, tier) => total + tier.talents.length, 0)}
                     </p>
+                  </div>
+                  <div className="ui-stat">
+                    <p className="text-sm ui-muted">梯度人数</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {data.tiers.map((tier) => (
+                        <span key={tier.id} className="ui-pill px-3 py-2 text-sm">
+                          {tier.name} {tier.talents.length}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -108,12 +114,12 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
                                 className="object-cover"
                               />
                             ) : (
-                              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(43,109,246,0.12),rgba(255,255,255,0.06)_48%,rgba(24,33,47,0.08))]" />
+                              <div className="absolute inset-0 bg-transparent" />
                             )}
                           </div>
                           <div className="space-y-2 p-5">
                             <p className="text-xl tracking-[-0.03em] text-[var(--foreground)]">{talent.nickname}</p>
-                            <p className="text-sm ui-subtle">{talent.tags.join(" · ") || "公开资料"}</p>
+                            <p className="text-sm ui-subtle">{talent.tags.join(" 路 ") || "公开资料"}</p>
                           </div>
                         </Link>
                       ))}

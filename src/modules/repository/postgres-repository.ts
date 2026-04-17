@@ -139,7 +139,7 @@ async function loadState(): Promise<ContentState> {
         .map((item) => ({
           id: item.id,
           title: item.label,
-          assetId: item.assetId
+          assetId: item.assetId ?? null
         }))
     })),
       events: eventRows.map((row) => ({
@@ -199,7 +199,7 @@ async function loadState(): Promise<ContentState> {
             uniqueLineupDateByEventAndTalent.get(`${row.eventId}:${entry.talentId}`)?.toISOString() ??
             fallbackLineupDateByEventId.get(row.eventId)?.toISOString() ??
             null,
-          sceneAssetId: entry.sceneAssetId,
+          sceneAssetId: entry.sceneAssetId ?? null,
           sharedPhotoAssetId: entry.sharedPhotoAssetId,
           cosplayTitle: entry.cosplayTitle,
           recognized: entry.recognized,
@@ -239,16 +239,16 @@ async function upsertTalentRelations(talent: Talent) {
   }
 
   if (talent.representations.length > 0) {
-    await db.insert(talentAssets).values(
-      talent.representations.map((representation, index) => ({
-        id: representation.id,
-        talentId: talent.id,
-        assetId: representation.assetId,
-        role: "representation",
-        label: representation.title,
-        sortOrder: index
-      }))
-    );
+      await db.insert(talentAssets).values(
+        talent.representations.map((representation, index) => ({
+          id: representation.id,
+          talentId: talent.id,
+          assetId: representation.assetId ?? null,
+          role: "representation",
+          label: representation.title,
+          sortOrder: index
+        }))
+      );
   }
 }
 
@@ -516,7 +516,7 @@ export const postgresRepository: ContentRepository = {
           archiveId: archive.id,
           talentId: entry.talentId,
           entryDate: entry.entryDate ? new Date(entry.entryDate) : null,
-          sceneAssetId: entry.sceneAssetId,
+          sceneAssetId: entry.sceneAssetId ?? null,
           sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
           cosplayTitle: entry.cosplayTitle,
           recognized: entry.recognized,

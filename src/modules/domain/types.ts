@@ -1,5 +1,6 @@
 export type EditorSlug = "lin" | "yu";
 export type EventStatus = "future" | "past";
+export type DerivedEventStatus = "future" | "past" | "undated";
 export type ParticipationStatus = "confirmed" | "pending";
 export type AssetKind =
   | "talent_cover"
@@ -49,7 +50,7 @@ export interface TalentLink {
 export interface TalentRepresentation {
   id: string;
   title: string;
-  assetId: string;
+  assetId?: string | null;
 }
 
 export interface Talent {
@@ -111,7 +112,7 @@ export interface ArchiveEntry {
   id: string;
   talentId: string;
   entryDate?: string | null;
-  sceneAssetId: string;
+  sceneAssetId?: string | null;
   sharedPhotoAssetId?: string | null;
   cosplayTitle: string;
   recognized: boolean;
@@ -180,7 +181,7 @@ export interface EventLineupGroup {
 export interface ArchiveEntryDisplayItem {
   entry: ArchiveEntry;
   talent: Talent;
-  sceneAsset: Asset;
+  sceneAsset?: Asset | null;
   sharedPhotoAsset?: Asset | null;
 }
 
@@ -192,6 +193,7 @@ export interface ArchiveEntryGroup {
 
 export interface EventSummary {
   event: Event;
+  temporalStatus: DerivedEventStatus;
   lineups: EventLineupDisplayItem[];
   lineupGroups: EventLineupGroup[];
   lineupSize: number;
@@ -203,12 +205,18 @@ export interface RelatedEventSummary {
   reason: string;
 }
 
+export interface TalentEventTimelineItem {
+  event: Event;
+  temporalStatus: DerivedEventStatus;
+  detailText: string | null;
+}
+
 export interface TalentDetail {
   talent: Talent;
   cover: Asset | null;
-  representationAssets: Array<TalentRepresentation & { asset: Asset }>;
-  futureEvents: Event[];
-  pastEvents: Event[];
+  representationAssets: Array<TalentRepresentation & { asset: Asset | null }>;
+  futureEvents: TalentEventTimelineItem[];
+  pastEvents: TalentEventTimelineItem[];
   relatedTalents: RelatedTalentSummary[];
   relatedEvents: RelatedEventSummary[];
   editorSummaries: Array<{

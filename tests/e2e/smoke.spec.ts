@@ -249,8 +249,19 @@ test("editor can rename their display name and see it reflected publicly", async
 
   await expect(page.getByTestId("editor-name-input")).toHaveValue("凛编辑");
 
+  await page.goto("/");
+  await expect(page.getByText("凛编辑")).toBeVisible();
+
   await page.goto("/ladder?editor=lin");
   await expect(page.getByRole("paragraph").filter({ hasText: "凛编辑" })).toBeVisible();
+});
+
+test("event index can filter by editor archive presence", async ({ page }) => {
+  await page.goto("/events");
+  await page.locator('select[name="editor"]').selectOption("lin");
+  await expect(page).toHaveURL(/editor=lin/);
+  await expect(page.getByText("雾灯国风夜")).toBeVisible();
+  await expect(page.getByText("春序漫展 2026")).toHaveCount(0);
 });
 
 test("admin return button routes back to the matching public section", async ({ page }) => {

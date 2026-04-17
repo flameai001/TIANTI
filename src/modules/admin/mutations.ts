@@ -3,7 +3,13 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getR2StorageConfig, isMockStorageMode } from "@/lib/env";
-import { getDateOnlyKey, getDateRangeDays, isMultiDayRange, toDateOnlyIso } from "@/lib/date";
+import {
+  deriveEventTemporalStatus,
+  getDateOnlyKey,
+  getDateRangeDays,
+  isMultiDayRange,
+  toDateOnlyIso
+} from "@/lib/date";
 import { slugify } from "@/lib/slug";
 import type { Talent } from "@/modules/domain/types";
 import type {
@@ -48,7 +54,7 @@ const eventSchema = z.object({
   endsAt: z.string().optional().nullable(),
   city: z.string().optional().default(""),
   venue: z.string().optional().default(""),
-  status: z.enum(["future", "past"]),
+  status: z.enum(["future", "past"]).optional(),
   note: z.string().optional().default(""),
   lineups: z
     .array(
@@ -88,7 +94,7 @@ const archiveSchema = z.object({
       id: z.string().optional(),
       talentId: z.string(),
       entryDate: z.string().nullable().optional(),
-      sceneAssetId: z.string(),
+      sceneAssetId: z.string().nullable().optional(),
       sharedPhotoAssetId: z.string().nullable().optional(),
       cosplayTitle: z.string().min(1),
       recognized: z.boolean(),
@@ -114,9 +120,8 @@ const talentBulkSchema = z.object({
 });
 
 const eventBulkSchema = z.object({
-  action: z.enum(["set_status", "delete"]),
-  ids: z.array(z.string()).min(1),
-  status: z.enum(["future", "past"]).optional()
+  action: z.enum(["delete"]),
+  ids: z.array(z.string()).min(1)
 });
 
 const editorNameSchema = z.object({
@@ -163,13 +168,17 @@ function collectReferencedAssetIds(state: Awaited<ReturnType<ReturnType<typeof g
     }
 
     for (const representation of talent.representations) {
-      referencedAssetIds.add(representation.assetId);
+      if (representation.assetId) {
+        referencedAssetIds.add(representation.assetId);
+      }
     }
   }
 
   for (const archive of state.archives) {
     for (const entry of archive.entries) {
-      referencedAssetIds.add(entry.sceneAssetId);
+      if (entry.sceneAssetId) {
+        referencedAssetIds.add(entry.sceneAssetId);
+      }
       if (entry.sharedPhotoAssetId) {
         referencedAssetIds.add(entry.sharedPhotoAssetId);
       }
@@ -292,7 +301,7 @@ export async function saveTalent(payload: unknown) {
   const slug = slugify(input.slug || nickname);
   const aliases = [...new Set((input.aliases ?? []).map((item) => item.trim()).filter(Boolean))];
   const searchKeywords = [...new Set([nickname, ...aliases, ...((input.searchKeywords ?? []).map((item) => item.trim()).filter(Boolean))])];
-  const assetTitleMap = new Map(state.assets.map((asset) => [asset.id, asset.title]));
+  const assetTitleMap = new Map<string | null, string>(state.assets.map((asset) => [asset.id, asset.title]));
 
   await ensureUniqueTalentSlug(id, slug);
 
@@ -315,9 +324,8 @@ export async function saveTalent(payload: unknown) {
       .map((item) => ({
         id: item.id ?? randomUUID(),
         title: item.title?.trim() ?? "",
-        assetId: item.assetId.trim()
+        assetId: item.assetId.trim() || null
       }))
-      .filter((item) => item.assetId)
       .map((item) => ({
         ...item,
         title: item.title || assetTitleMap.get(item.assetId) || "未命名代表图"
@@ -355,6 +363,12 @@ export async function saveEvent(payload: unknown) {
   const endsAt = toDateOnlyIso(input.endsAt?.trim() ?? "") ?? null;
   const isMultiDayEvent = isMultiDayRange(startsAt, endsAt);
   const validLineupDateKeys = new Set(getValidLineupDateKeys(startsAt, endsAt));
+  const derivedStatus =
+    startsAt || endsAt
+      ? deriveEventTemporalStatus(startsAt, endsAt) === "past"
+        ? "past"
+        : "future"
+      : existingEvent?.status ?? input.status ?? "future";
 
   await ensureUniqueEventSlug(id, slug);
 
@@ -401,7 +415,7 @@ export async function saveEvent(payload: unknown) {
     endsAt,
     city: input.city.trim(),
     venue: input.venue.trim(),
-    status: input.status,
+    status: derivedStatus,
     note: input.note.trim(),
     updatedAt: new Date().toISOString()
   });
@@ -461,9 +475,9 @@ export async function saveArchive(editorId: string, payload: unknown) {
         id: entry.id ?? randomUUID(),
         talentId: entry.talentId,
         entryDate,
-        sceneAssetId: entry.sceneAssetId,
+        sceneAssetId: entry.sceneAssetId?.trim() || null,
         sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
-        cosplayTitle: entry.cosplayTitle,
+        cosplayTitle: entry.cosplayTitle.trim(),
         recognized: entry.recognized,
         hasSharedPhoto: entry.hasSharedPhoto
       };
