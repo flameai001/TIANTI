@@ -132,7 +132,7 @@ export default async function HomePage() {
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-2">
                 {homepage.editorSpotlights.map((spotlight) => (
-                  <article key={spotlight.editor.id} className="rounded-[1.5rem] border border-[var(--line-soft)] bg-white/70 p-5">
+                  <article key={spotlight.editor.id} className="surface-strong rounded-[1.5rem] p-5">
                     <p className="text-sm ui-muted">{spotlight.editor.title}</p>
                     <h3 className="mt-3 text-2xl tracking-[-0.03em] text-[var(--foreground)]">
                       {spotlight.editor.name}
