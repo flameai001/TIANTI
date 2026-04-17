@@ -89,7 +89,7 @@ SEED_EDITOR_TWO_PASSWORD=
 3. 合并到 `main`。
 4. 确认 Vercel production 指向与 `main` 相同的提交。
 
-当前基线收口版本为 `v3.3`，对应功能分支命名使用 `codex/tianti-v3.3`。
+当前基线收口版本为 `v4.0`，对应功能分支命名使用 `codex/tianti-v4.0`。
 
 ## 标准发布检查清单
 
@@ -120,6 +120,7 @@ npm run test:e2e
 
 ## 文档
 
+- [V4.0 完成报告](docs/v4.0-completion-report.md)
 - [V3.3 完成报告](docs/v3.3-completion-report.md)
 - [发布流程](docs/release-flow.md)
 - [V3.2 完成报告](docs/v3.2-completion-report.md)
