@@ -5,6 +5,7 @@ import {
   saveAsset,
   saveEvent,
   saveEventBulk,
+  saveLadder,
   saveTalent,
   saveTalentBulk
 } from "@/modules/admin/mutations";
@@ -189,6 +190,33 @@ describe("admin mutations", () => {
     expect(saved.representations).toEqual([]);
   });
 
+  it("preserves representation order when saving a talent", async () => {
+    const saved = await saveTalent({
+      id: "talent-qingluan",
+      nickname: "Qingluan",
+      bio: demoSeedState.talents[0]?.bio ?? "",
+      mcn: demoSeedState.talents[0]?.mcn ?? "",
+      aliases: demoSeedState.talents[0]?.aliases ?? [],
+      coverAssetId: "asset-cover-qingluan",
+      tags: demoSeedState.talents[0]?.tags ?? [],
+      links: demoSeedState.talents[0]?.links ?? [],
+      representations: [
+        {
+          id: "ql-rep-2",
+          title: "Second First",
+          assetId: "asset-rep-2"
+        },
+        {
+          id: "ql-rep-1",
+          title: "First Second",
+          assetId: "asset-rep-1"
+        }
+      ]
+    });
+
+    expect(saved.representations.map((item) => item.id)).toEqual(["ql-rep-2", "ql-rep-1"]);
+  });
+
   it("deletes cleanup candidate assets when they are no longer referenced", async () => {
     const asset = await saveAsset({
       kind: "talent_cover",
@@ -351,5 +379,30 @@ describe("admin mutations", () => {
     expect(state.events.some((event) => event.id === "event-mist-lantern")).toBe(false);
     expect(state.lineups.some((lineup) => lineup.eventId === "event-mist-lantern")).toBe(false);
     expect(state.archives.some((archive) => archive.eventId === "event-mist-lantern")).toBe(false);
+  });
+
+  it("derives ladder titles from the current editor name and preserves tier talent order", async () => {
+    const saved = await saveLadder("editor-lin", {
+      id: "ladder-lin",
+      title: "Old Custom Title",
+      subtitle: "Updated subtitle",
+      tiers: [
+        {
+          id: "lin-t0",
+          name: "T0",
+          order: 0,
+          talentIds: ["talent-yunmo", "talent-qingluan"]
+        },
+        {
+          id: "lin-t1",
+          name: "T1",
+          order: 1,
+          talentIds: ["talent-zhaoying"]
+        }
+      ]
+    });
+
+    expect(saved.title).toBe("凛的天梯榜");
+    expect(saved.tiers[0]?.talentIds).toEqual(["talent-yunmo", "talent-qingluan"]);
   });
 });

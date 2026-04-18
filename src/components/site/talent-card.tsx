@@ -34,18 +34,13 @@ export function TalentCard({ talent }: { talent: TalentSummary }) {
             </span>
           ))}
         </div>
-        {talent.hasFutureEvent ? (
-          <span className="absolute bottom-5 right-5 rounded-full bg-[var(--color-accent)] px-3 py-1 text-[11px] tracking-[0.16em] text-white">
-            有行程
-          </span>
-        ) : null}
       </div>
       <div className="space-y-3 px-5 py-5">
         <div className="space-y-2">
           <h3 className="text-2xl tracking-[-0.03em] text-[var(--foreground)]">{talent.nickname}</h3>
-          {talent.recentHint ? <p className="text-sm ui-subtle">{talent.recentHint}</p> : null}
+          {talent.futureLocationHint ? <p className="text-sm ui-subtle">{talent.futureLocationHint}</p> : null}
         </div>
-        <p className="line-clamp-3 text-sm leading-7 ui-subtle">{talent.bio || "暂未公开简介。"}</p>
+        <p className="line-clamp-1 text-sm leading-7 ui-subtle">{talent.bioPreviewLine || "暂未公开简介。"}</p>
       </div>
     </Link>
   );

@@ -114,6 +114,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
   const [cleanupCandidateAssetIds, setCleanupCandidateAssetIds] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [draggingRepresentationId, setDraggingRepresentationId] = useState<string | null>(null);
 
   const selectedTalent = liveTalents.find((talent) => talent.id === selectedId) ?? null;
   const [draft, setDraft] = useState<TalentDraft>(() => createTalentDraft(selectedTalent));
@@ -137,6 +138,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
     setSelectedId(id);
     setDraft(createTalentDraft(nextTalent));
     setCleanupCandidateAssetIds([]);
+    setDraggingRepresentationId(null);
     setMessage(null);
   }
 
@@ -200,8 +202,49 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
   function addRepresentationRow() {
     setDraft((current) => ({
       ...current,
-      representations: [...current.representations, createRepresentationDraft()]
+      representations: [createRepresentationDraft(), ...current.representations]
     }));
+  }
+
+  function moveRepresentation(representationId: string, toIndex: number) {
+    setDraft((current) => {
+      const movingRepresentation = current.representations.find((item) => item.id === representationId);
+      if (!movingRepresentation) {
+        return current;
+      }
+
+      const remainingRepresentations = current.representations.filter((item) => item.id !== representationId);
+      const safeIndex = Math.max(0, Math.min(toIndex, remainingRepresentations.length));
+
+      return {
+        ...current,
+        representations: [
+          ...remainingRepresentations.slice(0, safeIndex),
+          movingRepresentation,
+          ...remainingRepresentations.slice(safeIndex)
+        ]
+      };
+    });
+  }
+
+  function handleRepresentationDrop(targetRepresentationId: string) {
+    if (!draggingRepresentationId || draggingRepresentationId === targetRepresentationId) {
+      setDraggingRepresentationId(null);
+      return;
+    }
+
+    const targetIndex = draft.representations
+      .filter((item) => item.id !== draggingRepresentationId)
+      .findIndex((item) => item.id === targetRepresentationId);
+
+    moveRepresentation(draggingRepresentationId, targetIndex >= 0 ? targetIndex : draft.representations.length);
+    setDraggingRepresentationId(null);
+  }
+
+  function handleRepresentationDropToEnd() {
+    if (!draggingRepresentationId) return;
+    moveRepresentation(draggingRepresentationId, draft.representations.length);
+    setDraggingRepresentationId(null);
   }
 
   function removeRepresentationRow(index: number) {
@@ -667,11 +710,45 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               </div>
 
               {draft.representations.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-4" onDragOver={(event) => event.preventDefault()} onDrop={handleRepresentationDropToEnd}>
                   {draft.representations.map((representation, index) => (
-                    <div key={representation.id} className="rounded-[1.2rem] border border-white/10 bg-black/20 p-4">
-                      <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                    <div
+                      key={representation.id}
+                      data-testid={`representation-row-${index}`}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleRepresentationDrop(representation.id);
+                      }}
+                      className="rounded-[1.2rem] border border-white/10 bg-black/20 p-4"
+                    >
+                      <div
+                        data-testid={`representation-drop-${index}`}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleRepresentationDrop(representation.id);
+                        }}
+                        className="mb-3 h-3 rounded-full border border-dashed border-white/10 bg-black/15"
+                      />
+                      <div className="grid gap-3 md:grid-cols-[auto_1fr_auto]">
+                        <div
+                          data-testid={`representation-handle-${index}`}
+                          draggable
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData("text/plain", representation.id);
+                            event.dataTransfer.effectAllowed = "move";
+                            setDraggingRepresentationId(representation.id);
+                          }}
+                          onDragEnd={() => setDraggingRepresentationId(null)}
+                          className="flex min-h-10 cursor-grab items-center rounded-[1rem] border border-white/10 bg-black/25 px-3 text-xs uppercase tracking-[0.2em] text-white/55"
+                        >
+                          拖动
+                        </div>
                         <input
+                          data-testid={`representation-title-${index}`}
                           value={representation.title}
                           onChange={(event) => updateRepresentation(index, { title: event.target.value })}
                           placeholder="代表图标题"

@@ -42,15 +42,17 @@ test("legacy schedule and admin event routes redirect into archive views", async
   await expect(page).toHaveURL(/\/admin\/archives$/);
 });
 
-test("editor can update ladder title and see it publicly", async ({ page }) => {
+test("editor can update ladder subtitle while the derived title stays public", async ({ page }) => {
   await login(page);
 
   await page.goto("/admin/ladder");
-  await page.getByTestId("ladder-title").fill("凛的天梯榜·CI Smoke");
+  await expect(page.getByTestId("ladder-title")).toHaveValue("凛的天梯榜");
+  await page.getByTestId("ladder-subtitle").fill("CI subtitle");
   await page.getByTestId("save-ladder").click();
   await page.waitForLoadState("networkidle");
-  await expect(page.getByTestId("ladder-title")).toHaveValue("凛的天梯榜·CI Smoke");
+  await expect(page.getByTestId("ladder-title")).toHaveValue("凛的天梯榜");
 
   await page.goto("/ladder?editor=lin");
-  await expect(page.getByText("凛的天梯榜·CI Smoke")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "凛的天梯榜" })).toBeVisible();
+  await expect(page.getByText("CI subtitle")).toBeVisible();
 });

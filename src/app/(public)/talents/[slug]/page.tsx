@@ -127,7 +127,7 @@ export default async function TalentDetailPage({
                 <h1 className="text-5xl tracking-[-0.05em] text-[var(--foreground)] md:text-6xl">
                   {detail.talent.nickname}
                 </h1>
-                <p className="max-w-3xl text-base leading-8 ui-subtle">
+                <p className="max-w-3xl whitespace-pre-line text-base leading-8 ui-subtle">
                   {detail.talent.bio || "当前公开页以结构化资料为主，后续内容会继续补齐。"}
                 </p>
               </div>
@@ -284,9 +284,13 @@ export default async function TalentDetailPage({
         <PublicReveal>
           <SectionFrame eyebrow="Representation" title="代表图像" description="用图像作为中段阅读重心，减少纯文字堆叠带来的疲劳。">
             {detail.representationAssets.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {detail.representationAssets.map((representation) => (
-                  <article key={representation.id} className="surface overflow-hidden rounded-[1.9rem]">
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+                {detail.representationAssets.map((representation, index) => (
+                  <article
+                    key={representation.id}
+                    data-testid={`representation-card-${index}`}
+                    className="surface overflow-hidden rounded-[1.9rem]"
+                  >
                     <div
                       className="relative"
                       style={{
@@ -306,7 +310,9 @@ export default async function TalentDetailPage({
                       )}
                     </div>
                     <div className="p-5">
-                      <p className="text-lg text-[var(--foreground)]">{representation.title}</p>
+                      <p data-testid={`representation-card-title-${index}`} className="text-lg text-[var(--foreground)]">
+                        {representation.title}
+                      </p>
                     </div>
                   </article>
                 ))}

@@ -168,7 +168,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                       {archive.entryGroups.map((group) => (
                         <div key={group.date ?? "undated"} className="space-y-4">
                           {group.label ? <p className="ui-kicker">{group.label}</p> : null}
-                          <div className="grid gap-6 md:grid-cols-2">
+                          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
                             {group.items.map((entry) => (
                               <EventArchiveCard
                                 key={entry.entry.id}

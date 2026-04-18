@@ -7,10 +7,16 @@ import type { EditorLadder, Talent } from "@/modules/domain/types";
 interface LadderManagerProps {
   ladder: EditorLadder;
   talents: Talent[];
+  editorName: string;
 }
 
-export function LadderManager({ ladder, talents }: LadderManagerProps) {
-  const [draft, setDraft] = useState<EditorLadder>(ladder);
+function getDerivedLadderTitle(editorName: string) {
+  return `${editorName}的天梯榜`;
+}
+
+export function LadderManager({ ladder, talents, editorName }: LadderManagerProps) {
+  const derivedTitle = getDerivedLadderTitle(editorName);
+  const [draft, setDraft] = useState<EditorLadder>({ ...ladder, title: derivedTitle });
   const [dragging, setDragging] = useState<{ talentId: string; fromTierId: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -19,36 +25,82 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
   const assignedTalentIds = new Set(draft.tiers.flatMap((tier) => tier.talentIds));
   const unassignedTalents = talents.filter((talent) => !assignedTalentIds.has(talent.id));
 
-  function moveTalent(talentId: string, fromTierId: string, toTierId: string) {
+  function updateTierName(tierId: string, name: string) {
+    setDraft((current) => ({
+      ...current,
+      tiers: current.tiers.map((tier) => (tier.id === tierId ? { ...tier, name } : tier))
+    }));
+  }
+
+  function moveTalent(talentId: string, toTierId: string | null, toIndex?: number) {
     setDraft((current) => ({
       ...current,
       tiers: current.tiers.map((tier) => {
-        if (tier.id === fromTierId) {
-          return { ...tier, talentIds: tier.talentIds.filter((item) => item !== talentId) };
+        const filteredTalentIds = tier.talentIds.filter((item) => item !== talentId);
+        if (!toTierId || tier.id !== toTierId) {
+          return { ...tier, talentIds: filteredTalentIds };
         }
-        if (tier.id === toTierId) {
-          return { ...tier, talentIds: [...tier.talentIds.filter((item) => item !== talentId), talentId] };
-        }
-        return { ...tier, talentIds: tier.talentIds.filter((item) => item !== talentId) };
+
+        const safeIndex =
+          typeof toIndex === "number"
+            ? Math.max(0, Math.min(toIndex, filteredTalentIds.length))
+            : filteredTalentIds.length;
+
+        return {
+          ...tier,
+          talentIds: [
+            ...filteredTalentIds.slice(0, safeIndex),
+            talentId,
+            ...filteredTalentIds.slice(safeIndex)
+          ]
+        };
       })
     }));
   }
 
   function handleDropToPool() {
     if (!dragging) return;
-    moveTalent(dragging.talentId, dragging.fromTierId, "");
+    moveTalent(dragging.talentId, null);
+    setDragging(null);
+  }
+
+  function handleDropToTierEnd(tierId: string) {
+    if (!dragging) return;
+    moveTalent(dragging.talentId, tierId);
+    setDragging(null);
+  }
+
+  function handleDropToTierPosition(tierId: string, targetTalentId: string) {
+    if (!dragging) return;
+    if (dragging.talentId === targetTalentId && dragging.fromTierId === tierId) {
+      setDragging(null);
+      return;
+    }
+
+    const targetTier = draft.tiers.find((tier) => tier.id === tierId);
+    if (!targetTier) {
+      setDragging(null);
+      return;
+    }
+
+    const targetIndex = targetTier.talentIds.filter((item) => item !== dragging.talentId).indexOf(targetTalentId);
+    moveTalent(dragging.talentId, tierId, targetIndex >= 0 ? targetIndex : undefined);
     setDragging(null);
   }
 
   async function handleSave() {
     setMessage(null);
+
     startTransition(async () => {
       const response = await fetch("/api/admin/ladder", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(draft)
+        body: JSON.stringify({
+          ...draft,
+          title: derivedTitle
+        })
       });
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
@@ -62,21 +114,23 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
   return (
     <div className="space-y-6">
       <section className="surface rounded-[1.8rem] p-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          <input
-            data-testid="ladder-title"
-            value={draft.title}
-            onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))}
-            className="ui-input"
-            placeholder="天梯标题"
-          />
-          <input
-            data-testid="ladder-subtitle"
-            value={draft.subtitle}
-            onChange={(event) => setDraft((current) => ({ ...current, subtitle: event.target.value }))}
-            className="ui-input"
-            placeholder="天梯副标题"
-          />
+        <div className="grid gap-4 md:grid-cols-[1fr_1.2fr]">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.25em] text-[var(--color-accent)]">Ladder Title</p>
+            <input data-testid="ladder-title" value={derivedTitle} readOnly className="ui-input opacity-80" />
+            <p className="text-xs ui-muted">主标题始终跟随当前编辑昵称自动生成。</p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.25em] text-[var(--color-accent)]">Subtitle</p>
+            <input
+              data-testid="ladder-subtitle"
+              value={draft.subtitle}
+              onChange={(event) => setDraft((current) => ({ ...current, subtitle: event.target.value }))}
+              className="ui-input"
+              placeholder="天梯副标题"
+            />
+            <p className="text-xs ui-muted">副标题仍可自定义，公开页会直接使用这里的内容。</p>
+          </div>
         </div>
       </section>
 
@@ -96,15 +150,20 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
             <div
               key={talent.id}
               draggable
-              onDragStart={() => setDragging({ talentId: talent.id, fromTierId: "" })}
-              className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)]"
+              onDragStart={(event) => {
+                event.dataTransfer.setData("text/plain", talent.id);
+                event.dataTransfer.effectAllowed = "move";
+                setDragging({ talentId: talent.id, fromTierId: "" });
+              }}
+              onDragEnd={() => setDragging(null)}
+              className="cursor-grab rounded-full border border-[var(--line-soft)] bg-[var(--surface-strong)] px-4 py-2 text-sm text-[var(--foreground)]"
             >
               {talent.nickname}
             </div>
           ))}
           {unassignedTalents.length === 0 ? (
             <div className="surface-strong flex min-h-10 items-center rounded-[1rem] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-              把达人拖回这里即可移出榜单
+              把达人拖回这里即可移出榜单。
             </div>
           ) : null}
         </div>
@@ -118,24 +177,13 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
             <section
               key={tier.id}
               onDragOver={(event) => event.preventDefault()}
-              onDrop={() => {
-                if (!dragging) return;
-                moveTalent(dragging.talentId, dragging.fromTierId, tier.id);
-                setDragging(null);
-              }}
+              onDrop={() => handleDropToTierEnd(tier.id)}
               className="surface rounded-[1.8rem] p-5"
             >
               <div className="flex items-start justify-between gap-3">
                 <input
                   value={tier.name}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      tiers: current.tiers.map((item) =>
-                        item.id === tier.id ? { ...item, name: event.target.value } : item
-                      )
-                    }))
-                  }
+                  onChange={(event) => updateTierName(tier.id, event.target.value)}
                   className="ui-input"
                 />
                 <button
@@ -156,16 +204,28 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
               </div>
 
               <div className="mt-4 space-y-3">
-                {tier.talentIds.map((talentId) => {
+                {tier.talentIds.map((talentId, talentIndex) => {
                   const talent = talentMap.get(talentId);
                   if (!talent) return null;
 
                   return (
                     <div
                       key={talentId}
+                      data-testid={`tier-${tier.id}-talent-${talentIndex}`}
                       draggable
-                      onDragStart={() => setDragging({ talentId, fromTierId: tier.id })}
-                      className="rounded-[1.2rem] border border-[var(--line-soft)] bg-[var(--surface-strong)] px-4 py-4 text-sm text-[var(--foreground)]"
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData("text/plain", talentId);
+                        event.dataTransfer.effectAllowed = "move";
+                        setDragging({ talentId, fromTierId: tier.id });
+                      }}
+                      onDragEnd={() => setDragging(null)}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleDropToTierPosition(tier.id, talentId);
+                      }}
+                      className="cursor-grab rounded-[1.2rem] border border-[var(--line-soft)] bg-[var(--surface-strong)] px-4 py-4 text-sm text-[var(--foreground)]"
                     >
                       <p className="text-lg text-[var(--foreground)]">{talent.nickname}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.2em] ui-muted">
@@ -177,7 +237,7 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
 
                 {tier.talentIds.length === 0 ? (
                   <div className="rounded-[1.2rem] border border-dashed border-[var(--line-strong)] px-4 py-8 text-center text-sm ui-subtle">
-                    把达人拖到这里
+                    把达人拖到这里，或拖到具体卡片上方进行插入排序。
                   </div>
                 ) : null}
               </div>
@@ -188,7 +248,7 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
                   onChange={(event) => {
                     const talentId = event.target.value;
                     if (!talentId) return;
-                    moveTalent(talentId, "", tier.id);
+                    moveTalent(talentId, tier.id);
                     event.currentTarget.value = "";
                   }}
                   className="ui-select"

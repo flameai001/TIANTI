@@ -80,7 +80,7 @@ const eventSchema = z.object({
 
 const ladderSchema = z.object({
   id: z.string(),
-  title: z.string().min(1),
+  title: z.string().optional(),
   subtitle: z.string().min(1),
   tiers: z.array(
     z.object({
@@ -135,6 +135,10 @@ const eventBulkSchema = z.object({
 const editorNameSchema = z.object({
   name: z.string().trim().min(1).max(24)
 });
+
+function getDerivedLadderTitle(editorName: string) {
+  return `${editorName}的天梯榜`;
+}
 
 function dedupeIds(ids: string[]) {
   return [...new Set(ids)];
@@ -415,9 +419,16 @@ export async function removeEvent(id: string) {
 export async function saveLadder(editorId: string, payload: unknown) {
   const repository = getContentRepository();
   const input = ladderSchema.parse(payload);
+  const state = await repository.getState();
+  const editor = state.editors.find((item) => item.id === editorId);
+
+  if (!editor) {
+    throw new Error("当前编辑者不存在。");
+  }
 
   return repository.saveLadder({
     ...input,
+    title: getDerivedLadderTitle(editor.name),
     editorId,
     tiers: input.tiers.map((tier, index) => ({
       ...tier,

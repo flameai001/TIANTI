@@ -153,10 +153,12 @@ export interface TalentSummary {
   slug?: string | null;
   nickname: string;
   bio: string;
+  bioPreviewLine: string | null;
   aliases: string[];
   tags: TalentTag[];
   cover: Asset | null;
   recentHint: string | null;
+  futureLocationHint: string | null;
   hasFutureEvent: boolean;
   archiveCount: number;
   relevanceScore?: number;

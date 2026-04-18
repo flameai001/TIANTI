@@ -102,6 +102,24 @@ function getEventTemporalStatus(event: Event): DerivedEventStatus {
   return deriveEventTemporalStatus(event.startsAt, event.endsAt);
 }
 
+function getBioPreviewLine(bio: string) {
+  const lines = bio
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length > 0) {
+    return lines[0] ?? null;
+  }
+
+  const trimmedBio = bio.trim();
+  return trimmedBio || null;
+}
+
+function getDerivedLadderTitle(editorName: string) {
+  return `${editorName}的天梯榜`;
+}
+
 function hasArchiveEntriesForEvent(state: ContentState, eventId: string) {
   return state.archives.some((archive) => archive.eventId === eventId && archive.entries.length > 0);
 }
@@ -186,12 +204,39 @@ function getArchiveCountForTalent(state: ContentState, talentId: string) {
   );
 }
 
+function getEventLineupSize(state: ContentState, eventId: string) {
+  return state.lineups.filter((lineup) => lineup.eventId === eventId).length;
+}
+
+function getPreferredFutureEventForTalent(state: ContentState, talentId: string) {
+  return (
+    state.events
+      .filter(
+        (event) =>
+          getEventTemporalStatus(event) === "future" &&
+          state.lineups.some((lineup) => lineup.eventId === event.id && lineup.talentId === talentId)
+      )
+      .sort((left, right) => {
+        const lineupSizeDiff = getEventLineupSize(state, right.id) - getEventLineupSize(state, left.id);
+        if (lineupSizeDiff !== 0) {
+          return lineupSizeDiff;
+        }
+
+        return compareEventChronological(left, right) || compareEventRecent(left, right);
+      })[0] ?? null
+  );
+}
+
 function buildTalentSummary(state: ContentState, talent: Talent, relevanceScore?: number): TalentSummary {
   const assetMap = byId(state.assets);
   const relatedEvents = state.events.filter((event) =>
     state.lineups.some((lineup) => lineup.eventId === event.id && lineup.talentId === talent.id)
   );
   const latestEvent = sortEventsByRecent(relatedEvents)[0] ?? null;
+  const preferredFutureEvent = getPreferredFutureEventForTalent(state, talent.id);
+  const futureLocationHint = preferredFutureEvent
+    ? [preferredFutureEvent.city, preferredFutureEvent.venue].filter(Boolean).join(" · ")
+    : null;
   const recentHint = latestEvent ? [latestEvent.city, latestEvent.name].filter(Boolean).join(" · ") : null;
 
   return {
@@ -199,10 +244,12 @@ function buildTalentSummary(state: ContentState, talent: Talent, relevanceScore?
     slug: talent.slug,
     nickname: talent.nickname,
     bio: talent.bio,
+    bioPreviewLine: getBioPreviewLine(talent.bio),
     aliases: talent.aliases,
     tags: talent.tags,
     cover: talent.coverAssetId ? assetMap.get(talent.coverAssetId) ?? null : null,
     recentHint: recentHint || null,
+    futureLocationHint: futureLocationHint || null,
     hasFutureEvent: relatedEvents.some((event) => getEventTemporalStatus(event) === "future"),
     archiveCount: getArchiveCountForTalent(state, talent.id),
     relevanceScore
@@ -473,7 +520,7 @@ export function getHomepageCollections(state: ContentState): HomepageDiscovery {
   );
 
   return {
-    featuredTalents: recentTalents.slice(0, 3),
+    featuredTalents: recentTalents.slice(0, 4),
     futureEvents: futureEvents.slice(0, 2),
     recentTalents: recentTalents.slice(0, 6),
     tagSpotlights: buildTagSpotlights(state),
@@ -483,7 +530,12 @@ export function getHomepageCollections(state: ContentState): HomepageDiscovery {
       summary: editor.intro
     })),
     ladderSpotlights: state.ladders.map((ladder) => ({
-      ladder,
+      ladder: {
+        ...ladder,
+        title: getDerivedLadderTitle(
+          state.editors.find((editor) => editor.id === ladder.editorId)?.name ?? ladder.title
+        )
+      },
       topTier:
         [...ladder.tiers].sort((a, b) => a.order - b.order).find((tier) => tier.talentIds.length > 0) ??
         ladder.tiers[0],
@@ -684,11 +736,7 @@ function buildTalentFutureTimelineItems(state: ContentState, talentId: string): 
 
 function buildTalentPastTimelineItems(state: ContentState, talentId: string): TalentEventTimelineItem[] {
   const pastEventIds = [
-    ...new Set(
-      state.archives.flatMap((archive) =>
-        archive.entries.filter((entry) => entry.talentId === talentId).map(() => archive.eventId)
-      )
-    )
+    ...new Set(state.lineups.filter((lineup) => lineup.talentId === talentId).map((lineup) => lineup.eventId))
   ];
 
   return sortEventsByRecent(
@@ -872,7 +920,10 @@ export function getEventDetail(state: ContentState, slug: string): EventDetail |
 
 export function getLadders(state: ContentState) {
   return state.ladders.map((ladder) => ({
-    ladder,
+    ladder: {
+      ...ladder,
+      title: getDerivedLadderTitle(state.editors.find((editor) => editor.id === ladder.editorId)?.name ?? ladder.title)
+    },
     editor: state.editors.find((editor) => editor.id === ladder.editorId)!,
     tiers: [...ladder.tiers].sort((a, b) => a.order - b.order)
   }));
@@ -889,7 +940,10 @@ export function getLadderByEditor(state: ContentState, editorSlug: string) {
 
   return {
     editor,
-    ladder,
+    ladder: {
+      ...ladder,
+      title: getDerivedLadderTitle(editor.name)
+    },
     tiers: [...ladder.tiers]
       .sort((a, b) => a.order - b.order)
       .map((tier) => ({

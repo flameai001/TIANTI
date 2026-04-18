@@ -1,4 +1,11 @@
-import { getEventDetail, getTalentDetail, listEventSummaries, listTalents, searchSite } from "@/modules/domain/queries";
+import {
+  getEventDetail,
+  getHomepageCollections,
+  getTalentDetail,
+  listEventSummaries,
+  listTalents,
+  searchSite
+} from "@/modules/domain/queries";
 import { demoSeedState } from "@/modules/domain/seed";
 
 describe("domain queries", () => {
@@ -14,6 +21,110 @@ describe("domain queries", () => {
     const targetMcn = demoSeedState.talents.find((talent) => talent.id === "talent-yanjin")?.mcn ?? "";
     const filtered = listTalents(demoSeedState, { mcn: targetMcn });
     expect(filtered.map((item) => item.id)).toEqual(["talent-yanjin"]);
+  });
+
+  it("expands homepage featured talents to four cards", () => {
+    const homepage = getHomepageCollections(demoSeedState);
+    expect(homepage.featuredTalents).toHaveLength(4);
+  });
+
+  it("builds bio preview and future location hint from the largest future lineup, breaking ties by earlier date", () => {
+    const state = structuredClone(demoSeedState);
+    state.talents[0] = {
+      ...state.talents[0]!,
+      bio: "第一行简介\n第二行简介"
+    };
+    state.events.push(
+      {
+        id: "event-future-max-late",
+        slug: "event-future-max-late",
+        name: "Future Max Late",
+        aliases: [],
+        searchKeywords: [],
+        startsAt: "2026-05-12T12:00:00.000Z",
+        endsAt: "2026-05-12T12:00:00.000Z",
+        city: "杭州",
+        venue: "North Hall",
+        status: "future",
+        note: "",
+        updatedAt: "2026-04-12T00:00:00.000Z"
+      },
+      {
+        id: "event-future-max-early",
+        slug: "event-future-max-early",
+        name: "Future Max Early",
+        aliases: [],
+        searchKeywords: [],
+        startsAt: "2026-05-10T12:00:00.000Z",
+        endsAt: "2026-05-10T12:00:00.000Z",
+        city: "苏州",
+        venue: "River Stage",
+        status: "future",
+        note: "",
+        updatedAt: "2026-04-12T00:00:00.000Z"
+      }
+    );
+    state.lineups.push(
+      {
+        id: "lineup-future-max-late-1",
+        eventId: "event-future-max-late",
+        talentId: "talent-qingluan",
+        lineupDate: "2026-05-12T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: ""
+      },
+      {
+        id: "lineup-future-max-late-2",
+        eventId: "event-future-max-late",
+        talentId: "talent-yunmo",
+        lineupDate: "2026-05-12T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: ""
+      },
+      {
+        id: "lineup-future-max-late-3",
+        eventId: "event-future-max-late",
+        talentId: "talent-yanjin",
+        lineupDate: "2026-05-12T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: ""
+      },
+      {
+        id: "lineup-future-max-early-1",
+        eventId: "event-future-max-early",
+        talentId: "talent-qingluan",
+        lineupDate: "2026-05-10T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: ""
+      },
+      {
+        id: "lineup-future-max-early-2",
+        eventId: "event-future-max-early",
+        talentId: "talent-yunmo",
+        lineupDate: "2026-05-10T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: ""
+      },
+      {
+        id: "lineup-future-max-early-3",
+        eventId: "event-future-max-early",
+        talentId: "talent-yanjin",
+        lineupDate: "2026-05-10T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: ""
+      }
+    );
+
+    const qingluan = listTalents(state).find((item) => item.id === "talent-qingluan");
+
+    expect(qingluan?.bioPreviewLine).toBe("第一行简介");
+    expect(qingluan?.futureLocationHint).toBe("苏州 · River Stage");
   });
 
   it("aggregates talent editor summary statistics", () => {
@@ -344,6 +455,70 @@ describe("domain queries", () => {
 
     expect(detail?.futureEvents[0]?.detailText).toContain(futureNote);
     expect(detail?.pastEvents[0]?.detailText).toContain(archiveRole);
+  });
+
+  it("keeps past lineup talents in history once a past multi-day event has any archive entry", () => {
+    const state = structuredClone(demoSeedState);
+    state.events.push({
+      id: "event-partial-archive-history",
+      slug: "event-partial-archive-history",
+      name: "Partial Archive History",
+      aliases: [],
+      searchKeywords: [],
+      startsAt: "2026-03-01T12:00:00.000Z",
+      endsAt: "2026-03-02T12:00:00.000Z",
+      city: "上海",
+      venue: "Expo Center",
+      status: "future",
+      note: "",
+      updatedAt: "2026-03-03T00:00:00.000Z"
+    });
+    state.lineups.push(
+      {
+        id: "lineup-partial-archive-1",
+        eventId: "event-partial-archive-history",
+        talentId: "talent-qingluan",
+        lineupDate: "2026-03-01T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: "Day 1"
+      },
+      {
+        id: "lineup-partial-archive-2",
+        eventId: "event-partial-archive-history",
+        talentId: "talent-yanjin",
+        lineupDate: "2026-03-02T12:00:00.000Z",
+        status: "confirmed",
+        source: "",
+        note: "Day 2"
+      }
+    );
+    state.archives.push({
+      id: "archive-partial-archive-history",
+      editorId: "editor-lin",
+      eventId: "event-partial-archive-history",
+      note: "Only day one is archived",
+      updatedAt: "2026-03-03T00:00:00.000Z",
+      entries: [
+        {
+          id: "archive-partial-archive-entry-1",
+          talentId: "talent-qingluan",
+          entryDate: "2026-03-01T12:00:00.000Z",
+          sceneAssetId: "asset-scene-1",
+          sharedPhotoAssetId: null,
+          cosplayTitle: "Day One Role",
+          recognized: true,
+          hasSharedPhoto: false
+        }
+      ]
+    });
+
+    const yanjinDetail = getTalentDetail(state, "talent-yanjin");
+
+    expect(yanjinDetail?.pastEvents.map((item) => item.event.id)).toContain("event-partial-archive-history");
+    expect(
+      yanjinDetail?.pastEvents.find((item) => item.event.id === "event-partial-archive-history")?.detailText ?? null
+    ).toBeNull();
   });
 
   it("excludes past events without archive entries from talent history", () => {

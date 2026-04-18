@@ -10,6 +10,20 @@ import { getLadderPage, getSiteEditors } from "@/modules/content/service";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
+function getBioPreviewLine(bio: string) {
+  const lines = bio
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length > 0) {
+    return lines[0] ?? null;
+  }
+
+  const trimmedBio = bio.trim();
+  return trimmedBio || null;
+}
+
 export const metadata = buildMetadata({
   title: "TIANTI | 天梯",
   description: "从不同编辑视角浏览 TIANTI 的公开排序与梯度。",
@@ -30,7 +44,7 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
       <SectionFrame
         eyebrow="Curated Ranking"
         title="公开排序并不是唯一答案，而是一种编辑视角"
-        description="每位编辑维护自己的梯度和排序。公开页只负责让这些视角更清楚地被浏览。"
+        description="每位编辑维护自己的梯度和排序。公开页只负责让这些视角更清晰地被浏览。"
         titleTestId="ladder-page-title"
       />
 
@@ -77,8 +91,9 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
                     <p className="text-sm ui-muted">梯度人数</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {data.tiers.map((tier) => (
-                        <span key={tier.id} className="ui-pill px-3 py-2 text-sm">
-                          {tier.name} {tier.talents.length}
+                        <span key={tier.id} className="ui-pill inline-flex items-baseline gap-[0.9rem] px-3 py-2 text-sm">
+                          <span className="font-semibold text-[var(--foreground)]">{tier.name}</span>
+                          <span className="font-normal text-[var(--foreground-soft)]">{tier.talents.length}</span>
                         </span>
                       ))}
                     </div>
@@ -98,11 +113,12 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
                     <p className="text-sm ui-subtle">{tier.talents.length} 位达人</p>
                   </div>
                   {tier.talents.length > 0 ? (
-                    <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {tier.talents.map(({ talent, cover }) => (
+                    <div className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
+                      {tier.talents.map(({ talent, cover }, talentIndex) => (
                         <Link
                           key={talent.id}
                           href={getTalentPath(talent)}
+                          data-testid={`ladder-tier-${tier.id}-talent-${talentIndex}`}
                           className="surface-strong overflow-hidden rounded-[1.5rem] transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
                         >
                           <div
@@ -114,16 +130,26 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
                                 src={cover.url}
                                 alt={cover.alt}
                                 fill
-                                sizes="(min-width: 1280px) 28vw, (min-width: 768px) 42vw, 100vw"
+                                sizes="(min-width: 1536px) 14vw, (min-width: 1280px) 18vw, (min-width: 768px) 30vw, 50vw"
                                 className="object-cover"
                               />
                             ) : (
                               <div className="absolute inset-0 bg-transparent" />
                             )}
+                            <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+                              {talent.tags.slice(0, 2).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="rounded-full bg-[rgba(248,251,255,0.76)] px-3 py-1 text-[11px] tracking-[0.16em] text-[var(--foreground)]"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                          <div className="space-y-2 p-5">
-                            <p className="text-xl tracking-[-0.03em] text-[var(--foreground)]">{talent.nickname}</p>
-                            <p className="text-sm ui-subtle">{talent.tags.join(" 路 ") || "公开资料"}</p>
+                          <div className="space-y-2 p-4">
+                            <p className="text-lg tracking-[-0.03em] text-[var(--foreground)]">{talent.nickname}</p>
+                            <p className="line-clamp-1 text-sm ui-subtle">{getBioPreviewLine(talent.bio) || "公开资料"}</p>
                           </div>
                         </Link>
                       ))}

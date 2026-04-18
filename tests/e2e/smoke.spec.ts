@@ -25,6 +25,14 @@ async function waitForArchiveSaved(page: Page) {
   await expect(page.getByText(/妗ｆ宸蹭繚瀛樺埌|我的档案已保存到/)).toBeVisible();
 }
 
+async function dragByTestId(page: Page, sourceTestId: string, targetTestId: string) {
+  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+  await page.getByTestId(sourceTestId).dispatchEvent("dragstart", { dataTransfer });
+  await page.getByTestId(targetTestId).dispatchEvent("dragover", { dataTransfer });
+  await page.getByTestId(targetTestId).dispatchEvent("drop", { dataTransfer });
+  await page.getByTestId(sourceTestId).dispatchEvent("dragend", { dataTransfer });
+}
+
 test.beforeEach(async ({ request }) => {
   await resetState(request);
 });
@@ -226,17 +234,19 @@ test("public filters apply automatically without a filter button", async ({ page
   await expect(page).toHaveURL(/eventStatus=past/);
 });
 
-test("editor can update ladder title and see it publicly", async ({ page }) => {
+test("editor can update ladder subtitle while the derived title stays public", async ({ page }) => {
   await login(page);
 
   await page.goto("/admin/ladder");
-  await page.getByTestId("ladder-title").fill("凛的天梯榜·收尾验收");
+  await expect(page.getByTestId("ladder-title")).toHaveValue("凛的天梯榜");
+  await page.getByTestId("ladder-subtitle").fill("CI subtitle from smoke");
   await page.getByTestId("save-ladder").click();
   await page.waitForLoadState("networkidle");
-  await expect(page.getByTestId("ladder-title")).toHaveValue("凛的天梯榜·收尾验收");
+  await expect(page.getByTestId("ladder-title")).toHaveValue("凛的天梯榜");
 
   await page.goto("/ladder?editor=lin");
-  await expect(page.getByText("凛的天梯榜·收尾验收")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "凛的天梯榜" })).toBeVisible();
+  await expect(page.getByText("CI subtitle from smoke")).toBeVisible();
 });
 
 test("editor can rename their display name and see it reflected publicly", async ({ page }) => {
@@ -253,7 +263,43 @@ test("editor can rename their display name and see it reflected publicly", async
   await expect(page.getByText("凛编辑")).toBeVisible();
 
   await page.goto("/ladder?editor=lin");
-  await expect(page.getByRole("paragraph").filter({ hasText: "凛编辑" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "凛编辑的天梯榜" })).toBeVisible();
+});
+
+test("representation order syncs from admin sorting to the public talent detail", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/talents");
+  await page.getByTestId("representation-title-0").fill("Representation Alpha");
+  await page.getByTestId("representation-title-1").fill("Representation Beta");
+  await dragByTestId(page, "representation-handle-1", "representation-drop-0");
+  await expect(page.getByTestId("representation-title-0")).toHaveValue("Representation Beta");
+  await expect(page.getByTestId("representation-title-1")).toHaveValue("Representation Alpha");
+  const saveTalentResponse = page.waitForResponse(
+    (response) => response.url().includes("/api/admin/talents/") && response.request().method() === "PUT"
+  );
+  await page.getByTestId("save-talent").click();
+  await saveTalentResponse;
+
+  await page.goto("/talents/talent-qingluan");
+  await expect(page.getByTestId("representation-card-title-0")).toHaveText("Representation Beta");
+  await expect(page.getByTestId("representation-card-title-1")).toHaveText("Representation Alpha");
+});
+
+test("ladder tier ordering syncs from admin sorting to the public ladder", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/ladder");
+  await page.getByTestId("tier-lin-t1-talent-1").dragTo(page.getByTestId("tier-lin-t1-talent-0"));
+  await page.getByTestId("save-ladder").click();
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByTestId("tier-lin-t1-talent-0")).toContainText("昭映");
+  await expect(page.getByTestId("tier-lin-t1-talent-1")).toContainText("云墨");
+
+  await page.goto("/ladder?editor=lin");
+  await expect(page.getByTestId("ladder-tier-lin-t1-talent-0")).toContainText("昭映");
+  await expect(page.getByTestId("ladder-tier-lin-t1-talent-1")).toContainText("云墨");
 });
 
 test("event index can filter by editor archive presence", async ({ page }) => {

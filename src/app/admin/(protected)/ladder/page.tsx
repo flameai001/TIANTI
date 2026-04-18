@@ -15,5 +15,5 @@ export default async function AdminLadderPage() {
     );
   }
 
-  return <LadderManager ladder={ladder} talents={state.talents} />;
+  return <LadderManager ladder={ladder} talents={state.talents} editorName={editor.name} />;
 }
