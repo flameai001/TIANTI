@@ -169,6 +169,26 @@ describe("admin mutations", () => {
     ).rejects.toThrow("现场档案记录的所属日期必须落在活动开始和结束日期之间。");
   });
 
+  it("ignores blank representation rows when saving a talent", async () => {
+    const saved = await saveTalent({
+      nickname: "No Rep Talent",
+      bio: "",
+      mcn: "",
+      aliases: [],
+      coverAssetId: null,
+      tags: [],
+      links: [],
+      representations: [
+        {
+          title: "",
+          assetId: ""
+        }
+      ]
+    });
+
+    expect(saved.representations).toEqual([]);
+  });
+
   it("deletes cleanup candidate assets when they are no longer referenced", async () => {
     const asset = await saveAsset({
       kind: "talent_cover",

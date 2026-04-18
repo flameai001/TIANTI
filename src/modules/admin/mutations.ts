@@ -11,13 +11,13 @@ import {
 } from "@/lib/date";
 import { slugify } from "@/lib/slug";
 import { cleanupUnusedAssets } from "@/modules/assets/cleanup";
-import type { Talent } from "@/modules/domain/types";
 import type {
   BulkActionResult,
   EventBulkPayload,
   TalentBulkPayload,
   TalentBulkResponse
 } from "@/modules/admin/types";
+import type { Talent } from "@/modules/domain/types";
 import { getContentRepository } from "@/modules/repository";
 
 const talentSchema = z.object({
@@ -58,7 +58,7 @@ const eventSchema = z.object({
   aliases: z.array(z.string()).optional(),
   searchKeywords: z.array(z.string()).optional(),
   startsAt: z.string().nullable().optional(),
-  endsAt: z.string().optional().nullable(),
+  endsAt: z.string().nullable().optional(),
   city: z.string().optional().default(""),
   venue: z.string().optional().default(""),
   status: z.enum(["future", "past"]).optional(),
@@ -159,8 +159,17 @@ function getValidLineupDateKeys(startsAt?: string | null, endsAt?: string | null
   return fallbackDate ? [fallbackDate] : [];
 }
 
-function getValidArchiveDateKeys(state: Awaited<ReturnType<ReturnType<typeof getContentRepository>["getState"]>>, eventId: string) {
+async function getValidArchiveDateKeys(
+  eventId: string
+): Promise<{
+  event: Awaited<ReturnType<ReturnType<typeof getContentRepository>["getState"]>>["events"][number] | null;
+  isMultiDayEvent: boolean;
+  validDateKeys: Set<string>;
+}> {
+  const repository = getContentRepository();
+  const state = await repository.getState();
   const event = state.events.find((item) => item.id === eventId) ?? null;
+
   if (!event) {
     return {
       event: null,
@@ -181,31 +190,61 @@ function formatMissingReason(kind: "达人" | "活动") {
 }
 
 async function ensureUniqueTalentSlug(id: string, slug?: string | null) {
-  if (!slug) {
-    return;
-  }
+  if (!slug) return;
 
   const repository = getContentRepository();
   const state = await repository.getState();
   const duplicate = state.talents.find((talent) => talent.slug === slug && talent.id !== id);
 
   if (duplicate) {
-    throw new Error("该达人 slug 已存在，请修改昵称。");
+    throw new Error("该达人 slug 已存在，请修改昵称或 slug。");
   }
 }
 
 async function ensureUniqueEventSlug(id: string, slug?: string | null) {
-  if (!slug) {
-    return;
-  }
+  if (!slug) return;
 
   const repository = getContentRepository();
   const state = await repository.getState();
   const duplicate = state.events.find((event) => event.slug === slug && event.id !== id);
 
   if (duplicate) {
-    throw new Error("该活动 slug 已存在，请修改活动名称。");
+    throw new Error("该活动 slug 已存在，请修改活动名称或 slug。");
   }
+}
+
+function normalizeTalentLinks(input: z.infer<typeof talentSchema>["links"]) {
+  return input
+    .map((link) => ({
+      id: link.id ?? randomUUID(),
+      label: link.label.trim(),
+      url: link.url.trim()
+    }))
+    .filter((link) => link.label && link.url);
+}
+
+function normalizeRepresentations(
+  input: z.infer<typeof talentSchema>["representations"],
+  assetTitleMap: Map<string | null, string>
+) {
+  return input
+    .map((item) => {
+      const assetId = item.assetId?.trim() || null;
+      const title = item.title?.trim() ?? "";
+
+      if (!assetId) {
+        return null;
+      }
+
+      return {
+        id: item.id ?? randomUUID(),
+        title: title || assetTitleMap.get(assetId) || "未命名代表图",
+        assetId
+      };
+    })
+    .filter(
+      (item): item is { id: string; title: string; assetId: string } => Boolean(item)
+    );
 }
 
 export async function saveAsset(payload: unknown) {
@@ -239,8 +278,10 @@ export async function saveTalent(payload: unknown) {
   const id = input.id ?? randomUUID();
   const nickname = input.nickname.trim();
   const slug = normalizeOptionalSlug(input.slug);
-  const aliases = [...new Set((input.aliases ?? []).map((item) => item.trim()).filter(Boolean))];
-  const searchKeywords = [...new Set([nickname, ...aliases, ...((input.searchKeywords ?? []).map((item) => item.trim()).filter(Boolean))])];
+  const aliases = dedupeIds((input.aliases ?? []).map((item) => item.trim()).filter(Boolean));
+  const searchKeywords = dedupeIds(
+    [nickname, ...aliases, ...((input.searchKeywords ?? []).map((item) => item.trim()).filter(Boolean))]
+  );
   const assetTitleMap = new Map<string | null, string>(state.assets.map((asset) => [asset.id, asset.title]));
 
   await ensureUniqueTalentSlug(id, slug);
@@ -255,23 +296,8 @@ export async function saveTalent(payload: unknown) {
     searchKeywords,
     coverAssetId: input.coverAssetId?.trim() || null,
     tags: input.tags as Talent["tags"],
-    links: input.links
-      .map((link) => ({
-        id: link.id ?? randomUUID(),
-        label: link.label.trim(),
-        url: link.url.trim()
-      }))
-      .filter((link) => link.label && link.url),
-    representations: input.representations
-      .map((item) => ({
-        id: item.id ?? randomUUID(),
-        title: item.title?.trim() ?? "",
-        assetId: item.assetId.trim() || null
-      }))
-      .map((item) => ({
-        ...item,
-        title: item.title || assetTitleMap.get(item.assetId) || "未命名代表图"
-    })),
+    links: normalizeTalentLinks(input.links),
+    representations: normalizeRepresentations(input.representations, assetTitleMap),
     updatedAt: new Date().toISOString()
   });
 
@@ -316,11 +342,12 @@ export async function saveEvent(payload: unknown) {
   const aliases =
     input.aliases === undefined
       ? (existingEvent?.aliases ?? [])
-      : [...new Set(input.aliases.map((item) => item.trim()).filter(Boolean))];
+      : dedupeIds(input.aliases.map((item) => item.trim()).filter(Boolean));
   const searchKeywords =
     input.searchKeywords === undefined
       ? (existingEvent?.searchKeywords ?? [])
-      : [...new Set(input.searchKeywords.map((item) => item.trim()).filter(Boolean))];
+      : dedupeIds(input.searchKeywords.map((item) => item.trim()).filter(Boolean));
+
   const lineups = input.lineups
     .filter((lineup) => lineup.talentId?.trim())
     .map((lineup) => {
@@ -383,6 +410,7 @@ export async function removeEvent(id: string) {
 export async function saveLadder(editorId: string, payload: unknown) {
   const repository = getContentRepository();
   const input = ladderSchema.parse(payload);
+
   return repository.saveLadder({
     ...input,
     editorId,
@@ -396,8 +424,7 @@ export async function saveLadder(editorId: string, payload: unknown) {
 export async function saveArchive(editorId: string, payload: unknown) {
   const repository = getContentRepository();
   const input = archiveSchema.parse(payload);
-  const state = await repository.getState();
-  const { event, isMultiDayEvent, validDateKeys } = getValidArchiveDateKeys(state, input.eventId);
+  const { event, isMultiDayEvent, validDateKeys } = await getValidArchiveDateKeys(input.eventId);
 
   if (!event) {
     throw new Error("活动不存在或已被删除。");
@@ -473,7 +500,7 @@ export async function saveTalentBulk(payload: unknown): Promise<TalentBulkRespon
     };
   }
 
-  const tags = [...new Set((input.tags ?? []).map((tag) => tag.trim()).filter(Boolean))];
+  const tags = dedupeIds((input.tags ?? []).map((tag) => tag.trim()).filter(Boolean));
   if (tags.length === 0) {
     throw new Error("请至少填写一个标签。");
   }
@@ -517,35 +544,6 @@ export async function saveEventBulk(payload: unknown): Promise<BulkActionResult>
   const blocked: BulkActionResult["blocked"] = [];
   const succeededIds: string[] = [];
 
-  if (input.action === "delete") {
-    for (const id of ids) {
-      const event = eventMap.get(id);
-      if (!event) {
-        blocked.push({ id, reason: formatMissingReason("活动") });
-        continue;
-      }
-
-      try {
-        await removeEvent(id);
-        succeededIds.push(id);
-      } catch (error) {
-        blocked.push({
-          id,
-          reason: error instanceof Error ? error.message : "删除失败。"
-        });
-      }
-    }
-
-    return {
-      succeededIds,
-      blocked
-    };
-  }
-
-  if (!input.status) {
-    throw new Error("批量修改活动状态时必须提供目标状态。");
-  }
-
   for (const id of ids) {
     const event = eventMap.get(id);
     if (!event) {
@@ -553,12 +551,15 @@ export async function saveEventBulk(payload: unknown): Promise<BulkActionResult>
       continue;
     }
 
-    await repository.upsertEvent({
-      ...event,
-      status: input.status,
-      updatedAt: new Date().toISOString()
-    });
-    succeededIds.push(id);
+    try {
+      await removeEvent(id);
+      succeededIds.push(id);
+    } catch (error) {
+      blocked.push({
+        id,
+        reason: error instanceof Error ? error.message : "删除失败。"
+      });
+    }
   }
 
   return {

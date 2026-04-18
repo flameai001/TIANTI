@@ -182,6 +182,7 @@ export function InlineAssetUpload({
 }: InlineAssetUploadProps) {
   const preset = useMemo(() => ASSET_DISPLAY_PRESETS[kind], [kind]);
   const cropFrameRef = useRef<HTMLDivElement | null>(null);
+  const dragDepthRef = useRef(0);
   const dragStateRef = useRef<{
     pointerId: number;
     startX: number;
@@ -190,6 +191,7 @@ export function InlineAssetUpload({
   } | null>(null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [isDropActive, setIsDropActive] = useState(false);
   const [cropSession, setCropSession] = useState<CropSession | null>(null);
   const [cropBox, setCropBox] = useState<CropBoxSize | null>(null);
   const [offset, setOffset] = useState<CropOffset>({ x: 0, y: 0 });
@@ -305,6 +307,81 @@ export function InlineAssetUpload({
     }
   }
 
+  function hasDraggedImageFile(dataTransfer: DataTransfer | null) {
+    if (!dataTransfer) {
+      return false;
+    }
+
+    if (dataTransfer.items.length > 0) {
+      return Array.from(dataTransfer.items).some(
+        (item) => item.kind === "file" && (!item.type || item.type.startsWith("image/"))
+      );
+    }
+
+    if (dataTransfer.files.length > 0) {
+      return Array.from(dataTransfer.files).some((file) => file.type.startsWith("image/"));
+    }
+
+    return false;
+  }
+
+  function getDroppedImageFile(dataTransfer: DataTransfer | null) {
+    if (!dataTransfer?.files?.length) {
+      return null;
+    }
+
+    const imageFile = Array.from(dataTransfer.files).find((file) => file.type.startsWith("image/"));
+    return imageFile ?? null;
+  }
+
+  function handleDragEnter(event: React.DragEvent<HTMLDivElement>) {
+    if (pending) {
+      return;
+    }
+
+    const hasImageFile = hasDraggedImageFile(event.dataTransfer);
+    if (!hasImageFile) {
+      return;
+    }
+
+    event.preventDefault();
+    dragDepthRef.current += 1;
+    setIsDropActive(true);
+  }
+
+  function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
+    if (pending || !hasDraggedImageFile(event.dataTransfer)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDragLeave(event: React.DragEvent<HTMLDivElement>) {
+    if (!isDropActive) {
+      return;
+    }
+
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setIsDropActive(false);
+    }
+  }
+
+  async function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+    const file = getDroppedImageFile(event.dataTransfer);
+    if (!file || pending) {
+      return;
+    }
+
+    event.preventDefault();
+    dragDepthRef.current = 0;
+    setIsDropActive(false);
+    await handleChange(file);
+  }
+
   function closeCropSession() {
     setCropSession(null);
     setCropBox(null);
@@ -384,7 +461,15 @@ export function InlineAssetUpload({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
+      <div
+        className={`flex flex-wrap items-center gap-3 rounded-[1.3rem] transition ${
+          isDropActive ? "border border-dashed border-[var(--color-accent)] bg-[rgba(43,109,246,0.08)] p-3" : ""
+        }`}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <div className="w-full max-w-xs overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/20">
           <div className="relative" style={{ aspectRatio: preset.aspectStyle }}>
             {currentAsset ? (
@@ -475,11 +560,12 @@ export function InlineAssetUpload({
                     src={cropSession.imageUrl}
                     alt={cropSession.baseName}
                     draggable={false}
-                    className="pointer-events-none absolute left-1/2 top-1/2 select-none object-cover"
+                    className="pointer-events-none absolute left-1/2 top-1/2 max-h-none max-w-none select-none object-cover"
                     style={{
                       width: cropSession.width * safeScale,
                       height: cropSession.height * safeScale,
-                      transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`
+                      transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+                      willChange: "transform"
                     }}
                   />
                   <div className="pointer-events-none absolute inset-0 border border-[var(--line-soft)]" />

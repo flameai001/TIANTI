@@ -240,16 +240,22 @@ async function upsertTalentRelations(talent: Talent) {
   }
 
   if (talent.representations.length > 0) {
+    const validRepresentations = talent.representations.filter(
+      (representation) => representation.assetId && representation.assetId.trim()
+    );
+
+    if (validRepresentations.length > 0) {
       await db.insert(talentAssets).values(
-        talent.representations.map((representation, index) => ({
+        validRepresentations.map((representation, index) => ({
           id: representation.id,
           talentId: talent.id,
-          assetId: representation.assetId ?? null,
+          assetId: representation.assetId?.trim() || null,
           role: "representation",
           label: representation.title,
           sortOrder: index
         }))
       );
+    }
   }
 }
 
