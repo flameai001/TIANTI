@@ -55,7 +55,6 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
             <section className="surface rounded-[2rem] p-6 md:p-7">
               <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
                 <div className="space-y-3">
-                  <p className="ui-kicker">{data.editor.title}</p>
                   <h1 className="text-4xl tracking-[-0.04em] text-[var(--foreground)] md:text-5xl">
                     {data.ladder.title}
                   </h1>

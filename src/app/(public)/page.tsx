@@ -95,9 +95,28 @@ export default async function HomePage() {
           </PublicReveal>
         ) : null}
 
+        <PublicReveal>
+          <SectionFrame
+            eyebrow="Featured Talents"
+            title="从重点人物进入内容脉络"
+            description="精选封面、最近维护与公开资料摘要，让首页更像内容入口，而不是功能说明页。"
+            actions={
+              <Link href="/talents" className="ui-button-secondary text-sm">
+                打开达人索引
+              </Link>
+            }
+          >
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {homepage.featuredTalents.map((talent) => (
+                <TalentCard key={talent.id} talent={talent} />
+              ))}
+            </div>
+          </SectionFrame>
+        </PublicReveal>
+
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <PublicReveal>
-            <section className="surface rounded-[2rem] p-6 md:p-7">
+          <PublicReveal className="h-full">
+            <section className="surface h-full rounded-[2rem] p-6 md:p-7">
               <div className="flex items-center justify-between gap-4 border-b pb-4 ui-divider">
                 <div>
                   <p className="ui-kicker">Editorial Views</p>
@@ -110,10 +129,7 @@ export default async function HomePage() {
               <div className="mt-6 grid gap-4 md:grid-cols-2">
                 {homepage.editorSpotlights.map((spotlight) => (
                   <article key={spotlight.editor.id} className="surface-strong rounded-[1.5rem] p-5">
-                    <p className="text-sm ui-muted">{spotlight.editor.title}</p>
-                    <h3 className="mt-3 text-2xl tracking-[-0.03em] text-[var(--foreground)]">
-                      {spotlight.editor.name}
-                    </h3>
+                    <h3 className="text-2xl tracking-[-0.03em] text-[var(--foreground)]">{spotlight.editor.name}</h3>
                     <p className="mt-3 text-sm leading-7 ui-subtle">{spotlight.summary}</p>
                     <Link href={spotlight.href} className="mt-4 inline-flex text-sm text-[var(--color-accent)]">
                       查看公开排序
@@ -124,8 +140,8 @@ export default async function HomePage() {
             </section>
           </PublicReveal>
 
-          <PublicReveal delay={0.08}>
-            <section className="surface rounded-[2rem] p-6 md:p-7">
+          <PublicReveal delay={0.08} className="h-full">
+            <section className="surface h-full rounded-[2rem] p-6 md:p-7">
               <div className="border-b pb-4 ui-divider">
                 <p className="ui-kicker">Recent Talents</p>
                 <h2 className="mt-3 text-3xl tracking-[-0.03em] text-[var(--foreground)]">最近达人</h2>
@@ -148,25 +164,6 @@ export default async function HomePage() {
             </section>
           </PublicReveal>
         </div>
-
-        <PublicReveal>
-          <SectionFrame
-            eyebrow="Featured Talents"
-            title="从重点人物进入内容脉络"
-            description="精选封面、最近维护与公开资料摘要，让首页更像内容入口，而不是功能说明页。"
-            actions={
-              <Link href="/talents" className="ui-button-secondary text-sm">
-                打开达人索引
-              </Link>
-            }
-          >
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {homepage.featuredTalents.map((talent) => (
-                <TalentCard key={talent.id} talent={talent} />
-              ))}
-            </div>
-          </SectionFrame>
-        </PublicReveal>
       </div>
     </PageShell>
   );
