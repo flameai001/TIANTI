@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
+import {
+  ASSET_DISPLAY_PRESETS,
+  ASSET_UPLOAD_PRESET_OPTIONS,
+  getAssetDisplayPreset
+} from "@/lib/asset-display";
 import type { Asset, AssetKind } from "@/modules/domain/types";
 
 interface InlineAssetUploadProps {
@@ -180,7 +184,8 @@ export function InlineAssetUpload({
   helperText,
   dataTestId
 }: InlineAssetUploadProps) {
-  const preset = useMemo(() => ASSET_DISPLAY_PRESETS[kind], [kind]);
+  const defaultPreset = useMemo(() => ASSET_DISPLAY_PRESETS[kind], [kind]);
+  const uploadPresets = useMemo(() => ASSET_UPLOAD_PRESET_OPTIONS[kind], [kind]);
   const cropFrameRef = useRef<HTMLDivElement | null>(null);
   const dragDepthRef = useRef(0);
   const dragStateRef = useRef<{
@@ -196,6 +201,18 @@ export function InlineAssetUpload({
   const [cropBox, setCropBox] = useState<CropBoxSize | null>(null);
   const [offset, setOffset] = useState<CropOffset>({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
+  const [selectedRatioLabel, setSelectedRatioLabel] = useState(defaultPreset.ratioLabel);
+
+  const selectedPreset = useMemo(
+    () => uploadPresets.find((preset) => preset.ratioLabel === selectedRatioLabel) ?? defaultPreset,
+    [defaultPreset, selectedRatioLabel, uploadPresets]
+  );
+  const preset = selectedPreset;
+  const previewPreset = useMemo(() => getAssetDisplayPreset(kind, currentAsset), [currentAsset, kind]);
+  const supportedRatioText = useMemo(
+    () => uploadPresets.map((preset) => preset.ratioLabel).join(" / "),
+    [uploadPresets]
+  );
 
   const minScale = useMemo(() => {
     if (!cropSession || !cropBox) {
@@ -206,6 +223,10 @@ export function InlineAssetUpload({
   }, [cropBox, cropSession]);
   const safeScale = Math.max(scale, minScale);
   const maxScale = Math.max(minScale * 4, minScale + 1.5);
+
+  useEffect(() => {
+    setSelectedRatioLabel(defaultPreset.ratioLabel);
+  }, [defaultPreset.ratioLabel]);
 
   useEffect(() => {
     if (!cropSession) {
@@ -300,6 +321,7 @@ export function InlineAssetUpload({
     setMessage(null);
 
     try {
+      setSelectedRatioLabel(defaultPreset.ratioLabel);
       const nextCropSession = await createCropSession(file);
       setCropSession(nextCropSession);
     } catch (error) {
@@ -387,6 +409,7 @@ export function InlineAssetUpload({
     setCropBox(null);
     setOffset({ x: 0, y: 0 });
     setScale(1);
+    setSelectedRatioLabel(defaultPreset.ratioLabel);
   }
 
   async function handleConfirmCrop() {
@@ -471,7 +494,7 @@ export function InlineAssetUpload({
         onDrop={handleDrop}
       >
         <div className="w-full max-w-xs overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/20">
-          <div className="relative" style={{ aspectRatio: preset.aspectStyle }}>
+          <div className="relative" style={{ aspectRatio: previewPreset.aspectStyle }}>
             {currentAsset ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -583,6 +606,37 @@ export function InlineAssetUpload({
               </div>
 
               <div className="surface-strong space-y-5 rounded-[1.6rem] p-5">
+                <div>
+                  <p className="text-sm text-white">比例</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {uploadPresets.map((ratioPreset) => {
+                      const isActive = ratioPreset.ratioLabel === preset.ratioLabel;
+
+                      return (
+                        <button
+                          key={ratioPreset.ratioLabel}
+                          type="button"
+                          data-testid={
+                            dataTestId
+                              ? `${dataTestId}-ratio-${ratioPreset.ratioLabel.replace(":", "-")}`
+                              : undefined
+                          }
+                          onClick={() => setSelectedRatioLabel(ratioPreset.ratioLabel)}
+                          disabled={pending}
+                          className={`rounded-full border px-4 py-2 text-sm transition disabled:opacity-50 ${
+                            isActive
+                              ? "border-[var(--color-accent)] bg-[rgba(43,109,246,0.12)] text-[var(--foreground)]"
+                              : "border-[var(--line-soft)] text-white/72 hover:border-[var(--color-accent)] hover:text-[var(--foreground)]"
+                          }`}
+                        >
+                          {ratioPreset.ratioLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-xs ui-subtle">支持 {supportedRatioText}，默认 {defaultPreset.ratioLabel}</p>
+                </div>
+
                 <div>
                   <p className="text-sm text-white">缩放</p>
                   <div className="mt-3 flex items-center gap-4">

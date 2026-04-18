@@ -216,6 +216,20 @@ describe("admin mutations", () => {
     expect(getMockState().assets.some((item) => item.id === asset.id)).toBe(false);
   });
 
+  it("rejects saving assets outside the supported 3:4 and 4:3 ratios", async () => {
+    await expect(
+      saveAsset({
+        kind: "talent_cover",
+        title: "invalid ratio",
+        alt: "invalid ratio",
+        url: "https://example.com/invalid-ratio.jpg",
+        width: 400,
+        height: 400,
+        objectKey: null
+      })
+    ).rejects.toThrow("图片比例仅支持 3:4 或 4:3。");
+  });
+
   it("keeps cleanup candidate assets when they are still referenced elsewhere", async () => {
     const candidateAssetId = "asset-rep-1";
 

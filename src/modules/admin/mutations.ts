@@ -9,6 +9,7 @@ import {
   isMultiDayRange,
   toDateOnlyIso
 } from "@/lib/date";
+import { isSupportedAssetDisplayRatio } from "@/lib/asset-display";
 import { slugify } from "@/lib/slug";
 import { cleanupUnusedAssets } from "@/modules/assets/cleanup";
 import type {
@@ -94,7 +95,7 @@ const ladderSchema = z.object({
 const archiveSchema = z.object({
   id: z.string().optional(),
   eventId: z.string(),
-  note: z.string().min(1),
+  note: z.string().optional().default(""),
   cleanupCandidateAssetIds: z.array(z.string()).optional().default([]),
   entries: z.array(
     z.object({
@@ -250,6 +251,10 @@ function normalizeRepresentations(
 export async function saveAsset(payload: unknown) {
   const repository = getContentRepository();
   const input = assetSchema.parse(payload);
+
+  if (!isSupportedAssetDisplayRatio(input.kind, input)) {
+    throw new Error("图片比例仅支持 3:4 或 4:3。");
+  }
 
   return repository.createAsset({
     id: randomUUID(),
@@ -434,7 +439,7 @@ export async function saveArchive(editorId: string, payload: unknown) {
     id: input.id ?? randomUUID(),
     editorId,
     eventId: input.eventId,
-    note: input.note,
+    note: input.note.trim(),
     updatedAt: new Date().toISOString(),
     entries: input.entries.map((entry) => {
       const entryDate = toDateOnlyIso(entry.entryDate?.trim() ?? "") ?? null;

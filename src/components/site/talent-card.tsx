@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
+import { getAssetDisplayPreset } from "@/lib/asset-display";
 import { getTalentPath } from "@/lib/public-path";
 import type { TalentSummary } from "@/modules/domain/types";
 
 export function TalentCard({ talent }: { talent: TalentSummary }) {
-  const coverDisplayPreset = ASSET_DISPLAY_PRESETS.talent_cover;
+  const coverDisplayPreset = getAssetDisplayPreset("talent_cover", talent.cover);
 
   return (
     <Link

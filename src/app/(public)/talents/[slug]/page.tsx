@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { PublicReveal } from "@/components/ui/public-reveal";
 import { SectionFrame } from "@/components/ui/section-frame";
+import { getAssetDisplayPreset } from "@/lib/asset-display";
 import { formatDateRange } from "@/lib/date";
 import { getEventPath, getPublicIdentifier, getTalentPath } from "@/lib/public-path";
 import { buildMetadata } from "@/lib/site";
@@ -92,6 +93,7 @@ export default async function TalentDetailPage({
   const pagedUpcomingEvents = detail.futureEvents.slice((safeUpcomingPage - 1) * pageSize, safeUpcomingPage * pageSize);
   const pagedHistoryEvents = detail.pastEvents.slice((safeHistoryPage - 1) * pageSize, safeHistoryPage * pageSize);
   const talentIdentifier = getPublicIdentifier(detail.talent);
+  const coverDisplayPreset = getAssetDisplayPreset("talent_cover", detail.cover);
 
   const publicInfoRows = [
     detail.talent.aliases.length > 0 ? { label: "别名", value: detail.talent.aliases.join(" / ") } : null,
@@ -104,7 +106,7 @@ export default async function TalentDetailPage({
         <section className="surface overflow-hidden rounded-[2.4rem] p-6 md:p-8">
           <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
             <div className="relative overflow-hidden rounded-[1.8rem] bg-transparent">
-              <div className="relative aspect-[4/5]">
+              <div className="relative" style={{ aspectRatio: coverDisplayPreset.aspectStyle }}>
                 {detail.cover ? (
                   <Image
                     src={detail.cover.url}
@@ -285,7 +287,12 @@ export default async function TalentDetailPage({
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {detail.representationAssets.map((representation) => (
                   <article key={representation.id} className="surface overflow-hidden rounded-[1.9rem]">
-                    <div className="relative aspect-[4/5]">
+                    <div
+                      className="relative"
+                      style={{
+                        aspectRatio: getAssetDisplayPreset("talent_representation", representation.asset).aspectStyle
+                      }}
+                    >
                       {representation.asset ? (
                         <Image
                           src={representation.asset.url}

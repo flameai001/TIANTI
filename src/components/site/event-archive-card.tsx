@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
+import { getAssetDisplayPreset } from "@/lib/asset-display";
 import { getTalentPath } from "@/lib/public-path";
 import type { Asset } from "@/modules/domain/types";
 
@@ -28,13 +28,17 @@ export function EventArchiveCard({
   talentName,
   talentSlug
 }: EventArchiveCardProps) {
-  const sceneDisplayPreset = ASSET_DISPLAY_PRESETS.event_scene;
   const [isSharedPhotoVisible, setIsSharedPhotoVisible] = useState(false);
   const showSharedPhoto = Boolean(sharedPhotoAsset) && isSharedPhotoVisible;
+  const activeAsset = showSharedPhoto ? sharedPhotoAsset ?? sceneAsset : sceneAsset ?? sharedPhotoAsset;
+  const activeDisplayPreset = getAssetDisplayPreset(
+    showSharedPhoto ? "shared_photo" : "event_scene",
+    activeAsset
+  );
 
   return (
     <div className="surface overflow-hidden rounded-[1.6rem]">
-      <div className="relative" style={{ aspectRatio: sceneDisplayPreset.aspectStyle }}>
+      <div className="relative" style={{ aspectRatio: activeDisplayPreset.aspectStyle }}>
         {sceneAsset ? (
           <Image
             src={sceneAsset.url}
