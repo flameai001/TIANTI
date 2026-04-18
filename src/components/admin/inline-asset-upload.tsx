@@ -424,7 +424,7 @@ export function InlineAssetUpload({
             data-testid={dataTestId ? `${dataTestId}-clear` : undefined}
             onClick={onClear}
             disabled={pending || !currentAsset}
-            className="rounded-full border border-red-300/25 px-3 py-2 text-xs text-red-200 disabled:cursor-not-allowed disabled:opacity-45"
+            className="rounded-full border border-[#b13b45]/45 px-3 py-2 text-xs text-[#5f0f18] disabled:cursor-not-allowed disabled:opacity-45"
           >
             {clearButtonLabel}
           </button>

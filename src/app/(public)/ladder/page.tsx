@@ -104,7 +104,7 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
                           href={`/talents/${talent.slug}`}
                           className="surface-strong overflow-hidden rounded-[1.5rem] transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
                         >
-                          <div className="relative aspect-[4/3]">
+                          <div className="relative aspect-[3/4]">
                             {cover ? (
                               <Image
                                 src={cover.url}

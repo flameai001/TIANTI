@@ -198,7 +198,7 @@ export default async function TalentDetailPage({
                       >
                         <p className="text-lg text-[var(--foreground)]">{item.event.name}</p>
                         <p className="mt-2 text-sm ui-subtle">
-                          {[item.event.city, formatDateRange(item.event.startsAt, item.event.endsAt)].filter(Boolean).join(" 路 ")}
+                          {[item.event.city, formatDateRange(item.event.startsAt, item.event.endsAt)].filter(Boolean).join(" · ")}
                         </p>
                         <p className="mt-2 text-sm ui-subtle">{item.detailText || "暂未录入备注"}</p>
                       </Link>
@@ -243,7 +243,7 @@ export default async function TalentDetailPage({
                       >
                         <p className="text-lg text-[var(--foreground)]">{item.event.name}</p>
                         <p className="mt-2 text-sm ui-subtle">
-                          {[item.event.city, formatDateRange(item.event.startsAt, item.event.endsAt)].filter(Boolean).join(" 路 ")}
+                          {[item.event.city, formatDateRange(item.event.startsAt, item.event.endsAt)].filter(Boolean).join(" · ")}
                         </p>
                         <p className="mt-2 text-sm ui-subtle">{item.detailText || "暂未录入角色 / 作品 / 游戏"}</p>
                       </Link>

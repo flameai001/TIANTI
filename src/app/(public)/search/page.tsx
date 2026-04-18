@@ -127,7 +127,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                       <p className="text-xs uppercase tracking-[0.18em] ui-muted">阵容 {event.lineupSize}</p>
                     </div>
                     <p className="mt-2 text-sm ui-subtle">
-                      {[event.event.city, event.event.venue].filter(Boolean).join(" 路 ")}
+                      {[event.event.city, event.event.venue].filter(Boolean).join(" · ")}
                     </p>
                     {event.event.aliases.length > 0 ? (
                       <p className="mt-2 text-xs ui-muted">别名：{event.event.aliases.join(" / ")}</p>
@@ -188,7 +188,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                         <p className="text-xs uppercase tracking-[0.18em] ui-muted">阵容 {event.lineupSize}</p>
                       </div>
                       <p className="mt-2 text-sm ui-subtle">
-                        {[event.event.city, event.event.venue].filter(Boolean).join(" 路 ")}
+                        {[event.event.city, event.event.venue].filter(Boolean).join(" · ")}
                       </p>
                       {event.event.aliases.length > 0 ? (
                         <p className="mt-2 text-xs ui-muted">别名：{event.event.aliases.join(" / ")}</p>

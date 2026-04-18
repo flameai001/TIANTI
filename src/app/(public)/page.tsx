@@ -93,27 +93,6 @@ export default async function HomePage() {
           </SectionFrame>
         </PublicReveal>
 
-        {homepage.futureEvents.length > 0 ? (
-          <PublicReveal>
-            <SectionFrame
-              eyebrow="Upcoming Events"
-              title="优先看到即将发生的活动"
-              description="按阵容规模优先浏览未来活动，把时间、城市、阵容与详情入口压缩到同一屏。"
-              actions={
-                <Link href="/events?eventStatus=future&sort=lineupSize" className="ui-button-secondary text-sm">
-                  查看全部活动
-                </Link>
-              }
-            >
-              <div className="grid gap-6">
-                {homepage.futureEvents.map((event) => (
-                  <EventCard key={event.event.id} item={event} />
-                ))}
-              </div>
-            </SectionFrame>
-          </PublicReveal>
-        ) : null}
-
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <PublicReveal>
             <section className="surface rounded-[2rem] p-6 md:p-7">
@@ -167,6 +146,27 @@ export default async function HomePage() {
             </section>
           </PublicReveal>
         </div>
+
+        {homepage.futureEvents.length > 0 ? (
+          <PublicReveal>
+            <SectionFrame
+              eyebrow="Upcoming Events"
+              title="优先看到即将发生的活动"
+              description="按阵容规模优先浏览未来活动，把时间、城市、阵容与详情入口压缩到同一屏。"
+              actions={
+                <Link href="/events?eventStatus=future&sort=lineupSize" className="ui-button-secondary text-sm">
+                  查看全部活动
+                </Link>
+              }
+            >
+              <div className="grid gap-6">
+                {homepage.futureEvents.map((event) => (
+                  <EventCard key={event.event.id} item={event} />
+                ))}
+              </div>
+            </SectionFrame>
+          </PublicReveal>
+        ) : null}
       </div>
     </PageShell>
   );

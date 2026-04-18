@@ -24,7 +24,7 @@ export function ReturnToSiteButton() {
   const href = resolveFrontHref(pathname);
 
   return (
-    <GuardedLink href={href} data-testid="return-to-site" className="ui-button-secondary px-4 py-2 text-sm">
+    <GuardedLink href={href} data-testid="return-to-site" className="ui-button-secondary min-h-[44px] min-w-[8.5rem] px-4 py-2 text-sm">
       返回公开站
     </GuardedLink>
   );

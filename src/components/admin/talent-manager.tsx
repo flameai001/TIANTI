@@ -450,7 +450,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               data-testid="bulk-delete-talents"
               onClick={() => handleBulkAction("delete")}
               disabled={pending || !hasSelectedTalents}
-              className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-200 disabled:opacity-50"
+              className="rounded-full border border-[#b13b45]/45 px-4 py-2 text-sm text-[#5f0f18] disabled:opacity-50"
             >
               批量删除达人
             </button>
@@ -507,7 +507,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               <button
                 type="button"
                 onClick={handleDelete}
-                className="rounded-full border border-red-300/40 px-4 py-2 text-sm text-red-200"
+                className="rounded-full border border-[#b13b45]/55 px-4 py-2 text-sm text-[#5f0f18]"
               >
                 删除
               </button>
@@ -611,7 +611,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                       <button
                         type="button"
                         onClick={() => removeRepresentationRow(index)}
-                        className="rounded-[1rem] border border-red-300/30 px-3 py-2 text-sm text-red-200"
+                        className="rounded-[1rem] border border-[#b13b45]/45 px-3 py-2 text-sm text-[#5f0f18]"
                       >
                         删除
                       </button>
@@ -630,7 +630,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               </div>
             </div>
 
-            {message ? <p className="text-sm text-amber-200">{message}</p> : null}
+            {message ? <p className="text-sm text-[#5f3d00]">{message}</p> : null}
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs leading-6 text-white/45">
                 保存时会自动生成 slug，并把昵称与别名同步为搜索关键词。昵称之外的内容都可以留空。

@@ -727,7 +727,7 @@ export function ArchiveManager({
             已选 {selectedEventIds.length} / {liveEvents.length}
           </span>
           {hasUnsavedChanges ? (
-            <span className="rounded-full border border-amber-300/30 px-3 py-2 text-amber-200">
+            <span className="rounded-full border border-[#c48b26]/45 px-3 py-2 text-[#5f3d00]">
               当前编辑未保存
             </span>
           ) : null}
@@ -740,7 +740,7 @@ export function ArchiveManager({
               data-testid="bulk-delete-events"
               onClick={handleBulkEventAction}
               disabled={pending || selectedEventIds.length === 0}
-              className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-200 disabled:opacity-50"
+              className="rounded-full border border-[#b13b45]/45 px-4 py-2 text-sm text-[#5f0f18] disabled:opacity-50"
             >
               批量删除活动
             </button>
@@ -793,7 +793,7 @@ export function ArchiveManager({
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">Archive Workspace</p>
                 {isEventDirty ? (
-                  <span className="rounded-full border border-amber-300/30 px-3 py-1 text-[11px] text-amber-200">
+                  <span className="rounded-full border border-[#c48b26]/45 px-3 py-1 text-[11px] text-[#5f3d00]">
                     活动信息未保存
                   </span>
                 ) : null}
@@ -809,7 +809,7 @@ export function ArchiveManager({
               <button
                 type="button"
                 onClick={handleDeleteEvent}
-                className="rounded-full border border-red-300/40 px-4 py-2 text-sm text-red-200"
+                className="rounded-full border border-[#b13b45]/55 px-4 py-2 text-sm text-[#5f0f18]"
               >
                 删除活动
               </button>
@@ -975,7 +975,7 @@ export function ArchiveManager({
                           onClick={() =>
                             setEditableLineups((current) => current.filter((_, itemIndex) => itemIndex !== index))
                           }
-                          className="rounded-[1rem] border border-red-300/30 px-3 py-2 text-sm text-red-200"
+                          className="rounded-[1rem] border border-[#b13b45]/45 px-3 py-2 text-sm text-[#5f0f18]"
                         >
                           删除
                         </button>
@@ -1024,7 +1024,7 @@ export function ArchiveManager({
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">My Archive</p>
                     {isArchiveDirty ? (
-                      <span className="rounded-full border border-amber-300/30 px-3 py-1 text-[11px] text-amber-200">
+                      <span className="rounded-full border border-[#c48b26]/45 px-3 py-1 text-[11px] text-[#5f3d00]">
                         档案未保存
                       </span>
                     ) : null}
@@ -1100,7 +1100,7 @@ export function ArchiveManager({
                             <button
                               type="button"
                               onClick={() => removeArchiveEntry(index)}
-                              className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-200"
+                              className="rounded-full border border-[#b13b45]/45 px-4 py-2 text-sm text-[#5f0f18]"
                             >
                               删除
                             </button>
