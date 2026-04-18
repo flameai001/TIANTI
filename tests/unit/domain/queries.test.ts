@@ -4,14 +4,20 @@ import { demoSeedState } from "@/modules/domain/seed";
 describe("domain queries", () => {
   it("sorts talents by nickname pinyin and filters by mcn", () => {
     const allTalents = listTalents(demoSeedState);
-    expect(allTalents.map((item) => item.slug)).toEqual(["qingluan", "yanjin", "yunmo", "zhaoying"]);
+    expect(allTalents.map((item) => item.id)).toEqual([
+      "talent-qingluan",
+      "talent-yanjin",
+      "talent-yunmo",
+      "talent-zhaoying"
+    ]);
 
-    const filtered = listTalents(demoSeedState, { mcn: "浮光社" });
-    expect(filtered.map((item) => item.slug)).toEqual(["yanjin"]);
+    const targetMcn = demoSeedState.talents.find((talent) => talent.id === "talent-yanjin")?.mcn ?? "";
+    const filtered = listTalents(demoSeedState, { mcn: targetMcn });
+    expect(filtered.map((item) => item.id)).toEqual(["talent-yanjin"]);
   });
 
   it("aggregates talent editor summary statistics", () => {
-    const detail = getTalentDetail(demoSeedState, "qingluan");
+    const detail = getTalentDetail(demoSeedState, "talent-qingluan");
     expect(detail).not.toBeNull();
     expect(detail?.editorSummaries).toEqual(
       expect.arrayContaining([
@@ -21,6 +27,11 @@ describe("domain queries", () => {
         })
       ])
     );
+  });
+
+  it("matches detail routes by id when slugs are blank", () => {
+    expect(getTalentDetail(demoSeedState, "talent-qingluan")?.talent.id).toBe("talent-qingluan");
+    expect(getEventDetail(demoSeedState, "event-mist-lantern")?.event.id).toBe("event-mist-lantern");
   });
 
   it("resolves percent-encoded Unicode slugs for talent and event detail pages", () => {
@@ -59,7 +70,7 @@ describe("domain queries", () => {
   });
 
   it("hydrates event archive layers", () => {
-    const detail = getEventDetail(demoSeedState, "mist-lantern-festival");
+    const detail = getEventDetail(demoSeedState, "event-mist-lantern");
     expect(detail).not.toBeNull();
     expect(detail?.archives).toHaveLength(2);
     expect(detail?.archives[0]?.entries[0]?.sceneAsset?.url).toContain("/media/");
@@ -186,7 +197,7 @@ describe("domain queries", () => {
 
   it("matches talent aliases in relevance search", () => {
     const results = listTalents(demoSeedState, { query: "Qingluan", sort: "relevance" });
-    expect(results[0]?.slug).toBe("qingluan");
+    expect(results[0]?.id).toBe("talent-qingluan");
   });
 
   it("matches lineup talent names in event search", () => {
@@ -263,8 +274,8 @@ describe("domain queries", () => {
   });
 
   it("builds related discovery sections for detail pages", () => {
-    const talentDetail = getTalentDetail(demoSeedState, "qingluan");
-    const eventDetail = getEventDetail(demoSeedState, "mist-lantern-festival");
+    const talentDetail = getTalentDetail(demoSeedState, "talent-qingluan");
+    const eventDetail = getEventDetail(demoSeedState, "event-mist-lantern");
     expect(talentDetail?.relatedTalents.length).toBeGreaterThan(0);
     expect(eventDetail?.relatedEvents.length).toBeGreaterThan(0);
   });
@@ -288,19 +299,24 @@ describe("domain queries", () => {
       note: ""
     };
 
-    expect(() => getTalentDetail(state, state.talents[0]!.slug)).not.toThrow();
-    expect(() => getEventDetail(state, state.events[0]!.slug)).not.toThrow();
+    expect(() => getTalentDetail(state, state.talents[0]!.id)).not.toThrow();
+    expect(() => getEventDetail(state, state.events[0]!.id)).not.toThrow();
   });
 
   it("scopes search results", () => {
-    const result = searchSite(demoSeedState, "青鸾", "events");
+    const result = searchSite(demoSeedState, "Qingluan", "events");
     expect(result.talents).toHaveLength(0);
     expect(result.events.length).toBeGreaterThan(0);
   });
 
   it("filters talents by whether they have a future schedule", () => {
     const filtered = listTalents(demoSeedState, { hasSchedule: true });
-    expect(filtered.map((item) => item.slug)).toEqual(["qingluan", "yanjin", "yunmo", "zhaoying"]);
+    expect(filtered.map((item) => item.id)).toEqual([
+      "talent-qingluan",
+      "talent-yanjin",
+      "talent-yunmo",
+      "talent-zhaoying"
+    ]);
   });
 
   it("filters events by editor archive presence", () => {
@@ -316,15 +332,18 @@ describe("domain queries", () => {
       sceneAssetId: null
     };
 
-    const detail = getEventDetail(state, "mist-lantern-festival");
+    const detail = getEventDetail(state, "event-mist-lantern");
     expect(detail?.archives[0]?.entries[0]?.sceneAsset).toBeNull();
   });
 
   it("builds talent timeline details from lineup notes and archive roles", () => {
-    const detail = getTalentDetail(demoSeedState, "qingluan");
+    const detail = getTalentDetail(demoSeedState, "talent-qingluan");
+    const futureNote = demoSeedState.lineups.find((lineup) => lineup.id === "lineup-1")?.note ?? "";
+    const archiveRole =
+      demoSeedState.archives.find((archive) => archive.id === "archive-lin-mist")?.entries[0]?.cosplayTitle ?? "";
 
-    expect(detail?.futureEvents[0]?.detailText).toContain("主视觉第一轮海报已出现");
-    expect(detail?.pastEvents[0]?.detailText).toContain("《花朝记》春庭版");
+    expect(detail?.futureEvents[0]?.detailText).toContain(futureNote);
+    expect(detail?.pastEvents[0]?.detailText).toContain(archiveRole);
   });
 
   it("excludes past events without archive entries from talent history", () => {
@@ -353,7 +372,7 @@ describe("domain queries", () => {
       note: "Past lineup only"
     });
 
-    const detail = getTalentDetail(state, "qingluan");
+    const detail = getTalentDetail(state, "talent-qingluan");
     expect(detail?.pastEvents.map((item) => item.event.id)).not.toContain("event-past-no-archive");
   });
 });

@@ -49,7 +49,7 @@ describe("admin mutations", () => {
     expect(state.assets.some((asset) => asset.id === "asset-shared-1")).toBe(false);
   });
 
-  it("creates a new talent with generated slug and search keywords", async () => {
+  it("creates a new talent without forcing a slug and still derives search keywords", async () => {
     const saved = await saveTalent({
       nickname: "Star Lume",
       bio: "",
@@ -61,7 +61,7 @@ describe("admin mutations", () => {
       representations: []
     });
 
-    expect(saved.slug).toBe("star-lume");
+    expect(saved.slug).toBeNull();
     expect(saved.searchKeywords).toEqual(expect.arrayContaining(["Star Lume", "Star Lume CN", "Lume"]));
     expect(saved.coverAssetId).toBeNull();
   });
@@ -78,7 +78,7 @@ describe("admin mutations", () => {
       lineups: []
     });
 
-    expect(saved.slug).toBe("blank-event");
+    expect(saved.slug).toBeNull();
     expect(saved.startsAt).toBeNull();
     expect(saved.endsAt).toBeNull();
   });

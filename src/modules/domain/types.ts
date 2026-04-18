@@ -55,7 +55,7 @@ export interface TalentRepresentation {
 
 export interface Talent {
   id: string;
-  slug: string;
+  slug?: string | null;
   nickname: string;
   bio: string;
   mcn: string;
@@ -70,7 +70,7 @@ export interface Talent {
 
 export interface Event {
   id: string;
-  slug: string;
+  slug?: string | null;
   name: string;
   aliases: string[];
   searchKeywords: string[];
@@ -149,7 +149,7 @@ export interface ContentState {
 
 export interface TalentSummary {
   id: string;
-  slug: string;
+  slug?: string | null;
   nickname: string;
   bio: string;
   aliases: string[];

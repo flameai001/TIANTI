@@ -17,6 +17,12 @@ interface RepresentationDraft {
   assetId: string;
 }
 
+interface LinkDraft {
+  id: string;
+  label: string;
+  url: string;
+}
+
 interface TalentDraft {
   id?: string;
   nickname: string;
@@ -25,32 +31,16 @@ interface TalentDraft {
   tags: string;
   aliases: string;
   coverAssetId: string;
-  linksText: string;
+  links: LinkDraft[];
   representations: RepresentationDraft[];
-}
-
-function toLinksText(talent?: Talent | null) {
-  return talent?.links.map((link) => `${link.label}|${link.url}`).join("\n") ?? "";
 }
 
 function toCommaText(value?: string[]) {
   return value?.join(", ") ?? "";
 }
 
-function parsePipeRows(value: string) {
-  return value
-    .split("\n")
-    .map((row) => row.trim())
-    .filter(Boolean)
-    .map((row) => {
-      const [left, right] = row.split("|");
-      return { left: left?.trim() ?? "", right: right?.trim() ?? "" };
-    })
-    .filter((row) => row.left && row.right);
-}
-
-function splitTags(value: string) {
-  return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))];
+function splitCommaValues(value: string) {
+  return [...new Set(value.split(/[，,]/).map((item) => item.trim()).filter(Boolean))];
 }
 
 function sortTalents(value: Talent[]) {
@@ -70,6 +60,14 @@ function createRepresentationDraft(title = "", assetId = ""): RepresentationDraf
   };
 }
 
+function createLinkDraft(label = "", url = ""): LinkDraft {
+  return {
+    id: crypto.randomUUID(),
+    label,
+    url
+  };
+}
+
 function createTalentDraft(talent?: Talent | null): TalentDraft {
   if (!talent) {
     return {
@@ -79,7 +77,7 @@ function createTalentDraft(talent?: Talent | null): TalentDraft {
       tags: "",
       aliases: "",
       coverAssetId: "",
-      linksText: "",
+      links: [createLinkDraft()],
       representations: [createRepresentationDraft()]
     };
   }
@@ -92,7 +90,14 @@ function createTalentDraft(talent?: Talent | null): TalentDraft {
     tags: toCommaText(talent.tags),
     aliases: toCommaText(talent.aliases),
     coverAssetId: talent.coverAssetId ?? "",
-    linksText: toLinksText(talent),
+    links:
+      talent.links.length > 0
+        ? talent.links.map((link) => ({
+            id: link.id,
+            label: link.label,
+            url: link.url
+          }))
+        : [createLinkDraft()],
     representations:
       talent.representations.length > 0
         ? talent.representations.map((item) => ({
@@ -172,9 +177,33 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
     }));
   }
 
+  function updateLink(index: number, patch: Partial<LinkDraft>) {
+    setDraft((current) => ({
+      ...current,
+      links: current.links.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item))
+    }));
+  }
+
   function enqueueCleanupAssetId(assetId?: string | null) {
     if (!assetId) return;
     setCleanupCandidateAssetIds((current) => [...new Set([...current, assetId])]);
+  }
+
+  function addLinkRow() {
+    setDraft((current) => ({
+      ...current,
+      links: [...current.links, createLinkDraft()]
+    }));
+  }
+
+  function removeLinkRow(index: number) {
+    setDraft((current) => {
+      const next = current.links.filter((_, itemIndex) => itemIndex !== index);
+      return {
+        ...current,
+        links: next.length > 0 ? next : [createLinkDraft()]
+      };
+    });
   }
 
   function addRepresentationRow() {
@@ -204,13 +233,14 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       nickname: draft.nickname,
       bio: draft.bio,
       mcn: draft.mcn,
-      aliases: splitTags(draft.aliases),
+      aliases: splitCommaValues(draft.aliases),
       coverAssetId: draft.coverAssetId || null,
       cleanupCandidateAssetIds,
-      tags: splitTags(draft.tags),
-      links: parsePipeRows(draft.linksText).map((row) => ({
-        label: row.left,
-        url: row.right
+      tags: splitCommaValues(draft.tags),
+      links: draft.links.map((link) => ({
+        id: link.id,
+        label: link.label,
+        url: link.url
       })),
       representations: draft.representations.map((item) => ({
         id: item.id,
@@ -262,7 +292,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       enqueueCleanupAssetId(current.coverAssetId || null);
       return { ...current, coverAssetId: "" };
     });
-    setMessage("已清空当前封面，保存后会同步生效。");
+    setMessage("已清空当前封面，保存后生效。");
   }
 
   function handleRepresentationUploaded(index: number, asset: Asset) {
@@ -300,7 +330,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
         };
       })
     }));
-    setMessage("已清空当前代表图，保存后会同步生效。");
+    setMessage("已清空当前代表图，保存后生效。");
   }
 
   async function handleDelete() {
@@ -318,9 +348,10 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       }
 
       const nextTalents = liveTalents.filter((talent) => talent.id !== selectedTalent.id);
+      const nextSelectedTalent = nextTalents[0] ?? null;
+
       setLiveTalents(nextTalents);
       setSelectedIds((current) => current.filter((id) => id !== selectedTalent.id));
-      const nextSelectedTalent = nextTalents[0] ?? null;
       setSelectedId(nextSelectedTalent?.id ?? null);
       setDraft(createTalentDraft(nextSelectedTalent));
       setCleanupCandidateAssetIds([]);
@@ -334,7 +365,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       return;
     }
 
-    const tags = splitTags(bulkTags);
+    const tags = splitCommaValues(bulkTags);
     if (action !== "delete" && tags.length === 0) {
       setMessage("批量标签操作前请先填写标签。");
       return;
@@ -368,17 +399,17 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       }
 
       if (action === "delete") {
-        setLiveTalents((current) =>
-          current.filter((talent) => !data.result!.succeededIds.includes(talent.id))
-        );
-        setSelectedIds((current) =>
-          current.filter((id) => !data.result!.succeededIds.includes(id))
-        );
+        const succeededIds = data.result.succeededIds;
+        const nextTalents = liveTalents.filter((talent) => !succeededIds.includes(talent.id));
+        const nextSelectedTalent =
+          selectedId && succeededIds.includes(selectedId)
+            ? (nextTalents[0] ?? null)
+            : (nextTalents.find((talent) => talent.id === selectedId) ?? nextTalents[0] ?? null);
 
-        if (selectedId && data.result.succeededIds.includes(selectedId)) {
-          const remaining = liveTalents.filter((talent) => !data.result!.succeededIds.includes(talent.id));
-          setSelectedId(remaining[0]?.id ?? null);
-        }
+        setLiveTalents(nextTalents);
+        setSelectedIds((current) => current.filter((id) => !succeededIds.includes(id)));
+        setSelectedId(nextSelectedTalent?.id ?? null);
+        setDraft(createTalentDraft(nextSelectedTalent));
       } else if (data.result.talents) {
         applyUpdatedTalents(data.result.talents);
       }
@@ -388,7 +419,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
           ? `，${data.result.blocked.length} 项未完成：${data.result.blocked.map((item) => item.reason).join(" / ")}`
           : "";
       const actionLabel =
-        action === "add_tags" ? "已批量追加标签" : action === "remove_tags" ? "已批量移除标签" : "已批量删除达人";
+        action === "add_tags" ? "已批量添加标签" : action === "remove_tags" ? "已批量移除标签" : "已批量删除达人";
       setMessage(`${actionLabel} ${data.result.succeededIds.length} 项${blockedSummary}`);
     });
   }
@@ -423,7 +454,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
             value={bulkTags}
             onChange={(event) => setBulkTags(event.target.value)}
             data-testid="bulk-tags-input"
-            placeholder="标签，逗号分隔"
+            placeholder="标签，支持中英文逗号分隔"
             className="mt-3 w-full rounded-[1rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
           />
           <div className="mt-3 grid gap-3">
@@ -434,7 +465,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               disabled={pending || !hasSelectedTalents}
               className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 disabled:opacity-50"
             >
-              批量追加标签
+              批量添加标签
             </button>
             <button
               type="button"
@@ -546,14 +577,14 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                 name="tags"
                 value={draft.tags}
                 onChange={(event) => setDraft((current) => ({ ...current, tags: event.target.value }))}
-                placeholder="标签，用逗号分隔"
+                placeholder="标签，支持中英文逗号分隔"
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
               <input
                 name="aliases"
                 value={draft.aliases}
                 onChange={(event) => setDraft((current) => ({ ...current, aliases: event.target.value }))}
-                placeholder="别名 / 英文名，用逗号分隔"
+                placeholder="别名 / 英文名，支持中英文逗号分隔"
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
             </div>
@@ -562,7 +593,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm text-white">封面图片</p>
-                  <p className="mt-1 text-xs text-white/45">当前图片可直接替换或清空，不再从素材池里手动选择。</p>
+                  <p className="mt-1 text-xs text-white/45">当前图片可直接替换或清空，不需要再去素材池手动选择。</p>
                 </div>
                 <InlineAssetUpload
                   kind="talent_cover"
@@ -574,14 +605,50 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               </div>
             </div>
 
-            <textarea
-              name="links"
-              value={draft.linksText}
-              onChange={(event) => setDraft((current) => ({ ...current, linksText: event.target.value }))}
-              rows={5}
-              className="w-full rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
-              placeholder="平台链接，每行格式：标签|URL"
-            />
+            <div className="space-y-4 rounded-[1.4rem] border border-white/10 bg-black/15 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm text-white">平台链接</p>
+                  <p className="mt-1 text-xs text-white/45">一个框填名称，一个框填链接。空行会自动忽略。</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addLinkRow}
+                  className="rounded-full border border-white/12 px-3 py-2 text-xs text-white/72"
+                >
+                  + 添加链接
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {draft.links.map((link, index) => (
+                  <div
+                    key={link.id}
+                    className="grid gap-3 rounded-[1.1rem] border border-white/10 bg-black/20 p-3 md:grid-cols-[0.9fr_1.5fr_auto]"
+                  >
+                    <input
+                      value={link.label}
+                      onChange={(event) => updateLink(index, { label: event.target.value })}
+                      placeholder="平台名称"
+                      className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                    />
+                    <input
+                      value={link.url}
+                      onChange={(event) => updateLink(index, { url: event.target.value })}
+                      placeholder="https://"
+                      className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeLinkRow(index)}
+                      className="rounded-[1rem] border border-[#b13b45]/45 px-3 py-2 text-sm text-[#5f0f18]"
+                    >
+                      删除
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="space-y-4 rounded-[1.4rem] border border-white/10 bg-black/15 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -633,7 +700,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
             {message ? <p className="text-sm text-[#5f3d00]">{message}</p> : null}
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs leading-6 text-white/45">
-                保存时会自动生成 slug，并把昵称与别名同步为搜索关键词。昵称之外的内容都可以留空。
+                只有昵称必填，其他字段都可以留空；标签和别名支持中英文逗号分隔。
               </p>
               <button
                 type="button"

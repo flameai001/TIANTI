@@ -122,7 +122,7 @@ export const demoSeedState: ContentState = {
   talents: [
     {
       id: "talent-qingluan",
-      slug: "qingluan",
+      slug: null,
       nickname: "青鸾",
       bio: "以古典角色重构和高完成度发型妆面见长，现场镜头表现稳定。",
       mcn: "霁月企划",
@@ -142,7 +142,7 @@ export const demoSeedState: ContentState = {
     },
     {
       id: "talent-yunmo",
-      slug: "yunmo",
+      slug: null,
       nickname: "云墨",
       bio: "偏原创国风与轻舞台改编，动作表达和服饰层次都很完整。",
       mcn: "山海妆造社",
@@ -156,7 +156,7 @@ export const demoSeedState: ContentState = {
     },
     {
       id: "talent-zhaoying",
-      slug: "zhaoying",
+      slug: null,
       nickname: "昭映",
       bio: "以大型游戏角色 cosplay 为主，擅长冷色系造型和锐利镜头表达。",
       mcn: "未签约",
@@ -170,7 +170,7 @@ export const demoSeedState: ContentState = {
     },
     {
       id: "talent-yanjin",
-      slug: "yanjin",
+      slug: null,
       nickname: "雁锦",
       bio: "主打古偶与舞台混搭，线下活动密度高，互动反馈很好。",
       mcn: "浮光社",
@@ -189,7 +189,7 @@ export const demoSeedState: ContentState = {
   events: [
     {
       id: "event-spring-gala",
-      slug: "spring-gala-2026",
+      slug: null,
       name: "春序漫展 2026",
       aliases: ["春序漫展", "Spring Gala 2026"],
       searchKeywords: ["上海漫展", "国风舞台", "主视觉活动"],
@@ -203,7 +203,7 @@ export const demoSeedState: ContentState = {
     },
     {
       id: "event-mist-lantern",
-      slug: "mist-lantern-festival",
+      slug: null,
       name: "雾灯国风夜",
       aliases: ["雾灯国风夜", "Mist Lantern Festival"],
       searchKeywords: ["杭州", "夜景活动", "运河会展中心"],
@@ -217,7 +217,7 @@ export const demoSeedState: ContentState = {
     },
     {
       id: "event-echo-market",
-      slug: "echo-market-archive",
+      slug: null,
       name: "回声市集特别场",
       aliases: ["回声市集", "Echo Market"],
       searchKeywords: ["南京", "创意园", "开放式园区活动"],

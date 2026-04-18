@@ -36,6 +36,13 @@
       "when": 1776443400000,
       "tag": "0004_v4_1_nullable_assets",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776521432937,
+      "tag": "0005_dizzy_susan_delgado",
+      "breakpoints": true
     }
   ]
 }

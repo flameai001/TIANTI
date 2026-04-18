@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
+import { getTalentPath } from "@/lib/public-path";
 import type { Asset } from "@/modules/domain/types";
 
 interface EventArchiveCardProps {
@@ -12,8 +13,9 @@ interface EventArchiveCardProps {
   recognized: boolean;
   sceneAsset?: Asset | null;
   sharedPhotoAsset?: Asset | null;
+  talentId: string;
   talentName: string;
-  talentSlug: string;
+  talentSlug?: string | null;
 }
 
 export function EventArchiveCard({
@@ -22,6 +24,7 @@ export function EventArchiveCard({
   recognized,
   sceneAsset,
   sharedPhotoAsset,
+  talentId,
   talentName,
   talentSlug
 }: EventArchiveCardProps) {
@@ -54,7 +57,7 @@ export function EventArchiveCard({
         ) : null}
       </div>
       <div className="space-y-3 p-5">
-        <Link href={`/talents/${talentSlug}`} className="text-xl tracking-[-0.03em] text-[var(--foreground)]">
+        <Link href={getTalentPath({ id: talentId, slug: talentSlug })} className="text-xl tracking-[-0.03em] text-[var(--foreground)]">
           {talentName}
         </Link>
         <p className="text-sm ui-subtle">{cosplayTitle}</p>

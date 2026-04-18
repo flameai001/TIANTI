@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { PageShell } from "@/components/ui/page-shell";
 import { SectionFrame } from "@/components/ui/section-frame";
+import { getEventPath, getTalentPath } from "@/lib/public-path";
 import { buildMetadata } from "@/lib/site";
 import { getScopedSearchPage } from "@/modules/content/service";
 
@@ -90,7 +91,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                 result.talents.map((talent) => (
                   <Link
                     key={talent.id}
-                    href={`/talents/${talent.slug}`}
+                    href={getTalentPath(talent)}
                     className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
                   >
                     <div className="flex items-center justify-between gap-4">
@@ -119,7 +120,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                 result.events.map((event) => (
                   <Link
                     key={event.event.id}
-                    href={`/events/${event.event.slug}`}
+                    href={getEventPath(event.event)}
                     className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
                   >
                     <div className="flex items-center justify-between gap-4">
@@ -151,7 +152,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                   result.talents.map((talent) => (
                     <Link
                       key={talent.id}
-                      href={`/talents/${talent.slug}`}
+                      href={getTalentPath(talent)}
                       className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
                     >
                       <div className="flex items-center justify-between gap-4">
@@ -180,7 +181,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                   result.events.map((event) => (
                     <Link
                       key={event.event.id}
-                      href={`/events/${event.event.slug}`}
+                      href={getEventPath(event.event)}
                       className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
                     >
                       <div className="flex items-center justify-between gap-4">

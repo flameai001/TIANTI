@@ -3,6 +3,7 @@ import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageShell } from "@/components/ui/page-shell";
 import { SectionFrame } from "@/components/ui/section-frame";
+import { getTalentPath } from "@/lib/public-path";
 import { buildMetadata } from "@/lib/site";
 import { getLadderPage, getSiteEditors } from "@/modules/content/service";
 
@@ -100,7 +101,7 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
                       {tier.talents.map(({ talent, cover }) => (
                         <Link
                           key={talent.id}
-                          href={`/talents/${talent.slug}`}
+                          href={getTalentPath(talent)}
                           className="surface-strong overflow-hidden rounded-[1.5rem] transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
                         >
                           <div className="relative aspect-[3/4]">

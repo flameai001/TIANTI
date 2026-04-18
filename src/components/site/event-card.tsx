@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatDateRange } from "@/lib/date";
+import { getEventPath } from "@/lib/public-path";
 import type { EventSummary } from "@/modules/domain/types";
 
 export function EventCard({ item }: { item: EventSummary }) {
@@ -8,7 +9,7 @@ export function EventCard({ item }: { item: EventSummary }) {
 
   return (
     <Link
-      href={`/events/${item.event.slug}`}
+      href={getEventPath(item.event)}
       className="surface group grid gap-6 rounded-[2rem] p-6 transition duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-strong)] md:grid-cols-[0.78fr_1.22fr]"
     >
       <div className="space-y-5">

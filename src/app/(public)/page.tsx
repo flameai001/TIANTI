@@ -5,6 +5,7 @@ import { EditorialHero } from "@/components/ui/editorial-hero";
 import { PageShell } from "@/components/ui/page-shell";
 import { PublicReveal } from "@/components/ui/public-reveal";
 import { SectionFrame } from "@/components/ui/section-frame";
+import { getTalentPath } from "@/lib/public-path";
 import { buildMetadata } from "@/lib/site";
 import { getHomepageData } from "@/modules/content/service";
 
@@ -150,7 +151,7 @@ export default async function HomePage() {
                 {homepage.recentTalents.slice(0, 4).map((talent) => (
                   <Link
                     key={talent.id}
-                    href={`/talents/${talent.slug}`}
+                    href={getTalentPath(talent)}
                     className="flex items-center justify-between gap-4 border-b pb-4 transition ui-divider last:border-none last:pb-0 hover:text-[var(--color-accent)]"
                   >
                     <div>

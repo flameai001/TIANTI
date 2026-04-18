@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ASSET_DISPLAY_PRESETS } from "@/lib/asset-display";
+import { getTalentPath } from "@/lib/public-path";
 import type { TalentSummary } from "@/modules/domain/types";
 
 export function TalentCard({ talent }: { talent: TalentSummary }) {
@@ -8,7 +9,7 @@ export function TalentCard({ talent }: { talent: TalentSummary }) {
 
   return (
     <Link
-      href={`/talents/${talent.slug}`}
+      href={getTalentPath(talent)}
       className="group surface block overflow-hidden rounded-[1.9rem] transition duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-strong)]"
     >
       <div className="relative overflow-hidden" style={{ aspectRatio: coverDisplayPreset.aspectStyle }}>

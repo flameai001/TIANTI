@@ -56,7 +56,7 @@ export const talents = pgTable(
   "talents",
   {
     id: uuid("id").primaryKey(),
-    slug: text("slug").notNull(),
+    slug: text("slug"),
     nickname: text("nickname").notNull(),
     bio: text("bio").notNull(),
     mcn: text("mcn").notNull(),
@@ -109,7 +109,7 @@ export const events = pgTable(
   "events",
   {
     id: uuid("id").primaryKey(),
-    slug: text("slug").notNull(),
+    slug: text("slug"),
     name: text("name").notNull(),
     aliases: text("aliases")
       .array()

@@ -7,6 +7,7 @@ import { PageShell } from "@/components/ui/page-shell";
 import { PublicReveal } from "@/components/ui/public-reveal";
 import { SectionFrame } from "@/components/ui/section-frame";
 import { formatDateRange } from "@/lib/date";
+import { getEventPath, getPublicIdentifier, getTalentPath } from "@/lib/public-path";
 import { buildMetadata } from "@/lib/site";
 import { getTalentPage } from "@/modules/content/service";
 
@@ -23,7 +24,7 @@ function parsePageParam(value: string | string[] | undefined) {
 }
 
 function buildPageHref(
-  slug: string,
+  identifier: string,
   currentUpcomingPage: number,
   currentHistoryPage: number,
   field: "upcomingPage" | "historyPage",
@@ -43,7 +44,8 @@ function buildPageHref(
   }
 
   const suffix = params.toString();
-  return suffix ? `/talents/${slug}?${suffix}` : `/talents/${slug}`;
+  const encodedIdentifier = encodeURIComponent(identifier);
+  return suffix ? `/talents/${encodedIdentifier}?${suffix}` : `/talents/${encodedIdentifier}`;
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
@@ -61,7 +63,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return buildMetadata({
     title: `TIANTI | ${detail.talent.nickname}`,
     description: `${detail.talent.nickname} 的公开资料、相关活动与编辑摘要。`,
-    path: `/talents/${slug}`
+    path: getTalentPath(detail.talent)
   });
 }
 
@@ -89,6 +91,7 @@ export default async function TalentDetailPage({
   const safeHistoryPage = Math.min(historyPage, totalHistoryPages);
   const pagedUpcomingEvents = detail.futureEvents.slice((safeUpcomingPage - 1) * pageSize, safeUpcomingPage * pageSize);
   const pagedHistoryEvents = detail.pastEvents.slice((safeHistoryPage - 1) * pageSize, safeHistoryPage * pageSize);
+  const talentIdentifier = getPublicIdentifier(detail.talent);
 
   const publicInfoRows = [
     detail.talent.aliases.length > 0 ? { label: "别名", value: detail.talent.aliases.join(" / ") } : null,
@@ -193,7 +196,7 @@ export default async function TalentDetailPage({
                     pagedUpcomingEvents.map((item) => (
                       <Link
                         key={item.event.id}
-                        href={`/events/${item.event.slug}`}
+                        href={getEventPath(item.event)}
                         className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
                       >
                         <p className="text-lg text-[var(--foreground)]">{item.event.name}</p>
@@ -210,7 +213,7 @@ export default async function TalentDetailPage({
                 {totalUpcomingPages > 1 ? (
                   <div className="mt-6 flex items-center justify-between gap-3">
                     <Link
-                      href={buildPageHref(slug, Math.max(1, safeUpcomingPage - 1), safeHistoryPage, "upcomingPage", Math.max(1, safeUpcomingPage - 1))}
+                      href={buildPageHref(talentIdentifier, Math.max(1, safeUpcomingPage - 1), safeHistoryPage, "upcomingPage", Math.max(1, safeUpcomingPage - 1))}
                       className={`ui-button-secondary text-sm ${safeUpcomingPage === 1 ? "pointer-events-none opacity-45" : ""}`}
                     >
                       上一页
@@ -219,7 +222,7 @@ export default async function TalentDetailPage({
                       {safeUpcomingPage} / {totalUpcomingPages}
                     </p>
                     <Link
-                      href={buildPageHref(slug, Math.min(totalUpcomingPages, safeUpcomingPage + 1), safeHistoryPage, "upcomingPage", Math.min(totalUpcomingPages, safeUpcomingPage + 1))}
+                      href={buildPageHref(talentIdentifier, Math.min(totalUpcomingPages, safeUpcomingPage + 1), safeHistoryPage, "upcomingPage", Math.min(totalUpcomingPages, safeUpcomingPage + 1))}
                       className={`ui-button-secondary text-sm ${safeUpcomingPage === totalUpcomingPages ? "pointer-events-none opacity-45" : ""}`}
                     >
                       下一页
@@ -238,7 +241,7 @@ export default async function TalentDetailPage({
                     pagedHistoryEvents.map((item) => (
                       <Link
                         key={item.event.id}
-                        href={`/events/${item.event.slug}`}
+                        href={getEventPath(item.event)}
                         className="block border-b pb-4 last:border-none last:pb-0 ui-divider"
                       >
                         <p className="text-lg text-[var(--foreground)]">{item.event.name}</p>
@@ -255,7 +258,7 @@ export default async function TalentDetailPage({
                 {totalHistoryPages > 1 ? (
                   <div className="mt-6 flex items-center justify-between gap-3">
                     <Link
-                      href={buildPageHref(slug, safeUpcomingPage, Math.max(1, safeHistoryPage - 1), "historyPage", Math.max(1, safeHistoryPage - 1))}
+                      href={buildPageHref(talentIdentifier, safeUpcomingPage, Math.max(1, safeHistoryPage - 1), "historyPage", Math.max(1, safeHistoryPage - 1))}
                       className={`ui-button-secondary text-sm ${safeHistoryPage === 1 ? "pointer-events-none opacity-45" : ""}`}
                     >
                       上一页
@@ -264,7 +267,7 @@ export default async function TalentDetailPage({
                       {safeHistoryPage} / {totalHistoryPages}
                     </p>
                     <Link
-                      href={buildPageHref(slug, safeUpcomingPage, Math.min(totalHistoryPages, safeHistoryPage + 1), "historyPage", Math.min(totalHistoryPages, safeHistoryPage + 1))}
+                      href={buildPageHref(talentIdentifier, safeUpcomingPage, Math.min(totalHistoryPages, safeHistoryPage + 1), "historyPage", Math.min(totalHistoryPages, safeHistoryPage + 1))}
                       className={`ui-button-secondary text-sm ${safeHistoryPage === totalHistoryPages ? "pointer-events-none opacity-45" : ""}`}
                     >
                       下一页

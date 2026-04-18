@@ -7,6 +7,7 @@ import { PageShell } from "@/components/ui/page-shell";
 import { PublicReveal } from "@/components/ui/public-reveal";
 import { SectionFrame } from "@/components/ui/section-frame";
 import { deriveEventTemporalStatus, formatDateRange } from "@/lib/date";
+import { getEventPath, getTalentPath } from "@/lib/public-path";
 import { getAuthenticatedEditor } from "@/lib/session";
 import { buildAbsoluteUrl, buildMetadata } from "@/lib/site";
 import { getEventPage } from "@/modules/content/service";
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return buildMetadata({
     title: `TIANTI | ${detail.event.name}`,
     description: `${detail.event.name} 的公开活动信息、阵容与现场档案。`,
-    path: `/events/${slug}`
+    path: getEventPath(detail.event)
   });
 }
 
@@ -61,7 +62,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
       address: detail.event.city
     },
     description: detail.event.note,
-    url: buildAbsoluteUrl(`/events/${detail.event.slug}`)
+    url: buildAbsoluteUrl(getEventPath(detail.event))
   };
 
   return (
@@ -118,7 +119,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                         {group.items.map((item) => (
                           <Link
                             key={item.lineup.id}
-                            href={`/talents/${item.talent.slug}`}
+                            href={getTalentPath(item.talent)}
                             className="surface-strong rounded-[1.4rem] p-4 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
                           >
                             <p className="text-lg text-[var(--foreground)]">{item.talent.nickname}</p>
@@ -172,6 +173,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                               <EventArchiveCard
                                 key={entry.entry.id}
                                 canToggleSharedPhoto={Boolean(viewer)}
+                                talentId={entry.talent.id}
                                 talentSlug={entry.talent.slug}
                                 talentName={entry.talent.nickname}
                                 cosplayTitle={entry.entry.cosplayTitle}

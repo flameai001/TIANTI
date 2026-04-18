@@ -24,14 +24,22 @@ import { deleteObjectFromR2 } from "@/storage/r2";
 const talentSchema = z.object({
   id: z.string().optional(),
   nickname: z.string().min(1),
-  slug: z.string().optional(),
+  slug: z.string().nullable().optional(),
   bio: z.string().optional().default(""),
   mcn: z.string().optional().default(""),
   aliases: z.array(z.string()).optional(),
   searchKeywords: z.array(z.string()).optional(),
   coverAssetId: z.string().nullable().optional(),
   tags: z.array(z.string()).default([]),
-  links: z.array(z.object({ id: z.string().optional(), label: z.string(), url: z.string().url() })).default([]),
+  links: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        label: z.string().optional().default(""),
+        url: z.union([z.literal(""), z.string().url()]).optional().default("")
+      })
+    )
+    .default([]),
   representations: z
     .array(
       z.object({
@@ -47,7 +55,7 @@ const talentSchema = z.object({
 const eventSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1),
-  slug: z.string().optional(),
+  slug: z.string().nullable().optional(),
   aliases: z.array(z.string()).optional(),
   searchKeywords: z.array(z.string()).optional(),
   startsAt: z.string().nullable().optional(),
@@ -130,6 +138,16 @@ const editorNameSchema = z.object({
 
 function dedupeIds(ids: string[]) {
   return [...new Set(ids)];
+}
+
+function normalizeOptionalSlug(value?: string | null) {
+  const trimmedValue = value?.trim() ?? "";
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const normalizedSlug = slugify(trimmedValue);
+  return normalizedSlug || null;
 }
 
 function getValidLineupDateKeys(startsAt?: string | null, endsAt?: string | null) {
@@ -249,7 +267,11 @@ function formatMissingReason(kind: "达人" | "活动") {
   return `${kind}不存在或已被删除。`;
 }
 
-async function ensureUniqueTalentSlug(id: string, slug: string) {
+async function ensureUniqueTalentSlug(id: string, slug?: string | null) {
+  if (!slug) {
+    return;
+  }
+
   const repository = getContentRepository();
   const state = await repository.getState();
   const duplicate = state.talents.find((talent) => talent.slug === slug && talent.id !== id);
@@ -259,7 +281,11 @@ async function ensureUniqueTalentSlug(id: string, slug: string) {
   }
 }
 
-async function ensureUniqueEventSlug(id: string, slug: string) {
+async function ensureUniqueEventSlug(id: string, slug?: string | null) {
+  if (!slug) {
+    return;
+  }
+
   const repository = getContentRepository();
   const state = await repository.getState();
   const duplicate = state.events.find((event) => event.slug === slug && event.id !== id);
@@ -298,7 +324,7 @@ export async function saveTalent(payload: unknown) {
   const state = await repository.getState();
   const id = input.id ?? randomUUID();
   const nickname = input.nickname.trim();
-  const slug = slugify(input.slug || nickname);
+  const slug = normalizeOptionalSlug(input.slug);
   const aliases = [...new Set((input.aliases ?? []).map((item) => item.trim()).filter(Boolean))];
   const searchKeywords = [...new Set([nickname, ...aliases, ...((input.searchKeywords ?? []).map((item) => item.trim()).filter(Boolean))])];
   const assetTitleMap = new Map<string | null, string>(state.assets.map((asset) => [asset.id, asset.title]));
@@ -315,11 +341,13 @@ export async function saveTalent(payload: unknown) {
     searchKeywords,
     coverAssetId: input.coverAssetId?.trim() || null,
     tags: input.tags as Talent["tags"],
-    links: input.links.map((link) => ({
-      id: link.id ?? randomUUID(),
-      label: link.label,
-      url: link.url
-    })),
+    links: input.links
+      .map((link) => ({
+        id: link.id ?? randomUUID(),
+        label: link.label.trim(),
+        url: link.url.trim()
+      }))
+      .filter((link) => link.label && link.url),
     representations: input.representations
       .map((item) => ({
         id: item.id ?? randomUUID(),
@@ -357,7 +385,7 @@ export async function saveEvent(payload: unknown) {
   const id = input.id ?? randomUUID();
   const existingEvent = state.events.find((event) => event.id === id) ?? null;
   const name = input.name.trim();
-  const slug = slugify(input.slug || name);
+  const slug = normalizeOptionalSlug(input.slug);
   const startsAt = toDateOnlyIso(input.startsAt?.trim() ?? "") ?? null;
   const endsAt = toDateOnlyIso(input.endsAt?.trim() ?? "") ?? null;
   const isMultiDayEvent = isMultiDayRange(startsAt, endsAt);

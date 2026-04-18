@@ -10,6 +10,7 @@ import {
   toDateOnlyIso
 } from "@/lib/date";
 import { compareByPinyin } from "@/lib/pinyin";
+import { matchesPublicIdentifier } from "@/lib/public-path";
 import type {
   ArchiveEntry,
   ArchiveEntryDisplayItem,
@@ -117,20 +118,6 @@ function getArchiveEditorIdsForEvent(state: ContentState, eventId: string) {
 
 function collectDistinctTexts(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-}
-
-function normalizeRouteSlug(slug: string) {
-  const trimmed = slug.trim();
-
-  if (!trimmed) {
-    return "";
-  }
-
-  try {
-    return decodeURIComponent(trimmed);
-  } catch {
-    return trimmed;
-  }
 }
 
 function splitQuery(value?: string) {
@@ -729,8 +716,7 @@ function buildTalentPastTimelineItems(state: ContentState, talentId: string): Ta
 
 export function getTalentDetail(state: ContentState, slug: string): TalentDetail | null {
   const assetMap = byId(state.assets);
-  const normalizedSlug = normalizeRouteSlug(slug);
-  const talent = state.talents.find((item) => item.slug === normalizedSlug);
+  const talent = state.talents.find((item) => matchesPublicIdentifier(item, slug));
   if (!talent) return null;
 
   const relatedEventIds = state.lineups
@@ -804,8 +790,7 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
 }
 
 export function getEventDetail(state: ContentState, slug: string): EventDetail | null {
-  const normalizedSlug = normalizeRouteSlug(slug);
-  const event = state.events.find((item) => item.slug === normalizedSlug);
+  const event = state.events.find((item) => matchesPublicIdentifier(item, slug));
   if (!event) return null;
 
   const assetMap = byId(state.assets);
