@@ -340,17 +340,6 @@ export async function saveTalent(payload: unknown) {
 export async function removeTalent(id: string) {
   const repository = getContentRepository();
   const state = await repository.getState();
-<<<<<<< ours
-  const referenced =
-    state.lineups.some((item) => item.talentId === id) ||
-    state.archives.some((archive) => archive.entries.some((entry) => entry.talentId === id));
-
-  if (referenced) {
-    throw new Error("该达人仍被活动阵容或活动档案引用，无法直接删除。");
-  }
-
-  await repository.deleteTalent(id);
-=======
   const talent = state.talents.find((item) => item.id === id) ?? null;
   const cleanupCandidateAssetIds = [
     talent?.coverAssetId ?? null,
@@ -359,7 +348,6 @@ export async function removeTalent(id: string) {
 
   await repository.deleteTalent(id);
   await cleanupUnusedAssets(cleanupCandidateAssetIds);
->>>>>>> theirs
 }
 
 export async function saveEvent(payload: unknown) {
@@ -438,9 +426,6 @@ export async function saveEvent(payload: unknown) {
 
 export async function removeEvent(id: string) {
   const repository = getContentRepository();
-<<<<<<< ours
-  await repository.deleteEvent(id);
-=======
   const state = await repository.getState();
   const cleanupCandidateAssetIds = state.archives
     .filter((archive) => archive.eventId === id)
@@ -451,7 +436,6 @@ export async function removeEvent(id: string) {
 
   await repository.deleteEvent(id);
   await cleanupUnusedAssets(cleanupCandidateAssetIds);
->>>>>>> theirs
 }
 
 export async function saveLadder(editorId: string, payload: unknown) {

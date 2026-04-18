@@ -103,7 +103,7 @@ describe("admin mutations", () => {
           }
         ]
       })
-    ).rejects.toThrow("Every lineup row in a multi-day event must choose a date.");
+    ).rejects.toThrow("多日活动的每条达人阵容都必须选择所属日期。");
   });
 
   it("rejects lineup dates outside the event range", async () => {
@@ -126,7 +126,7 @@ describe("admin mutations", () => {
           }
         ]
       })
-    ).rejects.toThrow("Lineup dates must stay within the event date range.");
+    ).rejects.toThrow("达人阵容的所属日期必须落在活动开始和结束日期之间。");
   });
 
   it("requires archive entry dates for multi-day events", async () => {
@@ -146,7 +146,7 @@ describe("admin mutations", () => {
           }
         ]
       })
-    ).rejects.toThrow("Every archive row in a multi-day event must choose a date.");
+    ).rejects.toThrow("多日活动的每条现场档案记录都必须选择所属日期。");
   });
 
   it("rejects archive entry dates outside the event range", async () => {
@@ -166,7 +166,7 @@ describe("admin mutations", () => {
           }
         ]
       })
-    ).rejects.toThrow("Archive dates must stay within the event date range.");
+    ).rejects.toThrow("现场档案记录的所属日期必须落在活动开始和结束日期之间。");
   });
 
   it("deletes cleanup candidate assets when they are no longer referenced", async () => {
