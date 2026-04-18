@@ -39,6 +39,7 @@ export interface Asset {
   objectKey?: string | null;
   width: number;
   height: number;
+  createdAt?: string;
 }
 
 export interface TalentLink {

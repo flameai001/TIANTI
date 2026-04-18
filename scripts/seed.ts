@@ -145,7 +145,12 @@ async function main() {
   await db.delete(editors);
 
   await db.insert(editors).values(state.editors);
-  await db.insert(assets).values(state.assets);
+  await db.insert(assets).values(
+    state.assets.map((asset) => ({
+      ...asset,
+      createdAt: asset.createdAt ? new Date(asset.createdAt) : new Date()
+    }))
+  );
   await db.insert(talents).values(
     state.talents.map((talent) => ({
       id: talent.id,

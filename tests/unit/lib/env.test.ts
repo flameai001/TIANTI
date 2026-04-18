@@ -41,4 +41,17 @@ describe("env helpers", () => {
 
     expect(() => getR2StorageConfig()).toThrow("R2_ENDPOINT");
   });
+
+  it("returns the orphan asset cleanup defaults when env vars are unset", async () => {
+    const { getOrphanAssetCleanupConfig } = await loadEnvModule({
+      CRON_SECRET: undefined,
+      ORPHAN_ASSET_CLEANUP_LIMIT: undefined,
+      ORPHAN_ASSET_GRACE_MINUTES: undefined
+    });
+
+    expect(getOrphanAssetCleanupConfig()).toEqual({
+      graceMinutes: 30,
+      limit: 50
+    });
+  });
 });

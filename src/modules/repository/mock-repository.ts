@@ -11,6 +11,19 @@ function replaceState(mutator: (state: ContentState) => ContentState) {
   return next;
 }
 
+function isAssetReferenced(state: ContentState, assetId: string) {
+  return state.talents.some(
+    (talent) =>
+      talent.coverAssetId === assetId ||
+      talent.representations.some((representation) => representation.assetId === assetId)
+  ) ||
+    state.archives.some((archive) =>
+      archive.entries.some(
+        (entry) => entry.sceneAssetId === assetId || entry.sharedPhotoAssetId === assetId
+      )
+    );
+}
+
 export const mockRepository: ContentRepository = {
   async getState() {
     return structuredClone(getMockState());
@@ -71,11 +84,21 @@ export const mockRepository: ContentRepository = {
     });
     return asset;
   },
-  async deleteAsset(id) {
+  async deleteAssetIfUnreferenced(id) {
+    if (isAssetReferenced(getMockState(), id)) {
+      return false;
+    }
+
     replaceState((state) => {
+      if (isAssetReferenced(state, id)) {
+        return state;
+      }
+
       state.assets = state.assets.filter((item) => item.id !== id);
       return state;
     });
+
+    return !getMockState().assets.some((asset) => asset.id === id);
   },
   async upsertTalent(talent) {
     replaceState((state) => {

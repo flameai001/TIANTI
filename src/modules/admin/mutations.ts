@@ -2,7 +2,6 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { getR2StorageConfig, isMockStorageMode } from "@/lib/env";
 import {
   deriveEventTemporalStatus,
   getDateOnlyKey,
@@ -11,6 +10,7 @@ import {
   toDateOnlyIso
 } from "@/lib/date";
 import { slugify } from "@/lib/slug";
+import { cleanupUnusedAssets } from "@/modules/assets/cleanup";
 import type { Talent } from "@/modules/domain/types";
 import type {
   BulkActionResult,
@@ -19,7 +19,6 @@ import type {
   TalentBulkResponse
 } from "@/modules/admin/types";
 import { getContentRepository } from "@/modules/repository";
-import { deleteObjectFromR2 } from "@/storage/r2";
 
 const talentSchema = z.object({
   id: z.string().optional(),
@@ -177,92 +176,6 @@ function getValidArchiveDateKeys(state: Awaited<ReturnType<ReturnType<typeof get
   };
 }
 
-function collectReferencedAssetIds(state: Awaited<ReturnType<ReturnType<typeof getContentRepository>["getState"]>>) {
-  const referencedAssetIds = new Set<string>();
-
-  for (const talent of state.talents) {
-    if (talent.coverAssetId) {
-      referencedAssetIds.add(talent.coverAssetId);
-    }
-
-    for (const representation of talent.representations) {
-      if (representation.assetId) {
-        referencedAssetIds.add(representation.assetId);
-      }
-    }
-  }
-
-  for (const archive of state.archives) {
-    for (const entry of archive.entries) {
-      if (entry.sceneAssetId) {
-        referencedAssetIds.add(entry.sceneAssetId);
-      }
-      if (entry.sharedPhotoAssetId) {
-        referencedAssetIds.add(entry.sharedPhotoAssetId);
-      }
-    }
-  }
-
-  return referencedAssetIds;
-}
-
-function getAssetObjectKeyFromUrl(url: string) {
-  if (isMockStorageMode()) {
-    return null;
-  }
-
-  try {
-    const { publicBaseUrl } = getR2StorageConfig();
-    const normalizedBaseUrl = `${publicBaseUrl}/`;
-    if (!url.startsWith(normalizedBaseUrl)) {
-      return null;
-    }
-
-    return decodeURIComponent(url.slice(normalizedBaseUrl.length));
-  } catch {
-    return null;
-  }
-}
-
-async function cleanupUnusedAssets(candidateIds: string[]) {
-  const repository = getContentRepository();
-  const uniqueIds = dedupeIds(candidateIds.map((id) => id.trim()).filter(Boolean));
-  if (uniqueIds.length === 0) {
-    return;
-  }
-
-  const state = await repository.getState();
-  const referencedAssetIds = collectReferencedAssetIds(state);
-  const assetMap = new Map(state.assets.map((asset) => [asset.id, asset]));
-
-  for (const assetId of uniqueIds) {
-    if (referencedAssetIds.has(assetId)) {
-      continue;
-    }
-
-    const asset = assetMap.get(assetId);
-    if (!asset) {
-      continue;
-    }
-
-    const objectKey = asset.objectKey?.trim() || getAssetObjectKeyFromUrl(asset.url);
-
-    if (objectKey) {
-      try {
-        await deleteObjectFromR2(objectKey);
-      } catch {
-        // Ignore storage deletion issues so save flows are not blocked.
-      }
-    }
-
-    try {
-      await repository.deleteAsset(assetId);
-    } catch {
-      // Ignore concurrent cleanup or stale candidate rows.
-    }
-  }
-}
-
 function formatMissingReason(kind: "达人" | "活动") {
   return `${kind}不存在或已被删除。`;
 }
@@ -307,7 +220,8 @@ export async function saveAsset(payload: unknown) {
     url: input.url,
     objectKey: input.objectKey ?? null,
     width: input.width,
-    height: input.height
+    height: input.height,
+    createdAt: new Date().toISOString()
   });
 }
 

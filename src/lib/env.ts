@@ -1,7 +1,37 @@
 import { z } from "zod";
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  },
+  z.string().optional()
+);
+
+const optionalPositiveInteger = z.preprocess(
+  (value) => {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    if (typeof value === "string" && value.trim() === "") {
+      return undefined;
+    }
+
+    return value;
+  },
+  z.coerce.number().int().positive().optional()
+);
+
 const envSchema = z.object({
+  CRON_SECRET: optionalNonEmptyString,
   DATABASE_URL: z.string().optional(),
+  ORPHAN_ASSET_CLEANUP_LIMIT: optionalPositiveInteger,
+  ORPHAN_ASSET_GRACE_MINUTES: optionalPositiveInteger,
   SESSION_SECRET: z.string().optional(),
   R2_BUCKET: z.string().optional(),
   R2_ENDPOINT: z.string().optional(),
@@ -21,6 +51,9 @@ const parsedEnv = envSchema.parse(process.env);
 export const appEnv = {
   ...parsedEnv,
   contentMode: parsedEnv.TIANTI_CONTENT_MODE ?? "mock",
+  cronSecret: parsedEnv.CRON_SECRET?.trim() ?? null,
+  orphanAssetCleanupLimit: parsedEnv.ORPHAN_ASSET_CLEANUP_LIMIT ?? 50,
+  orphanAssetGraceMinutes: parsedEnv.ORPHAN_ASSET_GRACE_MINUTES ?? 30,
   storageMode: parsedEnv.TIANTI_STORAGE_MODE ?? "mock",
   editorCredentials: [
     {
@@ -39,7 +72,7 @@ export const appEnv = {
 function normalizeHttpUrl(value: string, label: string) {
   const trimmed = value.trim();
   if (!trimmed) {
-    throw new Error(`R2 存储配置错误：${label} 不能为空。`);
+    throw new Error(`Invalid R2 config: ${label} cannot be empty.`);
   }
 
   const withProtocol = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
@@ -48,7 +81,7 @@ function normalizeHttpUrl(value: string, label: string) {
   try {
     url = new URL(withProtocol);
   } catch {
-    throw new Error(`R2 存储配置错误：${label} 不是有效的 URL。`);
+    throw new Error(`Invalid R2 config: ${label} must be a valid URL.`);
   }
 
   return url.toString().replace(/\/$/, "");
@@ -72,7 +105,7 @@ export function getR2StorageConfig() {
   ].filter(Boolean);
 
   if (missing.length > 0) {
-    throw new Error(`R2 存储配置错误：缺少 ${missing.join("、")}。`);
+    throw new Error(`Invalid R2 config: missing ${missing.join(", ")}.`);
   }
 
   return {
@@ -100,7 +133,14 @@ export function getR2StorageSummary() {
     return {
       bucket: appEnv.R2_BUCKET?.trim() ?? "",
       publicBaseUrl: appEnv.R2_PUBLIC_BASE_URL?.trim() ?? "",
-      error: error instanceof Error ? error.message : "R2 存储配置错误。"
+      error: error instanceof Error ? error.message : "Invalid R2 config."
     };
   }
+}
+
+export function getOrphanAssetCleanupConfig() {
+  return {
+    graceMinutes: appEnv.orphanAssetGraceMinutes,
+    limit: appEnv.orphanAssetCleanupLimit
+  };
 }

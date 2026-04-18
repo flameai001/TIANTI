@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import {
   archiveEntries,
@@ -110,7 +110,8 @@ async function loadState(): Promise<ContentState> {
       url: row.url,
       objectKey: row.objectKey ?? null,
       width: row.width,
-      height: row.height
+      height: row.height,
+      createdAt: row.createdAt.toISOString()
     })),
       talents: talentRows.map((row) => ({
         id: row.id,
@@ -343,13 +344,36 @@ export const postgresRepository: ContentRepository = {
       url: asset.url,
       objectKey: asset.objectKey ?? null,
       width: asset.width,
-      height: asset.height
+      height: asset.height,
+      createdAt: asset.createdAt ? new Date(asset.createdAt) : new Date()
     });
     return asset;
   },
-  async deleteAsset(id) {
+  async deleteAssetIfUnreferenced(id) {
     const db = getDb();
-    await db.delete(assets).where(eq(assets.id, id));
+    const result = await db.execute(sql`
+      delete from ${assets}
+      where ${assets.id} = ${id}
+        and not exists (
+          select 1
+          from ${talents}
+          where ${talents.coverAssetId} = ${assets.id}
+        )
+        and not exists (
+          select 1
+          from ${talentAssets}
+          where ${talentAssets.assetId} = ${assets.id}
+        )
+        and not exists (
+          select 1
+          from ${archiveEntries}
+          where ${archiveEntries.sceneAssetId} = ${assets.id}
+             or ${archiveEntries.sharedPhotoAssetId} = ${assets.id}
+        )
+      returning ${assets.id}
+    `);
+
+    return result.length > 0;
   },
   async upsertTalent(talent) {
     const db = getDb();

@@ -126,3 +126,22 @@ npm run test:e2e
 - [V3.2 完成报告](docs/v3.2-completion-report.md)
 - [V3.1 完成报告](docs/v3.1-completion-report.md)
 - [V1 完成报告](docs/v1-completion-report.md)
+## Orphan Asset Cleanup
+
+Production deployments now include a Vercel Cron Job that calls `/api/cron/cleanup-orphan-assets`
+once per day. The cleanup only targets assets that:
+
+- still have an R2 object key, or can derive one from the public R2 URL
+- are not referenced by talents or archives
+- are older than the configured grace window
+
+Environment variables for this flow:
+
+```env
+CRON_SECRET=...
+ORPHAN_ASSET_GRACE_MINUTES=30
+ORPHAN_ASSET_CLEANUP_LIMIT=50
+```
+
+The cron route requires `Authorization: Bearer ${CRON_SECRET}` and is intended for production
+automation only.
