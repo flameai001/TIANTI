@@ -23,6 +23,41 @@ describe("domain queries", () => {
     );
   });
 
+  it("resolves percent-encoded Unicode slugs for talent and event detail pages", () => {
+    const state = structuredClone(demoSeedState);
+    state.talents.push({
+      id: "talent-unicode-slug",
+      slug: "雁锦",
+      nickname: "雁锦",
+      bio: "",
+      mcn: "",
+      aliases: [],
+      searchKeywords: ["雁锦"],
+      tags: ["cosplay"],
+      coverAssetId: null,
+      links: [],
+      representations: [],
+      updatedAt: "2026-04-18T12:00:00.000Z"
+    });
+    state.events.push({
+      id: "event-unicode-slug",
+      slug: "萤火虫",
+      name: "萤火虫",
+      aliases: [],
+      searchKeywords: ["萤火虫"],
+      startsAt: "2026-04-18T12:00:00.000Z",
+      endsAt: "2026-04-18T12:00:00.000Z",
+      city: "",
+      venue: "",
+      status: "future",
+      note: "",
+      updatedAt: "2026-04-18T12:05:00.000Z"
+    });
+
+    expect(getTalentDetail(state, encodeURIComponent("雁锦"))?.talent.id).toBe("talent-unicode-slug");
+    expect(getEventDetail(state, encodeURIComponent("萤火虫"))?.event.id).toBe("event-unicode-slug");
+  });
+
   it("hydrates event archive layers", () => {
     const detail = getEventDetail(demoSeedState, "mist-lantern-festival");
     expect(detail).not.toBeNull();

@@ -22,17 +22,31 @@ describe("admin mutations", () => {
     vi.useRealTimers();
   });
 
-  it("blocks deleting a referenced talent", async () => {
-    await expect(removeTalent("talent-qingluan")).rejects.toThrow();
+  it("cascades deleting a referenced talent and removes linked references", async () => {
+    await removeTalent("talent-qingluan");
+
+    const state = getMockState();
+    expect(state.talents.some((talent) => talent.id === "talent-qingluan")).toBe(false);
+    expect(state.lineups.some((lineup) => lineup.talentId === "talent-qingluan")).toBe(false);
+    expect(state.archives.some((archive) => archive.entries.some((entry) => entry.talentId === "talent-qingluan"))).toBe(
+      false
+    );
+    expect(
+      state.ladders.some((ladder) => ladder.tiers.some((tier) => tier.talentIds.includes("talent-qingluan")))
+    ).toBe(false);
+    expect(state.assets.some((asset) => asset.id === "asset-cover-qingluan")).toBe(false);
   });
 
-  it("cascades deleting an event with archives", async () => {
+  it("cascades deleting an event with archives and archive assets", async () => {
     await removeEvent("event-mist-lantern");
 
     const state = getMockState();
     expect(state.events.some((event) => event.id === "event-mist-lantern")).toBe(false);
     expect(state.lineups.some((lineup) => lineup.eventId === "event-mist-lantern")).toBe(false);
     expect(state.archives.some((archive) => archive.eventId === "event-mist-lantern")).toBe(false);
+    expect(state.assets.some((asset) => asset.id === "asset-scene-1")).toBe(false);
+    expect(state.assets.some((asset) => asset.id === "asset-scene-2")).toBe(false);
+    expect(state.assets.some((asset) => asset.id === "asset-shared-1")).toBe(false);
   });
 
   it("creates a new talent with generated slug and search keywords", async () => {
@@ -40,7 +54,7 @@ describe("admin mutations", () => {
       nickname: "Star Lume",
       bio: "",
       mcn: "",
-      aliases: ["星露米", "Lume"],
+      aliases: ["Star Lume CN", "Lume"],
       coverAssetId: null,
       tags: ["cosplay"],
       links: [],
@@ -48,7 +62,7 @@ describe("admin mutations", () => {
     });
 
     expect(saved.slug).toBe("star-lume");
-    expect(saved.searchKeywords).toEqual(expect.arrayContaining(["Star Lume", "星露米", "Lume"]));
+    expect(saved.searchKeywords).toEqual(expect.arrayContaining(["Star Lume", "Star Lume CN", "Lume"]));
     expect(saved.coverAssetId).toBeNull();
   });
 
@@ -89,7 +103,7 @@ describe("admin mutations", () => {
           }
         ]
       })
-    ).rejects.toThrow("多日活动的每条达人阵容都必须选择所属日期。");
+    ).rejects.toThrow("Every lineup row in a multi-day event must choose a date.");
   });
 
   it("rejects lineup dates outside the event range", async () => {
@@ -112,7 +126,7 @@ describe("admin mutations", () => {
           }
         ]
       })
-    ).rejects.toThrow("达人阵容的所属日期必须落在活动开始和结束日期之间。");
+    ).rejects.toThrow("Lineup dates must stay within the event date range.");
   });
 
   it("requires archive entry dates for multi-day events", async () => {
@@ -132,7 +146,7 @@ describe("admin mutations", () => {
           }
         ]
       })
-    ).rejects.toThrow("多日活动的每条现场档案记录都必须选择所属日期。");
+    ).rejects.toThrow("Every archive row in a multi-day event must choose a date.");
   });
 
   it("rejects archive entry dates outside the event range", async () => {
@@ -152,7 +166,7 @@ describe("admin mutations", () => {
           }
         ]
       })
-    ).rejects.toThrow("现场档案记录的所属日期必须落在活动开始和结束日期之间。");
+    ).rejects.toThrow("Archive dates must stay within the event date range.");
   });
 
   it("deletes cleanup candidate assets when they are no longer referenced", async () => {
@@ -168,7 +182,7 @@ describe("admin mutations", () => {
 
     await saveTalent({
       id: "talent-qingluan",
-      nickname: "青鸾",
+      nickname: "Qingluan",
       bio: demoSeedState.talents[0]?.bio ?? "",
       mcn: demoSeedState.talents[0]?.mcn ?? "",
       aliases: demoSeedState.talents[0]?.aliases ?? [],
@@ -187,7 +201,7 @@ describe("admin mutations", () => {
 
     await saveTalent({
       id: "talent-qingluan",
-      nickname: "青鸾",
+      nickname: "Qingluan",
       bio: demoSeedState.talents[0]?.bio ?? "",
       mcn: demoSeedState.talents[0]?.mcn ?? "",
       aliases: demoSeedState.talents[0]?.aliases ?? [],

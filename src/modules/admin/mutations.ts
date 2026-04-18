@@ -340,6 +340,7 @@ export async function saveTalent(payload: unknown) {
 export async function removeTalent(id: string) {
   const repository = getContentRepository();
   const state = await repository.getState();
+<<<<<<< ours
   const referenced =
     state.lineups.some((item) => item.talentId === id) ||
     state.archives.some((archive) => archive.entries.some((entry) => entry.talentId === id));
@@ -349,6 +350,16 @@ export async function removeTalent(id: string) {
   }
 
   await repository.deleteTalent(id);
+=======
+  const talent = state.talents.find((item) => item.id === id) ?? null;
+  const cleanupCandidateAssetIds = [
+    talent?.coverAssetId ?? null,
+    ...(talent?.representations.map((representation) => representation.assetId ?? null) ?? [])
+  ].filter(Boolean) as string[];
+
+  await repository.deleteTalent(id);
+  await cleanupUnusedAssets(cleanupCandidateAssetIds);
+>>>>>>> theirs
 }
 
 export async function saveEvent(payload: unknown) {
@@ -427,7 +438,20 @@ export async function saveEvent(payload: unknown) {
 
 export async function removeEvent(id: string) {
   const repository = getContentRepository();
+<<<<<<< ours
   await repository.deleteEvent(id);
+=======
+  const state = await repository.getState();
+  const cleanupCandidateAssetIds = state.archives
+    .filter((archive) => archive.eventId === id)
+    .flatMap((archive) =>
+      archive.entries.flatMap((entry) => [entry.sceneAssetId ?? null, entry.sharedPhotoAssetId ?? null])
+    )
+    .filter(Boolean) as string[];
+
+  await repository.deleteEvent(id);
+  await cleanupUnusedAssets(cleanupCandidateAssetIds);
+>>>>>>> theirs
 }
 
 export async function saveLadder(editorId: string, payload: unknown) {
