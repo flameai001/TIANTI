@@ -74,24 +74,26 @@ export default async function HomePage() {
       </PublicReveal>
 
       <div className="mt-14 space-y-16 md:space-y-20">
-        <PublicReveal>
-          <SectionFrame
-            eyebrow="Featured Talents"
-            title="从重点人物进入内容脉络"
-            description="精选封面、最近维护与公开资料摘要，让首页更像内容入口，而不是功能说明页。"
-            actions={
-              <Link href="/talents" className="ui-button-secondary text-sm">
-                打开达人索引
-              </Link>
-            }
-          >
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {homepage.featuredTalents.map((talent) => (
-                <TalentCard key={talent.id} talent={talent} />
-              ))}
-            </div>
-          </SectionFrame>
-        </PublicReveal>
+        {homepage.futureEvents.length > 0 ? (
+          <PublicReveal>
+            <SectionFrame
+              eyebrow="Upcoming Events"
+              title="优先看到即将发生的活动"
+              description="按阵容规模优先浏览未来活动，把时间、城市、阵容与详情入口压缩到同一屏。"
+              actions={
+                <Link href="/events?eventStatus=future&sort=lineupSize" className="ui-button-secondary text-sm">
+                  查看全部活动
+                </Link>
+              }
+            >
+              <div className="grid gap-6">
+                {homepage.futureEvents.map((event) => (
+                  <EventCard key={event.event.id} item={event} />
+                ))}
+              </div>
+            </SectionFrame>
+          </PublicReveal>
+        ) : null}
 
         <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <PublicReveal>
@@ -147,26 +149,24 @@ export default async function HomePage() {
           </PublicReveal>
         </div>
 
-        {homepage.futureEvents.length > 0 ? (
-          <PublicReveal>
-            <SectionFrame
-              eyebrow="Upcoming Events"
-              title="优先看到即将发生的活动"
-              description="按阵容规模优先浏览未来活动，把时间、城市、阵容与详情入口压缩到同一屏。"
-              actions={
-                <Link href="/events?eventStatus=future&sort=lineupSize" className="ui-button-secondary text-sm">
-                  查看全部活动
-                </Link>
-              }
-            >
-              <div className="grid gap-6">
-                {homepage.futureEvents.map((event) => (
-                  <EventCard key={event.event.id} item={event} />
-                ))}
-              </div>
-            </SectionFrame>
-          </PublicReveal>
-        ) : null}
+        <PublicReveal>
+          <SectionFrame
+            eyebrow="Featured Talents"
+            title="从重点人物进入内容脉络"
+            description="精选封面、最近维护与公开资料摘要，让首页更像内容入口，而不是功能说明页。"
+            actions={
+              <Link href="/talents" className="ui-button-secondary text-sm">
+                打开达人索引
+              </Link>
+            }
+          >
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {homepage.featuredTalents.map((talent) => (
+                <TalentCard key={talent.id} talent={talent} />
+              ))}
+            </div>
+          </SectionFrame>
+        </PublicReveal>
       </div>
     </PageShell>
   );

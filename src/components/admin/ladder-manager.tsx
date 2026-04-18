@@ -103,7 +103,9 @@ export function LadderManager({ ladder, talents }: LadderManagerProps) {
             </div>
           ))}
           {unassignedTalents.length === 0 ? (
-            <div className="flex min-h-10 items-center text-sm ui-subtle">把达人拖回这里即可移出榜单</div>
+            <div className="surface-strong flex min-h-10 items-center rounded-[1rem] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+              把达人拖回这里即可移出榜单
+            </div>
           ) : null}
         </div>
       </section>
