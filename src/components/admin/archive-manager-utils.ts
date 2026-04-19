@@ -72,20 +72,29 @@ export function createArchiveDraft(eventId: string | null, archives: EditorArchi
       eventId: "",
       note: "",
       updatedAt: "",
-    entries: []
-  };
-}
+      entries: []
+    };
+  }
 
-  return (
-    archives.find((archive) => archive.eventId === eventId) ?? {
+  const archive = archives.find((item) => item.eventId === eventId);
+  if (!archive) {
+    return {
       id: "",
       editorId: "",
       eventId,
       note: "",
       updatedAt: "",
       entries: []
-    }
-  );
+    };
+  }
+
+  return {
+    ...archive,
+    entries: archive.entries.map((entry) => ({
+      ...entry,
+      entryDate: entry.entryDate ? toDateInputValue(entry.entryDate) || null : null
+    }))
+  };
 }
 
 export function normalizeEventDraft(value: EditableEvent) {
