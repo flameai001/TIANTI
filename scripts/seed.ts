@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { hash } from "@node-rs/argon2";
-import { appEnv } from "@/lib/env";
+import { getSeedEditorCredentials } from "@/lib/env";
 import { demoSeedState } from "@/modules/domain/seed";
 import { getDb } from "@/db/client";
 import {
@@ -31,8 +31,9 @@ function toStableUuid(namespace: string, value: string) {
 }
 
 async function buildSeedState() {
+  const editorCredentials = getSeedEditorCredentials();
   const [firstPasswordHash, secondPasswordHash] = await Promise.all(
-    appEnv.editorCredentials.map((credential) => hash(credential.password))
+    editorCredentials.map((credential) => hash(credential.password))
   );
 
   const editorIds = new Map(demoSeedState.editors.map((editor) => [editor.id, toStableUuid("editor", editor.id)]));
@@ -68,7 +69,7 @@ async function buildSeedState() {
     editors: demoSeedState.editors.map((editor, index) => ({
       ...editor,
       id: editorIds.get(editor.id)!,
-      email: appEnv.editorCredentials[index]?.email ?? editor.email,
+      email: editorCredentials[index]?.email ?? editor.email,
       passwordHash: index === 0 ? firstPasswordHash : secondPasswordHash
     })),
     assets: demoSeedState.assets.map((asset) => ({

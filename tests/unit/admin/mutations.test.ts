@@ -3,6 +3,7 @@ import {
   removeTalent,
   saveArchive,
   saveAsset,
+  saveEditorName,
   saveEvent,
   saveEventBulk,
   saveLadder,
@@ -404,5 +405,16 @@ describe("admin mutations", () => {
 
     expect(saved.title).toBe("凛的天梯榜");
     expect(saved.tiers[0]?.talentIds).toEqual(["talent-yunmo", "talent-qingluan"]);
+  });
+  it("returns a sanitized editor profile when saving the editor name", async () => {
+    const saved = await saveEditorName("editor-lin", { name: "Lin QA" });
+
+    expect(saved).toMatchObject({
+      id: "editor-lin",
+      slug: "lin",
+      name: "Lin QA"
+    });
+    expect(saved).not.toHaveProperty("email");
+    expect(saved).not.toHaveProperty("passwordHash");
   });
 });

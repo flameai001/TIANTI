@@ -8,11 +8,13 @@
 # coverage / reports
 /playwright-report
 /test-results
+/.playwright-cli
 
 # local env
 .env
 .env.local
 .env*.local
+/.env.vercel.*
 
 # misc
 *.log

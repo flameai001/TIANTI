@@ -1,17 +1,37 @@
 import { hashSync } from "@node-rs/argon2";
-import { appEnv } from "@/lib/env";
+import { getSeedEditorCredentials } from "@/lib/env";
 import { demoSeedState } from "@/modules/domain/seed";
-import type { ContentState } from "@/modules/domain/types";
+import type { ContentState, EditorAccount, EditorProfile, RepositoryState } from "@/modules/domain/types";
 
-function cloneState(state: ContentState): ContentState {
-  return JSON.parse(JSON.stringify(state)) as ContentState;
+function cloneState(state: RepositoryState): RepositoryState {
+  return JSON.parse(JSON.stringify(state)) as RepositoryState;
+}
+
+export function toEditorProfile(editor: EditorAccount): EditorProfile {
+  return {
+    id: editor.id,
+    slug: editor.slug,
+    name: editor.name,
+    title: editor.title,
+    bio: editor.bio,
+    accent: editor.accent,
+    intro: editor.intro
+  };
+}
+
+export function toContentState(state: RepositoryState): ContentState {
+  return {
+    ...state,
+    editors: state.editors.map(toEditorProfile)
+  };
 }
 
 function createInitialMockState() {
   const state = cloneState(demoSeedState);
+  const editorCredentials = getSeedEditorCredentials({ allowDefaults: true });
 
   state.editors = state.editors.map((editor, index) => {
-    const credential = appEnv.editorCredentials[index];
+    const credential = editorCredentials[index];
 
     if (!credential) {
       return editor;
@@ -28,7 +48,7 @@ function createInitialMockState() {
 }
 
 declare global {
-  var __tiantiMockState: ContentState | undefined;
+  var __tiantiMockState: RepositoryState | undefined;
 }
 
 export function getMockState() {
@@ -39,7 +59,7 @@ export function getMockState() {
   return globalThis.__tiantiMockState;
 }
 
-export function setMockState(nextState: ContentState) {
+export function setMockState(nextState: RepositoryState) {
   globalThis.__tiantiMockState = nextState;
 }
 

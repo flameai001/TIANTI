@@ -48,26 +48,79 @@ const envSchema = z.object({
 
 const parsedEnv = envSchema.parse(process.env);
 
+const defaultEditorCredentials = [
+  {
+    slot: 1,
+    email: "lin@example.com",
+    password: "changeme-one"
+  },
+  {
+    slot: 2,
+    email: "yu@example.com",
+    password: "changeme-two"
+  }
+] as const;
+
 export const appEnv = {
   ...parsedEnv,
   contentMode: parsedEnv.TIANTI_CONTENT_MODE ?? "mock",
   cronSecret: parsedEnv.CRON_SECRET?.trim() ?? null,
   orphanAssetCleanupLimit: parsedEnv.ORPHAN_ASSET_CLEANUP_LIMIT ?? 50,
   orphanAssetGraceMinutes: parsedEnv.ORPHAN_ASSET_GRACE_MINUTES ?? 30,
-  storageMode: parsedEnv.TIANTI_STORAGE_MODE ?? "mock",
-  editorCredentials: [
-    {
-      slot: 1,
-      email: parsedEnv.SEED_EDITOR_ONE_EMAIL ?? "lin@example.com",
-      password: parsedEnv.SEED_EDITOR_ONE_PASSWORD ?? "changeme-one"
-    },
-    {
-      slot: 2,
-      email: parsedEnv.SEED_EDITOR_TWO_EMAIL ?? "yu@example.com",
-      password: parsedEnv.SEED_EDITOR_TWO_PASSWORD ?? "changeme-two"
-    }
-  ]
+  storageMode: parsedEnv.TIANTI_STORAGE_MODE ?? "mock"
 };
+
+function resolveSeedEditorCredential(
+  slot: 1 | 2,
+  email: string | undefined,
+  password: string | undefined,
+  allowDefaults: boolean
+) {
+  const fallback = defaultEditorCredentials[slot - 1];
+  const normalizedEmail = email?.trim();
+  const normalizedPassword = password?.trim();
+
+  if (normalizedEmail && normalizedPassword) {
+    return {
+      slot,
+      email: normalizedEmail,
+      password: normalizedPassword
+    };
+  }
+
+  if (allowDefaults) {
+    return { ...fallback };
+  }
+
+  const label = slot === 1 ? "ONE" : "TWO";
+  const missing = [
+    !normalizedEmail ? `SEED_EDITOR_${label}_EMAIL` : null,
+    !normalizedPassword ? `SEED_EDITOR_${label}_PASSWORD` : null
+  ].filter(Boolean);
+
+  throw new Error(
+    `Missing ${missing.join(", ")}. Set explicit editor seed credentials before running seeded non-mock content flows.`
+  );
+}
+
+export function getSeedEditorCredentials(options: { allowDefaults?: boolean } = {}) {
+  const allowDefaults = options.allowDefaults ?? false;
+
+  return [
+    resolveSeedEditorCredential(
+      1,
+      parsedEnv.SEED_EDITOR_ONE_EMAIL,
+      parsedEnv.SEED_EDITOR_ONE_PASSWORD,
+      allowDefaults
+    ),
+    resolveSeedEditorCredential(
+      2,
+      parsedEnv.SEED_EDITOR_TWO_EMAIL,
+      parsedEnv.SEED_EDITOR_TWO_PASSWORD,
+      allowDefaults
+    )
+  ] as const;
+}
 
 function normalizeHttpUrl(value: string, label: string) {
   const trimmed = value.trim();

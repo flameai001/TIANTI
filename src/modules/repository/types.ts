@@ -1,6 +1,8 @@
 import type {
   Asset,
   ContentState,
+  EditorAccount,
+  EditorProfile,
   EditorArchive,
   EditorLadder,
   Event,
@@ -10,8 +12,8 @@ import type {
 
 export interface ContentRepository {
   getState(): Promise<ContentState>;
-  findEditorByEmail(email: string): Promise<ContentState["editors"][number] | null>;
-  updateEditorName(editorId: string, name: string): Promise<ContentState["editors"][number]>;
+  findEditorByEmail(email: string): Promise<EditorAccount | null>;
+  updateEditorName(editorId: string, name: string): Promise<EditorProfile>;
   createSession(session: SessionRecord): Promise<void>;
   getSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null>;
   deleteSessionByTokenHash(tokenHash: string): Promise<void>;

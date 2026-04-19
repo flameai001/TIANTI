@@ -1,6 +1,6 @@
-import type { ContentState } from "@/modules/domain/types";
+import type { RepositoryState } from "@/modules/domain/types";
 
-export const demoSeedState: ContentState = {
+export const demoSeedState: RepositoryState = {
   editors: [
     {
       id: "editor-lin",

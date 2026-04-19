@@ -26,6 +26,9 @@ export interface EditorProfile {
   bio: string;
   accent: string;
   intro: string;
+}
+
+export interface EditorAccount extends EditorProfile {
   email: string;
   passwordHash: string;
 }
@@ -146,6 +149,10 @@ export interface ContentState {
   ladders: EditorLadder[];
   archives: EditorArchive[];
   sessions: SessionRecord[];
+}
+
+export interface RepositoryState extends Omit<ContentState, "editors"> {
+  editors: EditorAccount[];
 }
 
 export interface TalentSummary {

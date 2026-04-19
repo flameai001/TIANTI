@@ -54,4 +54,39 @@ describe("env helpers", () => {
       limit: 50
     });
   });
+
+  it("requires explicit seed editor credentials for non-mock seeded flows", async () => {
+    const { getSeedEditorCredentials } = await loadEnvModule({
+      TIANTI_CONTENT_MODE: "database",
+      SEED_EDITOR_ONE_EMAIL: undefined,
+      SEED_EDITOR_ONE_PASSWORD: undefined,
+      SEED_EDITOR_TWO_EMAIL: undefined,
+      SEED_EDITOR_TWO_PASSWORD: undefined
+    });
+
+    expect(() => getSeedEditorCredentials()).toThrow("Missing SEED_EDITOR_ONE_EMAIL");
+  });
+
+  it("allows default seed editor credentials in mock mode", async () => {
+    const { getSeedEditorCredentials } = await loadEnvModule({
+      TIANTI_CONTENT_MODE: "mock",
+      SEED_EDITOR_ONE_EMAIL: undefined,
+      SEED_EDITOR_ONE_PASSWORD: undefined,
+      SEED_EDITOR_TWO_EMAIL: undefined,
+      SEED_EDITOR_TWO_PASSWORD: undefined
+    });
+
+    expect(getSeedEditorCredentials({ allowDefaults: true })).toEqual([
+      {
+        slot: 1,
+        email: "lin@example.com",
+        password: "changeme-one"
+      },
+      {
+        slot: 2,
+        email: "yu@example.com",
+        password: "changeme-two"
+      }
+    ]);
+  });
 });

@@ -1,17 +1,17 @@
 import "server-only";
 
-import { getMockState, setMockState } from "@/modules/repository/mock-store";
+import { getMockState, setMockState, toContentState, toEditorProfile } from "@/modules/repository/mock-store";
 import type { ContentRepository } from "@/modules/repository/types";
-import type { ContentState } from "@/modules/domain/types";
+import type { EditorProfile, RepositoryState } from "@/modules/domain/types";
 
-function replaceState(mutator: (state: ContentState) => ContentState) {
+function replaceState(mutator: (state: RepositoryState) => RepositoryState) {
   const current = getMockState();
   const next = mutator(structuredClone(current));
   setMockState(next);
   return next;
 }
 
-function isAssetReferenced(state: ContentState, assetId: string) {
+function isAssetReferenced(state: RepositoryState, assetId: string) {
   return state.talents.some(
     (talent) =>
       talent.coverAssetId === assetId ||
@@ -26,14 +26,14 @@ function isAssetReferenced(state: ContentState, assetId: string) {
 
 export const mockRepository: ContentRepository = {
   async getState() {
-    return structuredClone(getMockState());
+    return toContentState(structuredClone(getMockState()));
   },
   async findEditorByEmail(email) {
     const editor = getMockState().editors.find((item) => item.email.toLowerCase() === email.toLowerCase());
     return editor ? structuredClone(editor) : null;
   },
   async updateEditorName(editorId, name) {
-    let nextEditor: ContentState["editors"][number] | null = null;
+    let nextEditor: EditorProfile | null = null;
 
     replaceState((state) => {
       const index = state.editors.findIndex((item) => item.id === editorId);
@@ -45,7 +45,7 @@ export const mockRepository: ContentRepository = {
         ...state.editors[index],
         name
       };
-      nextEditor = structuredClone(state.editors[index]);
+      nextEditor = toEditorProfile(state.editors[index]);
       return state;
     });
 

@@ -22,10 +22,32 @@ import {
 import type {
   Asset,
   ContentState,
+  EditorAccount,
+  EditorProfile,
   Event,
   Talent
 } from "@/modules/domain/types";
 import type { ContentRepository } from "@/modules/repository/types";
+
+function toEditorProfile(row: typeof editors.$inferSelect): EditorProfile {
+  return {
+    id: row.id,
+    slug: row.slug as EditorProfile["slug"],
+    name: row.name,
+    title: row.title,
+    bio: row.bio,
+    accent: row.accent,
+    intro: row.intro
+  };
+}
+
+function toEditorAccount(row: typeof editors.$inferSelect): EditorAccount {
+  return {
+    ...toEditorProfile(row),
+    email: row.email,
+    passwordHash: row.passwordHash
+  };
+}
 
 async function loadState(): Promise<ContentState> {
   const db = getDb();
@@ -84,17 +106,7 @@ async function loadState(): Promise<ContentState> {
   }
 
   return {
-    editors: editorRows.map((row) => ({
-      id: row.id,
-      slug: row.slug as ContentState["editors"][number]["slug"],
-      name: row.name,
-      title: row.title,
-      bio: row.bio,
-      accent: row.accent,
-      intro: row.intro,
-      email: row.email,
-      passwordHash: row.passwordHash
-    })),
+    editors: editorRows.map((row) => toEditorProfile(row)),
     sessions: sessionRows.map((row) => ({
       id: row.id,
       editorId: row.editorId,
@@ -269,17 +281,7 @@ export const postgresRepository: ContentRepository = {
     const row = rows[0];
 
     return row
-      ? {
-          id: row.id,
-          slug: row.slug as ContentState["editors"][number]["slug"],
-          name: row.name,
-          title: row.title,
-          bio: row.bio,
-          accent: row.accent,
-          intro: row.intro,
-          email: row.email,
-          passwordHash: row.passwordHash
-        }
+      ? toEditorAccount(row)
       : null;
   },
   async updateEditorName(editorId, name) {
@@ -299,17 +301,7 @@ export const postgresRepository: ContentRepository = {
       throw new Error("当前编辑者不存在。");
     }
 
-    return {
-      id: row.id,
-      slug: row.slug as ContentState["editors"][number]["slug"],
-      name: row.name,
-      title: row.title,
-      bio: row.bio,
-      accent: row.accent,
-      intro: row.intro,
-      email: row.email,
-      passwordHash: row.passwordHash
-    };
+    return toEditorProfile(row);
   },
   async createSession(session) {
     const db = getDb();
