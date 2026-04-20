@@ -263,7 +263,6 @@ async function main() {
         sceneAssetId: entry.sceneAssetId,
         sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
         cosplayTitle: entry.cosplayTitle,
-        recognized: entry.recognized,
         hasSharedPhoto: entry.hasSharedPhoto
       }))
     )

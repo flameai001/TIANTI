@@ -10,7 +10,6 @@ import type { Asset } from "@/modules/domain/types";
 interface EventArchiveCardProps {
   canToggleSharedPhoto?: boolean;
   cosplayTitle: string;
-  recognized: boolean;
   sceneAsset?: Asset | null;
   sharedPhotoAsset?: Asset | null;
   talentId: string;
@@ -21,7 +20,6 @@ interface EventArchiveCardProps {
 export function EventArchiveCard({
   canToggleSharedPhoto = false,
   cosplayTitle,
-  recognized,
   sceneAsset,
   sharedPhotoAsset,
   talentId,
@@ -66,7 +64,6 @@ export function EventArchiveCard({
         </Link>
         <p className="text-sm ui-subtle">{cosplayTitle}</p>
         <div className="flex items-center gap-3 text-xs uppercase tracking-[0.15em] ui-muted">
-          <span>{recognized ? "已认出" : "未认出"}</span>
           {sharedPhotoAsset ? (
             canToggleSharedPhoto ? (
               <button

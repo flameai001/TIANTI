@@ -177,7 +177,6 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                                 talentSlug={entry.talent.slug}
                                 talentName={entry.talent.nickname}
                                 cosplayTitle={entry.entry.cosplayTitle}
-                                recognized={entry.entry.recognized}
                                 sceneAsset={entry.sceneAsset}
                                 sharedPhotoAsset={entry.sharedPhotoAsset}
                               />
