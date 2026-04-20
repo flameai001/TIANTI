@@ -343,7 +343,7 @@ export default async function TalentDetailPage({
             {detail.fieldRecords.length > 0 ? (
               <HorizontalCardRail
                 controlsLabel="现场记录"
-                itemStyle={{ width: "min(19rem, calc(100vw - 5rem))" }}
+                itemStyle={{ width: "min(20rem, calc(100vw - 5rem))" }}
                 testIdPrefix="field-records-rail"
               >
                 {detail.fieldRecords.map((record, index) => (
@@ -351,9 +351,27 @@ export default async function TalentDetailPage({
                     key={record.id}
                     href={getEventPath(record.event)}
                     data-testid={`field-record-card-${index}`}
-                    className="surface flex h-full min-h-[13.5rem] flex-col justify-between rounded-[1.9rem] p-5 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
+                    className="surface flex h-full flex-col overflow-hidden rounded-[1.9rem] transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
                   >
-                    <div className="space-y-3">
+                    <div
+                      className="relative"
+                      style={{
+                        aspectRatio: getAssetDisplayPreset(record.asset?.kind ?? "event_scene", record.asset).aspectStyle
+                      }}
+                    >
+                      {record.asset ? (
+                        <Image
+                          src={record.asset.url}
+                          alt={record.asset.alt}
+                          fill
+                          sizes="(min-width: 1280px) 28vw, (min-width: 768px) 42vw, 100vw"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-transparent" />
+                      )}
+                    </div>
+                    <div className="space-y-3 p-5">
                       <p data-testid={`field-record-card-title-${index}`} className="text-lg leading-7 text-[var(--foreground)]">
                         {record.roleSummary}
                       </p>

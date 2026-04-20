@@ -12,6 +12,7 @@ import {
 import { compareByPinyin } from "@/lib/pinyin";
 import { matchesPublicIdentifier } from "@/lib/public-path";
 import type {
+  Asset,
   ArchiveEntry,
   ArchiveEntryDisplayItem,
   ArchiveEntryGroup,
@@ -789,7 +790,15 @@ function getTalentFieldRecordSortTime(record: Pick<TalentFieldRecordItem, "recor
   return getDateSortTime(record.recordDate) ?? getEventPrimaryTime(record.event) ?? Number.NEGATIVE_INFINITY;
 }
 
-function buildTalentFieldRecords(state: ContentState, talentId: string): TalentFieldRecordItem[] {
+function getArchiveEntryPreviewAsset(assetMap: Map<string, Asset>, entry: ArchiveEntry) {
+  return (
+    (entry.sceneAssetId ? assetMap.get(entry.sceneAssetId) ?? null : null) ??
+    (entry.sharedPhotoAssetId ? assetMap.get(entry.sharedPhotoAssetId) ?? null : null) ??
+    null
+  );
+}
+
+function buildTalentFieldRecords(state: ContentState, talentId: string, assetMap: Map<string, Asset>): TalentFieldRecordItem[] {
   const eventMap = byId(state.events);
   const grouped = new Map<
     string,
@@ -797,6 +806,7 @@ function buildTalentFieldRecords(state: ContentState, talentId: string): TalentF
       event: Event;
       recordDate: string | null;
       roleTexts: string[];
+      asset: Asset | null;
     }
   >();
 
@@ -816,16 +826,19 @@ function buildTalentFieldRecords(state: ContentState, talentId: string): TalentF
       const normalizedDate = dateKey ? toDateOnlyIso(dateKey) : null;
       const groupKey = `${event.id}:${dateKey ?? "undated"}`;
       const current = grouped.get(groupKey);
+      const previewAsset = getArchiveEntryPreviewAsset(assetMap, entry);
 
       if (current) {
         current.roleTexts.push(entry.cosplayTitle);
+        current.asset ??= previewAsset;
         continue;
       }
 
       grouped.set(groupKey, {
         event,
         recordDate: normalizedDate,
-        roleTexts: [entry.cosplayTitle]
+        roleTexts: [entry.cosplayTitle],
+        asset: previewAsset
       });
     }
   }
@@ -836,7 +849,8 @@ function buildTalentFieldRecords(state: ContentState, talentId: string): TalentF
       event: item.event,
       recordDate: item.recordDate,
       roleSummary: collectDistinctTexts(item.roleTexts).join(" / ") || "未记录角色 / 作品 / 游戏",
-      locationSummary: buildLocationSummary(item.event)
+      locationSummary: buildLocationSummary(item.event),
+      asset: item.asset
     }))
     .sort((left, right) => {
       const sortTimeDiff = getTalentFieldRecordSortTime(right) - getTalentFieldRecordSortTime(left);
@@ -907,7 +921,7 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
         ...representation,
         asset: representation.assetId ? assetMap.get(representation.assetId) ?? null : null
       })),
-    fieldRecords: buildTalentFieldRecords(state, talent.id),
+    fieldRecords: buildTalentFieldRecords(state, talent.id, assetMap),
     futureEvents,
     pastEvents,
     relatedTalents,

@@ -164,6 +164,7 @@ test("multi-day event lineups are grouped by date in admin, list cards, and deta
 test("talent field record cards link into the related event detail", async ({ page }) => {
   await page.goto("/talents/talent-qingluan");
   await expect(page.getByTestId("field-record-card-title-0")).toBeVisible();
+  await expect(page.getByTestId("field-record-card-0").locator("img").first()).toBeVisible();
   await page.getByTestId("field-record-card-0").click();
   await expect(page).toHaveURL(/\/events\/event-mist-lantern$/);
 });

@@ -226,6 +226,7 @@ export interface TalentFieldRecordItem {
   recordDate: string | null;
   roleSummary: string;
   locationSummary: string;
+  asset: Asset | null;
 }
 
 export interface TalentDetail {

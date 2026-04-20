@@ -484,7 +484,7 @@ describe("domain queries", () => {
             talentId: "talent-yunmo",
             entryDate: "2026-06-02T12:00:00.000Z",
             sceneAssetId: null,
-            sharedPhotoAssetId: null,
+            sharedPhotoAssetId: "asset-shared-1",
             cosplayTitle: "Role Alpha",
             hasSharedPhoto: false
           }
@@ -501,7 +501,7 @@ describe("domain queries", () => {
             id: "archive-field-record-shared-day-yu-entry-1",
             talentId: "talent-yunmo",
             entryDate: "2026-06-02T12:00:00.000Z",
-            sceneAssetId: null,
+            sceneAssetId: "asset-scene-2",
             sharedPhotoAssetId: null,
             cosplayTitle: "Role Beta",
             hasSharedPhoto: false
@@ -518,7 +518,8 @@ describe("domain queries", () => {
         event: expect.objectContaining({ id: "event-field-record-shared-day" }),
         recordDate: "2026-06-02T12:00:00.000Z",
         roleSummary: "Role Beta / Role Alpha",
-        locationSummary: "Shanghai / River Hall"
+        locationSummary: "Shanghai / River Hall",
+        asset: expect.objectContaining({ id: "asset-scene-2" })
       })
     );
   });

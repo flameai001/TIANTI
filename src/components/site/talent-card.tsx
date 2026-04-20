@@ -40,7 +40,7 @@ export function TalentCard({ talent }: { talent: TalentSummary }) {
           <h3 className="text-2xl tracking-[-0.03em] text-[var(--foreground)]">{talent.nickname}</h3>
           {talent.futureLocationHint ? <p className="text-sm ui-subtle">{talent.futureLocationHint}</p> : null}
         </div>
-        <p className="line-clamp-1 text-sm leading-7 ui-subtle">{talent.bioPreviewLine || "暂未公开简介。"}</p>
+        <p className="line-clamp-1 text-sm leading-7 ui-subtle">{talent.bioPreviewLine ?? ""}</p>
       </div>
     </Link>
   );
