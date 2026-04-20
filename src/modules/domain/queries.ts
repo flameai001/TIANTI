@@ -31,6 +31,7 @@ import type {
   Talent,
   TalentDetail,
   TalentEventTimelineItem,
+  TalentFieldRecordItem,
   TalentSummary
 } from "@/modules/domain/types";
 
@@ -136,6 +137,11 @@ function getArchiveEditorIdsForEvent(state: ContentState, eventId: string) {
 
 function collectDistinctTexts(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function buildLocationSummary(event: Event) {
+  const parts = [event.city, event.venue].map((value) => value.trim()).filter(Boolean);
+  return parts.length > 0 ? parts.join(" / ") : "地点待定";
 }
 
 function splitQuery(value?: string) {
@@ -779,6 +785,74 @@ function buildTalentPastTimelineItems(state: ContentState, talentId: string): Ta
   }));
 }
 
+function getTalentFieldRecordSortTime(record: Pick<TalentFieldRecordItem, "recordDate" | "event">) {
+  return getDateSortTime(record.recordDate) ?? getEventPrimaryTime(record.event) ?? Number.NEGATIVE_INFINITY;
+}
+
+function buildTalentFieldRecords(state: ContentState, talentId: string): TalentFieldRecordItem[] {
+  const eventMap = byId(state.events);
+  const grouped = new Map<
+    string,
+    {
+      event: Event;
+      recordDate: string | null;
+      roleTexts: string[];
+    }
+  >();
+
+  for (const archive of sortByDateDesc(state.archives)) {
+    const event = eventMap.get(archive.eventId);
+    if (!event) {
+      continue;
+    }
+
+    for (const entry of archive.entries) {
+      if (entry.talentId !== talentId) {
+        continue;
+      }
+
+      const resolvedDate = getResolvedArchiveEntryDate(state, event, entry);
+      const dateKey = getDateOnlyKey(resolvedDate);
+      const normalizedDate = dateKey ? toDateOnlyIso(dateKey) : null;
+      const groupKey = `${event.id}:${dateKey ?? "undated"}`;
+      const current = grouped.get(groupKey);
+
+      if (current) {
+        current.roleTexts.push(entry.cosplayTitle);
+        continue;
+      }
+
+      grouped.set(groupKey, {
+        event,
+        recordDate: normalizedDate,
+        roleTexts: [entry.cosplayTitle]
+      });
+    }
+  }
+
+  return [...grouped.entries()]
+    .map(([id, item]) => ({
+      id,
+      event: item.event,
+      recordDate: item.recordDate,
+      roleSummary: collectDistinctTexts(item.roleTexts).join(" / ") || "未记录角色 / 作品 / 游戏",
+      locationSummary: buildLocationSummary(item.event)
+    }))
+    .sort((left, right) => {
+      const sortTimeDiff = getTalentFieldRecordSortTime(right) - getTalentFieldRecordSortTime(left);
+      if (sortTimeDiff !== 0) {
+        return sortTimeDiff;
+      }
+
+      const eventTimeDiff = (getEventPrimaryTime(right.event) ?? Number.NEGATIVE_INFINITY) - (getEventPrimaryTime(left.event) ?? Number.NEGATIVE_INFINITY);
+      if (eventTimeDiff !== 0) {
+        return eventTimeDiff;
+      }
+
+      return compareByPinyin(left.event.name, right.event.name);
+    });
+}
+
 export function getTalentDetail(state: ContentState, slug: string): TalentDetail | null {
   const assetMap = byId(state.assets);
   const talent = state.talents.find((item) => matchesPublicIdentifier(item, slug));
@@ -833,6 +907,7 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
         ...representation,
         asset: representation.assetId ? assetMap.get(representation.assetId) ?? null : null
       })),
+    fieldRecords: buildTalentFieldRecords(state, talent.id),
     futureEvents,
     pastEvents,
     relatedTalents,

@@ -220,10 +220,19 @@ export interface TalentEventTimelineItem {
   detailText: string | null;
 }
 
+export interface TalentFieldRecordItem {
+  id: string;
+  event: Event;
+  recordDate: string | null;
+  roleSummary: string;
+  locationSummary: string;
+}
+
 export interface TalentDetail {
   talent: Talent;
   cover: Asset | null;
   representationAssets: Array<TalentRepresentation & { asset: Asset | null }>;
+  fieldRecords: TalentFieldRecordItem[];
   futureEvents: TalentEventTimelineItem[];
   pastEvents: TalentEventTimelineItem[];
   relatedTalents: RelatedTalentSummary[];

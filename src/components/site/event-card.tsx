@@ -31,7 +31,7 @@ export function EventCard({ item }: { item: EventSummary }) {
           item.lineupGroups.map((group) => (
             <div key={group.date ?? "single"} className="space-y-3">
               {group.label ? <p className="ui-kicker">{group.label}</p> : null}
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
                 {group.items.map((lineup) => (
                   <div key={lineup.lineup.id} className="surface-strong rounded-[1.15rem] p-3">
                     <p className="text-sm text-[var(--foreground)]">{lineup.talent.nickname}</p>

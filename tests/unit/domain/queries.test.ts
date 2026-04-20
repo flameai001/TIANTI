@@ -455,6 +455,196 @@ describe("domain queries", () => {
     expect(detail?.pastEvents[0]?.detailText).toContain(archiveRole);
   });
 
+  it("aggregates talent field records across editors for the same event day", () => {
+    const state = structuredClone(demoSeedState);
+    state.events.push({
+      id: "event-field-record-shared-day",
+      slug: "event-field-record-shared-day",
+      name: "Field Record Shared Day",
+      aliases: [],
+      searchKeywords: [],
+      startsAt: "2026-06-02T12:00:00.000Z",
+      endsAt: "2026-06-02T12:00:00.000Z",
+      city: "Shanghai",
+      venue: "River Hall",
+      status: "past",
+      note: "",
+      updatedAt: "2026-06-03T00:00:00.000Z"
+    });
+    state.archives.push(
+      {
+        id: "archive-field-record-shared-day-lin",
+        editorId: "editor-lin",
+        eventId: "event-field-record-shared-day",
+        note: "",
+        updatedAt: "2026-06-03T08:00:00.000Z",
+        entries: [
+          {
+            id: "archive-field-record-shared-day-lin-entry-1",
+            talentId: "talent-yunmo",
+            entryDate: "2026-06-02T12:00:00.000Z",
+            sceneAssetId: null,
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Role Alpha",
+            hasSharedPhoto: false
+          }
+        ]
+      },
+      {
+        id: "archive-field-record-shared-day-yu",
+        editorId: "editor-yu",
+        eventId: "event-field-record-shared-day",
+        note: "",
+        updatedAt: "2026-06-03T10:00:00.000Z",
+        entries: [
+          {
+            id: "archive-field-record-shared-day-yu-entry-1",
+            talentId: "talent-yunmo",
+            entryDate: "2026-06-02T12:00:00.000Z",
+            sceneAssetId: null,
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Role Beta",
+            hasSharedPhoto: false
+          }
+        ]
+      }
+    );
+
+    const detail = getTalentDetail(state, "talent-yunmo");
+
+    expect(detail?.fieldRecords).toHaveLength(1);
+    expect(detail?.fieldRecords[0]).toEqual(
+      expect.objectContaining({
+        event: expect.objectContaining({ id: "event-field-record-shared-day" }),
+        recordDate: "2026-06-02T12:00:00.000Z",
+        roleSummary: "Role Beta / Role Alpha",
+        locationSummary: "Shanghai / River Hall"
+      })
+    );
+  });
+
+  it("splits multi-day talent field records by day, deduplicates roles, and sorts newest first", () => {
+    const state = structuredClone(demoSeedState);
+    state.events.push({
+      id: "event-field-record-multi-day",
+      slug: "event-field-record-multi-day",
+      name: "Field Record Multi Day",
+      aliases: [],
+      searchKeywords: [],
+      startsAt: "2026-06-01T12:00:00.000Z",
+      endsAt: "2026-06-02T12:00:00.000Z",
+      city: "Nanjing",
+      venue: "North Stage",
+      status: "past",
+      note: "",
+      updatedAt: "2026-06-03T00:00:00.000Z"
+    });
+    state.archives.push(
+      {
+        id: "archive-field-record-multi-day-lin",
+        editorId: "editor-lin",
+        eventId: "event-field-record-multi-day",
+        note: "",
+        updatedAt: "2026-06-03T08:00:00.000Z",
+        entries: [
+          {
+            id: "archive-field-record-multi-day-lin-entry-1",
+            talentId: "talent-zhaoying",
+            entryDate: "2026-06-01T12:00:00.000Z",
+            sceneAssetId: null,
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Day One Role",
+            hasSharedPhoto: false
+          },
+          {
+            id: "archive-field-record-multi-day-lin-entry-2",
+            talentId: "talent-zhaoying",
+            entryDate: "2026-06-02T12:00:00.000Z",
+            sceneAssetId: null,
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Day Two Role",
+            hasSharedPhoto: false
+          }
+        ]
+      },
+      {
+        id: "archive-field-record-multi-day-yu",
+        editorId: "editor-yu",
+        eventId: "event-field-record-multi-day",
+        note: "",
+        updatedAt: "2026-06-03T09:00:00.000Z",
+        entries: [
+          {
+            id: "archive-field-record-multi-day-yu-entry-1",
+            talentId: "talent-zhaoying",
+            entryDate: "2026-06-02T12:00:00.000Z",
+            sceneAssetId: null,
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Day Two Role",
+            hasSharedPhoto: false
+          },
+          {
+            id: "archive-field-record-multi-day-yu-entry-2",
+            talentId: "talent-zhaoying",
+            entryDate: "2026-06-02T12:00:00.000Z",
+            sceneAssetId: null,
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Side Quest",
+            hasSharedPhoto: false
+          }
+        ]
+      }
+    );
+
+    const detail = getTalentDetail(state, "talent-zhaoying");
+
+    expect(detail?.fieldRecords.map((item) => item.recordDate)).toEqual([
+      "2026-06-02T12:00:00.000Z",
+      "2026-06-01T12:00:00.000Z"
+    ]);
+    expect(detail?.fieldRecords[0]?.roleSummary).toBe("Day Two Role / Side Quest");
+    expect(detail?.fieldRecords[1]?.roleSummary).toBe("Day One Role");
+  });
+
+  it("falls back to a placeholder location summary for talent field records when city and venue are blank", () => {
+    const state = structuredClone(demoSeedState);
+    state.events.push({
+      id: "event-field-record-no-location",
+      slug: "event-field-record-no-location",
+      name: "Field Record No Location",
+      aliases: [],
+      searchKeywords: [],
+      startsAt: "2026-06-04T12:00:00.000Z",
+      endsAt: "2026-06-04T12:00:00.000Z",
+      city: "",
+      venue: "",
+      status: "past",
+      note: "",
+      updatedAt: "2026-06-05T00:00:00.000Z"
+    });
+    state.archives.push({
+      id: "archive-field-record-no-location",
+      editorId: "editor-lin",
+      eventId: "event-field-record-no-location",
+      note: "",
+      updatedAt: "2026-06-05T08:00:00.000Z",
+      entries: [
+        {
+          id: "archive-field-record-no-location-entry-1",
+          talentId: "talent-qingluan",
+          entryDate: "2026-06-04T12:00:00.000Z",
+          sceneAssetId: null,
+          sharedPhotoAssetId: null,
+          cosplayTitle: "Fallback Role",
+          hasSharedPhoto: false
+        }
+      ]
+    });
+
+    const detail = getTalentDetail(state, "talent-qingluan");
+    expect(detail?.fieldRecords[0]?.locationSummary).toBe("地点待定");
+  });
+
   it("increments the matching editor record count when a talent is added to another archive", () => {
     const state = structuredClone(demoSeedState);
     const baselineDetail = getTalentDetail(state, "talent-qingluan");

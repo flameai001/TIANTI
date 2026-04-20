@@ -228,6 +228,20 @@ button {
   padding: 1.15rem;
 }
 
+.card-rail-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.card-rail-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.card-rail-item {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
 .noise::before {
   content: "";
   position: absolute;

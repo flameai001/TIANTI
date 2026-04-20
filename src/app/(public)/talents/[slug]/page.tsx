@@ -3,11 +3,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/ui/empty-state";
+import { HorizontalCardRail } from "@/components/ui/horizontal-card-rail";
 import { PageShell } from "@/components/ui/page-shell";
 import { PublicReveal } from "@/components/ui/public-reveal";
 import { SectionFrame } from "@/components/ui/section-frame";
 import { getAssetDisplayPreset } from "@/lib/asset-display";
-import { formatDateRange } from "@/lib/date";
+import { formatDate, formatDateRange } from "@/lib/date";
 import { getEventPath, getPublicIdentifier, getTalentPath } from "@/lib/public-path";
 import { buildMetadata } from "@/lib/site";
 import { getTalentPage } from "@/modules/content/service";
@@ -290,12 +291,16 @@ export default async function TalentDetailPage({
         <PublicReveal>
           <SectionFrame eyebrow="Representation" title="代表图像" description="用图像作为中段阅读重心，减少纯文字堆叠带来的疲劳。">
             {detail.representationAssets.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+              <HorizontalCardRail
+                controlsLabel="代表图像"
+                itemStyle={{ width: "min(20rem, calc(100vw - 5rem))" }}
+                testIdPrefix="representation-rail"
+              >
                 {detail.representationAssets.map((representation, index) => (
                   <article
                     key={representation.id}
                     data-testid={`representation-card-${index}`}
-                    className="surface overflow-hidden rounded-[1.9rem]"
+                    className="surface flex h-full flex-col overflow-hidden rounded-[1.9rem]"
                   >
                     <div
                       className="relative"
@@ -322,9 +327,47 @@ export default async function TalentDetailPage({
                     </div>
                   </article>
                 ))}
-              </div>
+              </HorizontalCardRail>
             ) : (
               <EmptyState title="暂时没有公开代表图像" description="后续如果补充代表图或角色图，会优先出现在这一段。" />
+            )}
+          </SectionFrame>
+        </PublicReveal>
+
+        <PublicReveal>
+          <SectionFrame
+            eyebrow="Field Record"
+            title="现场记录"
+            description="把该达人在公开活动档案中的现场记录按活动与日期汇总，作为进入活动详情页的另一条路径。"
+          >
+            {detail.fieldRecords.length > 0 ? (
+              <HorizontalCardRail
+                controlsLabel="现场记录"
+                itemStyle={{ width: "min(19rem, calc(100vw - 5rem))" }}
+                testIdPrefix="field-records-rail"
+              >
+                {detail.fieldRecords.map((record, index) => (
+                  <Link
+                    key={record.id}
+                    href={getEventPath(record.event)}
+                    data-testid={`field-record-card-${index}`}
+                    className="surface flex h-full min-h-[13.5rem] flex-col justify-between rounded-[1.9rem] p-5 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
+                  >
+                    <div className="space-y-3">
+                      <p data-testid={`field-record-card-title-${index}`} className="text-lg leading-7 text-[var(--foreground)]">
+                        {record.roleSummary}
+                      </p>
+                      <p className="text-sm ui-subtle">{formatDate(record.recordDate)}</p>
+                      <p className="text-sm ui-subtle">{record.locationSummary}</p>
+                    </div>
+                  </Link>
+                ))}
+              </HorizontalCardRail>
+            ) : (
+              <EmptyState
+                title="暂时没有公开现场记录"
+                description="活动归档补齐后，这里会自动汇总该达人相关的现场记录。"
+              />
             )}
           </SectionFrame>
         </PublicReveal>

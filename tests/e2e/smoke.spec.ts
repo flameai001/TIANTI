@@ -150,13 +150,22 @@ test("multi-day event lineups are grouped by date in admin, list cards, and deta
   await expect(page.getByText("Day 1 source")).toHaveCount(0);
   await expect(page.getByText("Day 2 note")).toHaveCount(0);
 
-  await page.goto("/events/weekend-expo");
+  await page.getByRole("link", { name: /Weekend Expo/ }).first().click();
   await expect(page.getByText("06.01").last()).toBeVisible();
   await expect(page.getByText("06.02").last()).toBeVisible();
+  await expect(page.getByTestId("archive-rail-lin-2026-06-01-viewport")).toBeVisible();
+  await expect(page.getByTestId("archive-rail-lin-2026-06-02-viewport")).toBeVisible();
   await expect(page.getByText("Day 1 source")).toBeVisible();
   await expect(page.getByText("Day 2 note")).toBeVisible();
   await expect(page.getByText("Role Day 1")).toBeVisible();
   await expect(page.getByText("Role Day 2")).toBeVisible();
+});
+
+test("talent field record cards link into the related event detail", async ({ page }) => {
+  await page.goto("/talents/talent-qingluan");
+  await expect(page.getByTestId("field-record-card-title-0")).toBeVisible();
+  await page.getByTestId("field-record-card-0").click();
+  await expect(page).toHaveURL(/\/events\/event-mist-lantern$/);
 });
 
 test("editor can upload archive assets inline and shared-photo card toggles on the public page", async ({ page }) => {
@@ -191,6 +200,61 @@ test("editor can upload archive assets inline and shared-photo card toggles on t
   await sharedButton.click();
   await expect.poll(async () => sharedImage.evaluate((node) => getComputedStyle(node).opacity)).toBe("0");
   await publicPage.close();
+});
+
+test("event archive rails can page horizontally within a single editor date row", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/archives");
+  await page.getByTestId("new-event-button").click();
+  await page.locator('input[name="name"]').fill("Rail Expo");
+  await page.locator('input[name="startsAt"]').fill("2026-07-01");
+  await page.locator('input[name="endsAt"]').fill("2026-07-02");
+  await page.locator('input[name="city"]').fill("Shanghai");
+  await page.locator('input[name="venue"]').fill("Rail Hall");
+
+  const lineupTalentIds = ["talent-qingluan", "talent-yunmo", "talent-zhaoying", "talent-yanjin"];
+  for (const [index, talentId] of lineupTalentIds.entries()) {
+    await page.getByTestId("add-lineup").click();
+
+    await page.getByTestId(`lineup-talent-${index}`).selectOption(talentId);
+    await page.getByTestId(`lineup-date-${index}`).selectOption("2026-07-01");
+  }
+
+  await page.getByTestId("save-event").click();
+  await expect(page).toHaveURL(/\/admin\/archives\?event=/);
+  await page.getByTestId("import-lineup-entries").click();
+  await expect(page.getByTestId("archive-entry")).toHaveCount(4);
+  await page.getByTestId("archive-copy-0").click();
+  await page.getByTestId("archive-copy-0").click();
+  await page.getByTestId("archive-copy-0").click();
+  await page.getByTestId("archive-copy-0").click();
+  await expect(page.getByTestId("archive-entry")).toHaveCount(8);
+
+  for (const index of [0, 1, 2, 3, 4, 5, 6, 7]) {
+    await page.getByTestId(`archive-cosplay-${index}`).fill(`Rail Role ${index + 1}`);
+  }
+
+  await page.getByTestId("save-archive").click();
+  await waitForArchiveSaved(page);
+
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.goto("/events?eventStatus=future&q=Rail%20Expo");
+  await page.getByRole("link", { name: /Rail Expo/ }).first().click();
+
+  const viewport = page.getByTestId("archive-rail-lin-2026-07-01-viewport");
+  const nextButton = page.getByTestId("archive-rail-lin-2026-07-01-next");
+  const prevButton = page.getByTestId("archive-rail-lin-2026-07-01-prev");
+
+  await expect(viewport).toBeVisible();
+  await expect(nextButton).toBeVisible();
+
+  const initialScrollLeft = await viewport.evaluate((node) => node.scrollLeft);
+  await nextButton.click();
+  await expect.poll(async () => viewport.evaluate((node) => node.scrollLeft)).toBeGreaterThan(initialScrollLeft);
+
+  await prevButton.click();
+  await expect.poll(async () => viewport.evaluate((node) => node.scrollLeft)).toBeLessThan(20);
 });
 
 test("inline upload surfaces clear backend error messages", async ({ page }) => {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EventArchiveCard } from "@/components/site/event-archive-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { HorizontalCardRail } from "@/components/ui/horizontal-card-rail";
 import { PageShell } from "@/components/ui/page-shell";
 import { PublicReveal } from "@/components/ui/public-reveal";
 import { SectionFrame } from "@/components/ui/section-frame";
@@ -115,7 +116,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                           <span className="text-xs ui-muted">{group.items.length} 位达人</span>
                         </div>
                       ) : null}
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
                         {group.items.map((item) => (
                           <Link
                             key={item.lineup.id}
@@ -155,7 +156,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
             ) : (
               <div className="grid gap-6">
                 {detail.archives.map((archive) => (
-                  <article key={archive.archive.id} className="surface rounded-[1.9rem] p-6">
+                  <article key={archive.archive.id} className="surface min-w-0 rounded-[1.9rem] p-6">
                     <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-4 ui-divider">
                       <div>
                         <p className="ui-kicker">{archive.editor.name}</p>
@@ -167,8 +168,12 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                     <div className="mt-6 space-y-6">
                       {archive.entryGroups.map((group) => (
                         <div key={group.date ?? "undated"} className="space-y-4">
-                          {group.label ? <p className="ui-kicker">{group.label}</p> : null}
-                          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+                          <HorizontalCardRail
+                            controlsLabel={`${archive.editor.name}${group.label ? ` ${group.label}` : ""}现场记录`}
+                            heading={group.label ? <p className="ui-kicker">{group.label}</p> : null}
+                            itemStyle={{ width: "min(19rem, calc(100vw - 5rem))" }}
+                            testIdPrefix={`archive-rail-${archive.editor.slug}-${group.date ?? "undated"}`}
+                          >
                             {group.items.map((entry) => (
                               <EventArchiveCard
                                 key={entry.entry.id}
@@ -181,7 +186,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                                 sharedPhotoAsset={entry.sharedPhotoAsset}
                               />
                             ))}
-                          </div>
+                          </HorizontalCardRail>
                         </div>
                       ))}
                     </div>
