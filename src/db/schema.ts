@@ -201,6 +201,5 @@ export const archiveEntries = pgTable("archive_entries", {
     onDelete: "set null"
   }),
   cosplayTitle: text("cosplay_title").notNull(),
-  recognized: boolean("recognized").notNull().default(false),
   hasSharedPhoto: boolean("has_shared_photo").notNull().default(false)
 });

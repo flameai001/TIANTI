@@ -43,6 +43,13 @@
       "when": 1776521432937,
       "tag": "0005_dizzy_susan_delgado",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776661085722,
+      "tag": "0006_opposite_omega_sentinel",
+      "breakpoints": true
     }
   ]
 }

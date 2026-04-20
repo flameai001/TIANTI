@@ -87,7 +87,6 @@ function createArchiveEntry(
     sceneAssetId,
     sharedPhotoAssetId: null,
     cosplayTitle: "",
-    recognized: true,
     hasSharedPhoto: false
   };
 }
@@ -1160,16 +1159,7 @@ export function ArchiveManager({
                           />
                         </div>
 
-                        <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr]">
-                          <label className="flex items-center gap-3 rounded-[1rem] border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/70">
-                            <input
-                              data-testid={`archive-recognized-${index}`}
-                              type="checkbox"
-                              checked={entry.recognized}
-                              onChange={(event) => updateArchiveEntry(index, { recognized: event.target.checked })}
-                            />
-                            是否认出
-                          </label>
+                        <div className="mt-4 grid gap-4 md:grid-cols-1">
                           <label className="flex items-center gap-3 rounded-[1rem] border border-white/10 bg-black/20 px-3 py-3 text-sm text-white/70">
                             <input
                               data-testid={`archive-shared-flag-${index}`}

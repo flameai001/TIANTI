@@ -119,7 +119,6 @@ export interface ArchiveEntry {
   sceneAssetId?: string | null;
   sharedPhotoAssetId?: string | null;
   cosplayTitle: string;
-  recognized: boolean;
   hasSharedPhoto: boolean;
 }
 

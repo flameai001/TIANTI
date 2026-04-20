@@ -204,6 +204,23 @@ function getArchiveCountForTalent(state: ContentState, talentId: string) {
   );
 }
 
+function getEditorArchiveRecordCountForTalent(state: ContentState, editorId: string, talentId: string) {
+  return state.archives
+    .filter((archive) => archive.editorId === editorId)
+    .reduce((count, archive) => count + archive.entries.filter((entry) => entry.talentId === talentId).length, 0);
+}
+
+function getEditorSharedPhotoCountForTalent(state: ContentState, editorId: string, talentId: string) {
+  return state.archives
+    .filter((archive) => archive.editorId === editorId)
+    .reduce(
+      (count, archive) =>
+        count +
+        archive.entries.filter((entry) => entry.talentId === talentId && entry.hasSharedPhoto).length,
+      0
+    );
+}
+
 function getEventLineupSize(state: ContentState, eventId: string) {
   return state.lineups.filter((lineup) => lineup.eventId === eventId).length;
 }
@@ -823,15 +840,12 @@ export function getTalentDetail(state: ContentState, slug: string): TalentDetail
     editorSummaries: state.editors.map((editor) => {
       const ladder = state.ladders.find((item) => item.editorId === editor.id);
       const tierName = ladder?.tiers.find((tier) => tier.talentIds.includes(talent.id))?.name ?? null;
-      const archiveEntries = state.archives
-        .filter((archive) => archive.editorId === editor.id)
-        .flatMap((archive) => archive.entries.filter((entry) => entry.talentId === talent.id));
 
       return {
         editor,
         tierName,
-        seenCount: archiveEntries.length,
-        sharedPhotoCount: archiveEntries.filter((entry) => entry.hasSharedPhoto).length
+        seenCount: getEditorArchiveRecordCountForTalent(state, editor.id, talent.id),
+        sharedPhotoCount: getEditorSharedPhotoCountForTalent(state, editor.id, talent.id)
       };
     })
   };

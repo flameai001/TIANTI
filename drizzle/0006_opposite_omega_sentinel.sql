@@ -1,0 +1,1 @@
+ALTER TABLE "archive_entries" DROP COLUMN "recognized";

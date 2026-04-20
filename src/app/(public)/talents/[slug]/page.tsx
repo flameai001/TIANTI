@@ -169,7 +169,13 @@ export default async function TalentDetailPage({
               {detail.talent.links.length > 0 ? (
                 <div className="flex flex-wrap gap-3">
                   {detail.talent.links.map((link) => (
-                    <a key={link.id} href={link.url} className="ui-button-secondary px-4 py-2 text-sm">
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ui-button-secondary px-4 py-2 text-sm"
+                    >
                       {link.label}
                     </a>
                   ))}

@@ -18,7 +18,6 @@ describe("archive manager utils", () => {
             sceneAssetId: null,
             sharedPhotoAssetId: null,
             cosplayTitle: "Test Role",
-            recognized: true,
             hasSharedPhoto: false
           }
         ]

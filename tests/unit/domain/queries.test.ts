@@ -237,7 +237,6 @@ describe("domain queries", () => {
           sceneAssetId: "asset-scene-1",
           sharedPhotoAssetId: null,
           cosplayTitle: "Role One",
-          recognized: true,
           hasSharedPhoto: false
         },
         {
@@ -247,7 +246,6 @@ describe("domain queries", () => {
           sceneAssetId: "asset-scene-2",
           sharedPhotoAssetId: null,
           cosplayTitle: "Role Two",
-          recognized: true,
           hasSharedPhoto: false
         }
       ]
@@ -457,6 +455,37 @@ describe("domain queries", () => {
     expect(detail?.pastEvents[0]?.detailText).toContain(archiveRole);
   });
 
+  it("increments the matching editor record count when a talent is added to another archive", () => {
+    const state = structuredClone(demoSeedState);
+    const baselineDetail = getTalentDetail(state, "talent-qingluan");
+    const baselineLinCount =
+      baselineDetail?.editorSummaries.find((summary) => summary.editor.id === "editor-lin")?.seenCount ?? 0;
+
+    state.archives.push({
+      id: "archive-lin-echo",
+      editorId: "editor-lin",
+      eventId: "event-echo-market",
+      note: "New active-event archive",
+      updatedAt: "2026-04-20T08:00:00.000Z",
+      entries: [
+        {
+          id: "archive-lin-echo-entry-1",
+          talentId: "talent-qingluan",
+          entryDate: "2026-04-20T12:00:00.000Z",
+          sceneAssetId: "asset-scene-1",
+          sharedPhotoAssetId: null,
+          cosplayTitle: "Echo Role",
+          hasSharedPhoto: false
+        }
+      ]
+    });
+
+    const detail = getTalentDetail(state, "talent-qingluan");
+    const linCount = detail?.editorSummaries.find((summary) => summary.editor.id === "editor-lin")?.seenCount;
+
+    expect(linCount).toBe(baselineLinCount + 1);
+  });
+
   it("keeps past lineup talents in history once a past multi-day event has any archive entry", () => {
     const state = structuredClone(demoSeedState);
     state.events.push({
@@ -507,7 +536,6 @@ describe("domain queries", () => {
           sceneAssetId: "asset-scene-1",
           sharedPhotoAssetId: null,
           cosplayTitle: "Day One Role",
-          recognized: true,
           hasSharedPhoto: false
         }
       ]

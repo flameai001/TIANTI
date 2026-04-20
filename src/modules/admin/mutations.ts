@@ -105,7 +105,6 @@ const archiveSchema = z.object({
       sceneAssetId: z.string().nullable().optional(),
       sharedPhotoAssetId: z.string().nullable().optional(),
       cosplayTitle: z.string().min(1),
-      recognized: z.boolean(),
       hasSharedPhoto: z.boolean()
     })
   )
@@ -471,7 +470,6 @@ export async function saveArchive(editorId: string, payload: unknown) {
         sceneAssetId: entry.sceneAssetId?.trim() || null,
         sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
         cosplayTitle: entry.cosplayTitle.trim(),
-        recognized: entry.recognized,
         hasSharedPhoto: entry.hasSharedPhoto
       };
     })

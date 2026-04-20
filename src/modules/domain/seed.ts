@@ -330,7 +330,6 @@ export const demoSeedState: RepositoryState = {
           sceneAssetId: "asset-scene-1",
           sharedPhotoAssetId: "asset-shared-1",
           cosplayTitle: "《花朝记》春庭版",
-          recognized: true,
           hasSharedPhoto: true
         }
       ]
@@ -348,7 +347,6 @@ export const demoSeedState: RepositoryState = {
           sceneAssetId: "asset-scene-2",
           sharedPhotoAssetId: null,
           cosplayTitle: "《夜锦》活动舞台版",
-          recognized: true,
           hasSharedPhoto: false
         }
       ]

@@ -143,7 +143,6 @@ describe("admin mutations", () => {
             sceneAssetId: "asset-scene-1",
             sharedPhotoAssetId: null,
             cosplayTitle: "Role One",
-            recognized: true,
             hasSharedPhoto: false
           }
         ]
@@ -163,7 +162,6 @@ describe("admin mutations", () => {
             sceneAssetId: "asset-scene-1",
             sharedPhotoAssetId: null,
             cosplayTitle: "Role One",
-            recognized: true,
             hasSharedPhoto: false
           }
         ]
@@ -357,7 +355,6 @@ describe("admin mutations", () => {
           sceneAssetId: null,
           sharedPhotoAssetId: null,
           cosplayTitle: "Role One",
-          recognized: true,
           hasSharedPhoto: false
         }
       ]

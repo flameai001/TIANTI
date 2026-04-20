@@ -215,7 +215,6 @@ async function loadState(): Promise<ContentState> {
           sceneAssetId: entry.sceneAssetId ?? null,
           sharedPhotoAssetId: entry.sharedPhotoAssetId,
           cosplayTitle: entry.cosplayTitle,
-          recognized: entry.recognized,
           hasSharedPhoto: entry.hasSharedPhoto
         }))
     }))
@@ -541,7 +540,6 @@ export const postgresRepository: ContentRepository = {
           sceneAssetId: entry.sceneAssetId ?? null,
           sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
           cosplayTitle: entry.cosplayTitle,
-          recognized: entry.recognized,
           hasSharedPhoto: entry.hasSharedPhoto
         }))
       );

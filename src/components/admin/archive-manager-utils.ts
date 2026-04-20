@@ -133,7 +133,6 @@ export function normalizeArchiveDraft(value: EditorArchive) {
       sceneAssetId: entry.sceneAssetId,
       sharedPhotoAssetId: entry.sharedPhotoAssetId ?? null,
       cosplayTitle: entry.cosplayTitle.trim(),
-      recognized: entry.recognized,
       hasSharedPhoto: entry.hasSharedPhoto
     }))
   };
