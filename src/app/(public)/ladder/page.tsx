@@ -136,7 +136,7 @@ export default async function LadderPage({ searchParams }: { searchParams: Searc
                             ) : (
                               <div className="absolute inset-0 bg-transparent" />
                             )}
-                            <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+                            <div className="absolute left-4 top-4 flex flex-wrap gap-2 origin-top-left 2xl:left-3 2xl:top-3 2xl:scale-[0.72]">
                               {talent.tags.slice(0, 2).map((tag) => (
                                 <span
                                   key={tag}
