@@ -289,7 +289,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
         return {
           ...representation,
           assetId: asset.id,
-          title: representation.title || asset.title
+          title: representation.title
         };
       })
     }));

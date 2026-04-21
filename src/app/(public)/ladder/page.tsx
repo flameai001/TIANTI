@@ -21,7 +21,7 @@ function getBioPreviewLine(bio: string) {
   }
 
   const trimmedBio = bio.trim();
-  return trimmedBio || null;
+  return trimmedBio || "\u00A0";
 }
 
 export const metadata = buildMetadata({
