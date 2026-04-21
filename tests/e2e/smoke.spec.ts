@@ -288,6 +288,16 @@ test("editor can clear a current image and save the empty state", async ({ page 
   await expect(page.getByText("当前未上传图片")).toBeVisible();
 });
 
+test("editor can reopen crop for an existing image", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/talents");
+  await expect(page.getByTestId("talent-cover-upload-edit")).toBeVisible();
+  await page.getByTestId("talent-cover-upload-edit").click();
+  await expect(page.getByTestId("talent-cover-upload-crop-frame")).toBeVisible();
+  await expect(page.getByTestId("talent-cover-upload-crop-zoom")).toBeVisible();
+});
+
 test("public filters apply automatically without a filter button", async ({ page }) => {
   await page.goto("/talents");
   await page.locator('select[name="mcn"]').selectOption("浮光社");

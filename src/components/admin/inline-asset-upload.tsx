@@ -14,6 +14,7 @@ interface InlineAssetUploadProps {
   currentAsset?: Asset | null;
   onClear?: () => void;
   buttonLabel?: string;
+  editButtonLabel?: string;
   clearButtonLabel?: string;
   emptyLabel?: string;
   helperText?: string;
@@ -37,6 +38,9 @@ interface CropOffset {
   x: number;
   y: number;
 }
+
+const ZOOM_SLIDER_MAX = 1000;
+const ZOOM_SLIDER_CURVE = 1.85;
 
 function getUploadErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -87,6 +91,33 @@ function getOutputExtension(outputType: string) {
   return ".png";
 }
 
+function getSafeAssetBaseName(asset: Asset) {
+  return asset.title.trim() || "未命名图片";
+}
+
+function buildAssetEditFileName(asset: Asset, mimeType: string) {
+  return `${getSafeAssetBaseName(asset)}${getOutputExtension(getOutputType(mimeType))}`;
+}
+
+function scaleToSliderValue(scale: number, minScale: number, maxScale: number) {
+  if (maxScale <= minScale) {
+    return 0;
+  }
+
+  const progress = (scale - minScale) / (maxScale - minScale);
+  const normalizedProgress = Math.min(1, Math.max(0, progress));
+  return Math.round(Math.pow(normalizedProgress, 1 / ZOOM_SLIDER_CURVE) * ZOOM_SLIDER_MAX);
+}
+
+function sliderValueToScale(value: number, minScale: number, maxScale: number) {
+  if (maxScale <= minScale) {
+    return minScale;
+  }
+
+  const normalizedValue = Math.min(ZOOM_SLIDER_MAX, Math.max(0, value)) / ZOOM_SLIDER_MAX;
+  return minScale + (maxScale - minScale) * Math.pow(normalizedValue, ZOOM_SLIDER_CURVE);
+}
+
 function loadImageElement(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
@@ -115,6 +146,24 @@ async function createCropSession(file: File) {
     URL.revokeObjectURL(imageUrl);
     throw error;
   }
+}
+
+async function createCropSessionFromAsset(asset: Asset) {
+  const response = await fetch(asset.url);
+  if (!response.ok) {
+    throw new Error("无法读取当前图片，请重新上传后再试。");
+  }
+
+  const blob = await response.blob();
+  const file = new File([blob], buildAssetEditFileName(asset, blob.type), {
+    type: blob.type || "image/png"
+  });
+  const cropSession = await createCropSession(file);
+
+  return {
+    ...cropSession,
+    baseName: getSafeAssetBaseName(asset)
+  };
 }
 
 async function createCroppedUploadFile(
@@ -178,6 +227,7 @@ export function InlineAssetUpload({
   onUploaded,
   currentAsset = null,
   onClear,
+  editButtonLabel = "编辑当前图片",
   buttonLabel = "上传本地图片",
   clearButtonLabel = "清空当前图片",
   emptyLabel = "当前未上传图片",
@@ -195,6 +245,7 @@ export function InlineAssetUpload({
     originOffset: CropOffset;
   } | null>(null);
   const [pending, setPending] = useState(false);
+  const [preparingCrop, setPreparingCrop] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isDropActive, setIsDropActive] = useState(false);
   const [cropSession, setCropSession] = useState<CropSession | null>(null);
@@ -223,6 +274,11 @@ export function InlineAssetUpload({
   }, [cropBox, cropSession]);
   const safeScale = Math.max(scale, minScale);
   const maxScale = Math.max(minScale * 4, minScale + 1.5);
+  const zoomSliderValue = useMemo(
+    () => scaleToSliderValue(safeScale, minScale, maxScale),
+    [maxScale, minScale, safeScale]
+  );
+  const isBusy = pending || preparingCrop;
 
   useEffect(() => {
     setSelectedRatioLabel(defaultPreset.ratioLabel);
@@ -329,6 +385,25 @@ export function InlineAssetUpload({
     }
   }
 
+  async function handleEditCurrentAsset() {
+    if (!currentAsset || isBusy) {
+      return;
+    }
+
+    setPreparingCrop(true);
+    setMessage(null);
+
+    try {
+      setSelectedRatioLabel(getAssetDisplayPreset(kind, currentAsset).ratioLabel);
+      const nextCropSession = await createCropSessionFromAsset(currentAsset);
+      setCropSession(nextCropSession);
+    } catch (error) {
+      setMessage(getUploadErrorMessage(error));
+    } finally {
+      setPreparingCrop(false);
+    }
+  }
+
   function hasDraggedImageFile(dataTransfer: DataTransfer | null) {
     if (!dataTransfer) {
       return false;
@@ -357,7 +432,7 @@ export function InlineAssetUpload({
   }
 
   function handleDragEnter(event: React.DragEvent<HTMLDivElement>) {
-    if (pending) {
+    if (isBusy) {
       return;
     }
 
@@ -372,7 +447,7 @@ export function InlineAssetUpload({
   }
 
   function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
-    if (pending || !hasDraggedImageFile(event.dataTransfer)) {
+    if (isBusy || !hasDraggedImageFile(event.dataTransfer)) {
       return;
     }
 
@@ -394,7 +469,7 @@ export function InlineAssetUpload({
 
   async function handleDrop(event: React.DragEvent<HTMLDivElement>) {
     const file = getDroppedImageFile(event.dataTransfer);
-    if (!file || pending) {
+    if (!file || isBusy) {
       return;
     }
 
@@ -432,7 +507,7 @@ export function InlineAssetUpload({
   }
 
   function handleCropPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (!cropSession || !cropBox || pending) {
+    if (!cropSession || !cropBox || isBusy) {
       return;
     }
 
@@ -516,7 +591,7 @@ export function InlineAssetUpload({
             type="file"
             accept="image/*"
             className="hidden"
-            disabled={pending}
+            disabled={isBusy}
             onChange={async (event) => {
               const input = event.currentTarget;
               const file = event.target.files?.[0] ?? null;
@@ -526,12 +601,23 @@ export function InlineAssetUpload({
           />
           {pending ? "上传中..." : buttonLabel}
         </label>
+        {currentAsset ? (
+          <button
+            type="button"
+            data-testid={dataTestId ? `${dataTestId}-edit` : undefined}
+            onClick={handleEditCurrentAsset}
+            disabled={isBusy}
+            className="ui-button-secondary px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {editButtonLabel}
+          </button>
+        ) : null}
         {onClear ? (
           <button
             type="button"
             data-testid={dataTestId ? `${dataTestId}-clear` : undefined}
             onClick={onClear}
-            disabled={pending || !currentAsset}
+            disabled={isBusy || !currentAsset}
             className="rounded-full border border-[#b13b45]/45 px-3 py-2 text-xs text-[#5f0f18] disabled:cursor-not-allowed disabled:opacity-45"
           >
             {clearButtonLabel}
@@ -559,7 +645,7 @@ export function InlineAssetUpload({
               <button
                 type="button"
                 onClick={closeCropSession}
-                disabled={pending}
+                disabled={isBusy}
                 className="ui-button-secondary px-4 py-2 text-sm disabled:opacity-50"
               >
                 取消
@@ -622,7 +708,7 @@ export function InlineAssetUpload({
                               : undefined
                           }
                           onClick={() => setSelectedRatioLabel(ratioPreset.ratioLabel)}
-                          disabled={pending}
+                          disabled={isBusy}
                           className={`rounded-full border px-4 py-2 text-sm transition disabled:opacity-50 ${
                             isActive
                               ? "border-[var(--color-accent)] bg-[rgba(43,109,246,0.12)] text-[var(--foreground)]"
@@ -643,11 +729,11 @@ export function InlineAssetUpload({
                     <input
                       data-testid={dataTestId ? `${dataTestId}-crop-zoom` : undefined}
                       type="range"
-                      min={minScale}
-                      max={maxScale}
-                      step={0.01}
-                      value={safeScale}
-                      onChange={(event) => setScale(Number(event.target.value))}
+                      min={0}
+                      max={ZOOM_SLIDER_MAX}
+                      step={1}
+                      value={zoomSliderValue}
+                      onChange={(event) => setScale(sliderValueToScale(Number(event.target.value), minScale, maxScale))}
                       className="w-full accent-[var(--color-accent)]"
                     />
                     <span className="w-14 text-right text-sm ui-subtle">
@@ -669,7 +755,7 @@ export function InlineAssetUpload({
                       setOffset({ x: 0, y: 0 });
                       setScale(minScale);
                     }}
-                    disabled={pending}
+                    disabled={isBusy}
                     className="ui-button-secondary px-4 py-2 text-sm disabled:opacity-50"
                   >
                     重置取景
@@ -678,7 +764,7 @@ export function InlineAssetUpload({
                     type="button"
                     data-testid={dataTestId ? `${dataTestId}-confirm-crop` : undefined}
                     onClick={handleConfirmCrop}
-                    disabled={pending || !cropBox}
+                    disabled={isBusy || !cropBox}
                     className="rounded-full bg-[var(--color-accent)] px-5 py-2.5 text-sm uppercase tracking-[0.2em] text-black disabled:opacity-50"
                   >
                     {pending ? "上传中..." : "确认裁剪并上传"}
