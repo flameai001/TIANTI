@@ -149,9 +149,33 @@ async function createCropSession(file: File) {
 }
 
 async function createCropSessionFromAsset(asset: Asset) {
-  const response = await fetch(asset.url);
+  const response = await fetch(`/api/admin/assets?assetId=${encodeURIComponent(asset.id)}`, {
+    cache: "no-store"
+  });
   if (!response.ok) {
     throw new Error("无法读取当前图片，请重新上传后再试。");
+  }
+
+  const blob = await response.blob();
+  const file = new File([blob], buildAssetEditFileName(asset, blob.type), {
+    type: blob.type || "image/png"
+  });
+  const cropSession = await createCropSession(file);
+
+  return {
+    ...cropSession,
+    baseName: getSafeAssetBaseName(asset)
+  };
+}
+
+async function createCropSessionFromExistingAsset(asset: Asset) {
+  const response = await fetch(`/api/admin/assets?assetId=${encodeURIComponent(asset.id)}`, {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? "无法读取当前图片，请重新上传后再试。");
   }
 
   const blob = await response.blob();
@@ -395,7 +419,7 @@ export function InlineAssetUpload({
 
     try {
       setSelectedRatioLabel(getAssetDisplayPreset(kind, currentAsset).ratioLabel);
-      const nextCropSession = await createCropSessionFromAsset(currentAsset);
+      const nextCropSession = await createCropSessionFromExistingAsset(currentAsset);
       setCropSession(nextCropSession);
     } catch (error) {
       setMessage(getUploadErrorMessage(error));
@@ -599,7 +623,7 @@ export function InlineAssetUpload({
               input.value = "";
             }}
           />
-          {pending ? "上传中..." : buttonLabel}
+          {isBusy ? "处理中..." : buttonLabel}
         </label>
         {currentAsset ? (
           <button
