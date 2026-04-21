@@ -6,6 +6,7 @@ import {
   ASSET_UPLOAD_PRESET_OPTIONS,
   getAssetDisplayPreset
 } from "@/lib/asset-display";
+import { getImageFileFromTransfer, hasImageFileInTransfer } from "@/lib/image-transfer";
 import type { Asset, AssetKind } from "@/modules/domain/types";
 
 interface InlineAssetUploadProps {
@@ -148,6 +149,8 @@ async function createCropSession(file: File) {
   }
 }
 
+// Kept for parity with the existing asset-edit flow and possible future reuse.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function createCropSessionFromAsset(asset: Asset) {
   const response = await fetch(`/api/admin/assets?assetId=${encodeURIComponent(asset.id)}`, {
     cache: "no-store"
@@ -260,6 +263,7 @@ export function InlineAssetUpload({
 }: InlineAssetUploadProps) {
   const defaultPreset = useMemo(() => ASSET_DISPLAY_PRESETS[kind], [kind]);
   const uploadPresets = useMemo(() => ASSET_UPLOAD_PRESET_OPTIONS[kind], [kind]);
+  const uploadSurfaceRef = useRef<HTMLDivElement | null>(null);
   const cropFrameRef = useRef<HTMLDivElement | null>(null);
   const dragDepthRef = useRef(0);
   const dragStateRef = useRef<{
@@ -428,31 +432,13 @@ export function InlineAssetUpload({
     }
   }
 
-  function hasDraggedImageFile(dataTransfer: DataTransfer | null) {
-    if (!dataTransfer) {
-      return false;
+  function handleUploadSurfacePointerDownCapture(event: React.PointerEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || target.closest("button, input, textarea, select, a")) {
+      return;
     }
 
-    if (dataTransfer.items.length > 0) {
-      return Array.from(dataTransfer.items).some(
-        (item) => item.kind === "file" && (!item.type || item.type.startsWith("image/"))
-      );
-    }
-
-    if (dataTransfer.files.length > 0) {
-      return Array.from(dataTransfer.files).some((file) => file.type.startsWith("image/"));
-    }
-
-    return false;
-  }
-
-  function getDroppedImageFile(dataTransfer: DataTransfer | null) {
-    if (!dataTransfer?.files?.length) {
-      return null;
-    }
-
-    const imageFile = Array.from(dataTransfer.files).find((file) => file.type.startsWith("image/"));
-    return imageFile ?? null;
+    uploadSurfaceRef.current?.focus();
   }
 
   function handleDragEnter(event: React.DragEvent<HTMLDivElement>) {
@@ -460,7 +446,7 @@ export function InlineAssetUpload({
       return;
     }
 
-    const hasImageFile = hasDraggedImageFile(event.dataTransfer);
+    const hasImageFile = hasImageFileInTransfer(event.dataTransfer);
     if (!hasImageFile) {
       return;
     }
@@ -471,7 +457,7 @@ export function InlineAssetUpload({
   }
 
   function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
-    if (isBusy || !hasDraggedImageFile(event.dataTransfer)) {
+    if (isBusy || !hasImageFileInTransfer(event.dataTransfer)) {
       return;
     }
 
@@ -492,8 +478,26 @@ export function InlineAssetUpload({
   }
 
   async function handleDrop(event: React.DragEvent<HTMLDivElement>) {
-    const file = getDroppedImageFile(event.dataTransfer);
+    const file = getImageFileFromTransfer(event.dataTransfer);
     if (!file || isBusy) {
+      return;
+    }
+
+    event.preventDefault();
+    dragDepthRef.current = 0;
+    setIsDropActive(false);
+    await handleChange(file);
+  }
+
+  async function handlePaste(event: React.ClipboardEvent<HTMLDivElement>) {
+    if (isBusy) {
+      return;
+    }
+
+    const file = getImageFileFromTransfer(event.clipboardData, {
+      fallbackBaseName: "pasted-image"
+    });
+    if (!file) {
       return;
     }
 
@@ -584,13 +588,19 @@ export function InlineAssetUpload({
   return (
     <>
       <div
-        className={`flex flex-wrap items-center gap-3 rounded-[1.3rem] transition ${
+        ref={uploadSurfaceRef}
+        data-testid={dataTestId ? `${dataTestId}-surface` : undefined}
+        tabIndex={isBusy ? -1 : 0}
+        aria-label="图片上传区域，支持选择、拖拽或粘贴图片"
+        className={`flex flex-wrap items-center gap-3 rounded-[1.3rem] outline-none transition focus-visible:ring-2 focus-visible:ring-[rgba(43,109,246,0.28)] ${
           isDropActive ? "border border-dashed border-[var(--color-accent)] bg-[rgba(43,109,246,0.08)] p-3" : ""
         }`}
+        onPointerDownCapture={handleUploadSurfacePointerDownCapture}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onPaste={handlePaste}
       >
         <div className="w-full max-w-xs overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/20">
           <div className="relative" style={{ aspectRatio: previewPreset.aspectStyle }}>
@@ -650,7 +660,12 @@ export function InlineAssetUpload({
         <p className="text-[11px] text-white/42">
           {helperText ?? `上传前会按前台比例 ${preset.ratioLabel} 裁剪`}
         </p>
-        {message ? <p className="text-xs text-[#734d07]">{message}</p> : null}
+        <p className="text-[11px] text-white/38">支持拖拽图片，或先点此区域后按 Ctrl / Cmd + V 直接粘贴上传</p>
+        {message ? (
+          <p className="text-xs text-[#734d07]" role="status">
+            {message}
+          </p>
+        ) : null}
       </div>
 
       {cropSession ? (
