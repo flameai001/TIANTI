@@ -47,13 +47,13 @@ export default async function HomePage() {
                   <div className="ui-stat">
                     <p className="text-sm ui-muted">近期活动</p>
                     <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">
-                      {homepage.futureEvents.length}
+                      {homepage.stats.recentEventCount}
                     </p>
                   </div>
                   <div className="ui-stat">
                     <p className="text-sm ui-muted">更新达人</p>
                     <p className="mt-2 text-3xl tracking-[-0.04em] text-[var(--foreground)]">
-                      {homepage.recentTalents.length}
+                      {homepage.stats.recentTalentCount}
                     </p>
                   </div>
                 </div>

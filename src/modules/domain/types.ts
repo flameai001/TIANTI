@@ -273,6 +273,10 @@ export interface DiscoverySection<T> {
 }
 
 export interface HomepageDiscovery {
+  stats: {
+    recentTalentCount: number;
+    recentEventCount: number;
+  };
   featuredTalents: TalentSummary[];
   futureEvents: EventSummary[];
   recentTalents: TalentSummary[];

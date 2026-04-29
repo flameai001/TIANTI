@@ -23,6 +23,7 @@ import {
   isMultiDayRange,
   toDateOnlyIso
 } from "@/lib/date";
+import { compareByPinyin } from "@/lib/pinyin";
 import type { BulkActionResult } from "@/modules/admin/types";
 import type { Asset, EditorArchive, Event, EventLineup, Talent } from "@/modules/domain/types";
 
@@ -62,6 +63,27 @@ function sortEventsForManager(value: Event[]) {
     if (rightTime === null) return -1;
     return rightTime - leftTime;
   });
+}
+
+function sortTalentsForSelection(value: Talent[]) {
+  return [...value].sort(
+    (left, right) =>
+      compareByPinyin(left.nickname, right.nickname) ||
+      left.nickname.localeCompare(right.nickname, "zh-CN") ||
+      left.id.localeCompare(right.id)
+  );
+}
+
+function buildTalentSearchText(talent: Talent) {
+  return [
+    talent.nickname,
+    talent.aliases.join(" "),
+    talent.tags.join(" "),
+    talent.searchKeywords.join(" "),
+    talent.mcn
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 function createEditableLineup(talentId = "", lineupDate = ""): EditableLineup {
@@ -247,6 +269,8 @@ export function ArchiveManager({
 
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
+  const [talentQuery, setTalentQuery] = useState("");
+  const deferredTalentQuery = useDeferredValue(talentQuery);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [liveAssets, setLiveAssets] = useState(assets);
@@ -286,6 +310,16 @@ export function ArchiveManager({
     () => createArchiveDraft(selectedEventId, liveArchives),
     [liveArchives, selectedEventId]
   );
+  const sortedTalents = useMemo(() => sortTalentsForSelection(talents), [talents]);
+  const filteredTalentOptions = useMemo(() => {
+    const normalizedQuery = deferredTalentQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return sortedTalents;
+    }
+
+    return sortedTalents.filter((talent) => buildTalentSearchText(talent).includes(normalizedQuery));
+  }, [deferredTalentQuery, sortedTalents]);
+  const talentMap = useMemo(() => new Map(talents.map((talent) => [talent.id, talent])), [talents]);
   const assetMap = useMemo(() => new Map(liveAssets.map((asset) => [asset.id, asset])), [liveAssets]);
   const lineupDateOptions = useMemo(
     () => getDateRangeDays(eventDraft.startsAt, eventDraft.endsAt),
@@ -311,12 +345,17 @@ export function ArchiveManager({
   );
   const defaultArchiveTalentId = useMemo(() => {
     const usedTalentIds = new Set(archiveDraft.entries.map((entry) => entry.talentId));
-    return lineupTalentIds.find((talentId) => !usedTalentIds.has(talentId)) ?? lineupTalentIds[0] ?? talents[0]?.id ?? "";
-  }, [archiveDraft.entries, lineupTalentIds, talents]);
+    return (
+      lineupTalentIds.find((talentId) => !usedTalentIds.has(talentId)) ??
+      lineupTalentIds[0] ??
+      sortedTalents[0]?.id ??
+      ""
+    );
+  }, [archiveDraft.entries, lineupTalentIds, sortedTalents]);
   const defaultLineupTalentId = useMemo(() => {
     const usedTalentIds = new Set(editableLineups.map((lineup) => lineup.talentId));
-    return talents.find((talent) => !usedTalentIds.has(talent.id))?.id ?? talents[0]?.id ?? "";
-  }, [editableLineups, talents]);
+    return sortedTalents.find((talent) => !usedTalentIds.has(talent.id))?.id ?? sortedTalents[0]?.id ?? "";
+  }, [editableLineups, sortedTalents]);
   const defaultLineupDate = lineupDateOptions[0] ?? "";
   const defaultArchiveEntryDate = archiveDateOptions[0] ?? "";
   const areAllFilteredEventsSelected =
@@ -390,6 +429,19 @@ export function ArchiveManager({
         itemIndex === index ? { ...item, ...patch } : item
       )
     }));
+  }
+
+  function getTalentOptions(selectedTalentId?: string | null) {
+    if (!selectedTalentId) {
+      return filteredTalentOptions;
+    }
+
+    if (filteredTalentOptions.some((talent) => talent.id === selectedTalentId)) {
+      return filteredTalentOptions;
+    }
+
+    const selectedTalent = talentMap.get(selectedTalentId);
+    return selectedTalent ? [selectedTalent, ...filteredTalentOptions] : filteredTalentOptions;
   }
 
   async function handleSaveEvent() {
@@ -876,6 +928,13 @@ export function ArchiveManager({
                       : "单日活动保持轻量录入体验，阵容不额外按日期拆分。"}
                   </p>
                 </div>
+                <input
+                  value={talentQuery}
+                  onChange={(event) => setTalentQuery(event.target.value)}
+                  data-testid="event-talent-search"
+                  placeholder="搜索达人昵称、别名、标签或机构"
+                  className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm outline-none"
+                />
                 <button
                   type="button"
                   data-testid="add-lineup"
@@ -930,7 +989,7 @@ export function ArchiveManager({
                           className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
                         >
                           <option value="">暂不选择达人</option>
-                          {talents.map((talent) => (
+                          {getTalentOptions(lineup.talentId).map((talent) => (
                             <option key={talent.id} value={talent.id}>
                               {talent.nickname}
                             </option>
@@ -1118,7 +1177,7 @@ export function ArchiveManager({
                             className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
                           >
                             <option value="">暂不选择达人</option>
-                            {talents.map((talent) => (
+                            {getTalentOptions(entry.talentId).map((talent) => (
                               <option key={talent.id} value={talent.id}>
                                 {talent.nickname}
                               </option>

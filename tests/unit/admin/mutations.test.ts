@@ -68,6 +68,21 @@ describe("admin mutations", () => {
     expect(saved.coverAssetId).toBeNull();
   });
 
+  it("rejects creating a new talent with a duplicate nickname", async () => {
+    await expect(
+      saveTalent({
+        nickname: demoSeedState.talents[0]?.nickname ?? "Qingluan",
+        bio: "",
+        mcn: "",
+        aliases: [],
+        coverAssetId: null,
+        tags: [],
+        links: [],
+        representations: []
+      })
+    ).rejects.toThrow("已存在同名达人，请修改昵称后再保存。");
+  });
+
   it("allows saving an event with blank dates and optional fields", async () => {
     const saved = await saveEvent({
       name: "Blank Event",

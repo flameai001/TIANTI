@@ -9,6 +9,15 @@ import {
 import { demoSeedState } from "@/modules/domain/seed";
 
 describe("domain queries", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-29T12:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("sorts talents by nickname pinyin and filters by mcn", () => {
     const allTalents = listTalents(demoSeedState);
     expect(allTalents.map((item) => item.id)).toEqual([
@@ -26,6 +35,70 @@ describe("domain queries", () => {
   it("expands homepage featured talents to four cards", () => {
     const homepage = getHomepageCollections(demoSeedState);
     expect(homepage.featuredTalents).toHaveLength(4);
+  });
+
+  it("counts homepage stats with recent talent updates and the rolling event window", () => {
+    const state = structuredClone(demoSeedState);
+    state.talents[0] = {
+      ...state.talents[0]!,
+      updatedAt: "2026-04-29T09:00:00.000Z"
+    };
+    state.talents[1] = {
+      ...state.talents[1]!,
+      updatedAt: "2026-04-22T09:00:00.000Z"
+    };
+    state.talents[2] = {
+      ...state.talents[2]!,
+      updatedAt: "2026-04-21T09:00:00.000Z"
+    };
+    state.talents[3] = {
+      ...state.talents[3]!,
+      updatedAt: "2026-04-10T09:00:00.000Z"
+    };
+
+    state.events = [
+      {
+        ...state.events[0]!,
+        id: "event-recent-past",
+        slug: "event-recent-past",
+        name: "Recent Past Event",
+        startsAt: "2026-04-25T12:00:00.000Z",
+        endsAt: "2026-04-25T12:00:00.000Z",
+        updatedAt: "2026-04-25T12:00:00.000Z"
+      },
+      {
+        ...state.events[1]!,
+        id: "event-ongoing",
+        slug: "event-ongoing",
+        name: "Ongoing Event",
+        startsAt: "2026-04-28T12:00:00.000Z",
+        endsAt: "2026-04-30T12:00:00.000Z",
+        updatedAt: "2026-04-28T12:00:00.000Z"
+      },
+      {
+        ...state.events[2]!,
+        id: "event-future-window",
+        slug: "event-future-window",
+        name: "Future Window Event",
+        startsAt: "2026-05-03T12:00:00.000Z",
+        endsAt: "2026-05-03T12:00:00.000Z",
+        updatedAt: "2026-04-29T12:00:00.000Z"
+      },
+      {
+        ...state.events[0]!,
+        id: "event-old-past",
+        slug: "event-old-past",
+        name: "Old Past Event",
+        startsAt: "2026-04-15T12:00:00.000Z",
+        endsAt: "2026-04-15T12:00:00.000Z",
+        updatedAt: "2026-04-15T12:00:00.000Z"
+      }
+    ];
+
+    const homepage = getHomepageCollections(state, new Date("2026-04-29T12:00:00.000Z"));
+
+    expect(homepage.stats.recentTalentCount).toBe(2);
+    expect(homepage.stats.recentEventCount).toBe(3);
   });
 
   it("builds bio preview and future location hint from the largest future lineup, breaking ties by earlier date", () => {
@@ -420,12 +493,7 @@ describe("domain queries", () => {
 
   it("filters talents by whether they have a future schedule", () => {
     const filtered = listTalents(demoSeedState, { hasSchedule: true });
-    expect(filtered.map((item) => item.id)).toEqual([
-      "talent-qingluan",
-      "talent-yanjin",
-      "talent-yunmo",
-      "talent-zhaoying"
-    ]);
+    expect(filtered.map((item) => item.id)).toEqual(["talent-qingluan", "talent-zhaoying"]);
   });
 
   it("filters events by editor archive presence", () => {

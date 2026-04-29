@@ -52,6 +52,10 @@ function sortTalents(value: Talent[]) {
   );
 }
 
+function normalizeNickname(value: string) {
+  return value.trim().toLocaleLowerCase("zh-CN");
+}
+
 function createRepresentationDraft(title = "", assetId = ""): RepresentationDraft {
   return {
     id: crypto.randomUUID(),
@@ -109,7 +113,6 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
   const [liveTalents, setLiveTalents] = useState(() => sortTalents(talents));
   const [selectedId, setSelectedId] = useState<string | null>(talents[0]?.id ?? null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [bulkTags, setBulkTags] = useState("");
   const [liveAssets, setLiveAssets] = useState(assets);
   const [cleanupCandidateAssetIds, setCleanupCandidateAssetIds] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
@@ -130,6 +133,21 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       ),
     [deferredQuery, liveTalents]
   );
+
+  const duplicateNicknameTalent = useMemo(() => {
+    if (draft.id) {
+      return null;
+    }
+
+    const normalizedDraftNickname = normalizeNickname(draft.nickname);
+    if (!normalizedDraftNickname) {
+      return null;
+    }
+
+    return (
+      liveTalents.find((talent) => normalizeNickname(talent.nickname) === normalizedDraftNickname) ?? null
+    );
+  }, [draft.id, draft.nickname, liveTalents]);
 
   const hasSelectedTalents = selectedIds.length > 0;
 
@@ -157,11 +175,6 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
         ? current.filter((id) => !filteredIds.includes(id))
         : [...new Set([...current, ...filteredIds])]
     );
-  }
-
-  function applyUpdatedTalents(updatedTalents: Talent[]) {
-    const updatedMap = new Map(updatedTalents.map((talent) => [talent.id, talent]));
-    setLiveTalents((current) => sortTalents(current.map((talent) => updatedMap.get(talent.id) ?? talent)));
   }
 
   function enqueueCleanupAssetId(assetId?: string | null) {
@@ -315,6 +328,11 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
   }
 
   async function handleSave() {
+    if (duplicateNicknameTalent) {
+      setMessage(`已存在同名达人“${duplicateNicknameTalent.nickname}”，请修改昵称后再保存。`);
+      return;
+    }
+
     setMessage(null);
 
     const payload = {
@@ -397,19 +415,13 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
     });
   }
 
-  async function handleBulkAction(action: "add_tags" | "remove_tags" | "delete") {
+  async function handleBulkDelete() {
     if (!hasSelectedTalents) {
       setMessage("请先勾选至少一位达人。");
       return;
     }
 
-    const tags = splitCommaValues(bulkTags);
-    if (action !== "delete" && tags.length === 0) {
-      setMessage("批量标签操作前请先填写标签。");
-      return;
-    }
-
-    if (action === "delete" && !confirm(`确定批量删除 ${selectedIds.length} 位达人吗？`)) {
+    if (!confirm(`确定批量删除 ${selectedIds.length} 位达人吗？`)) {
       return;
     }
 
@@ -422,9 +434,8 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          action,
-          ids: selectedIds,
-          tags
+          action: "delete",
+          ids: selectedIds
         })
       });
 
@@ -436,29 +447,23 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
         return;
       }
 
-      if (action === "delete") {
-        const succeededIds = data.result.succeededIds;
-        const nextTalents = liveTalents.filter((talent) => !succeededIds.includes(talent.id));
-        const nextSelectedTalent =
-          selectedId && succeededIds.includes(selectedId)
-            ? (nextTalents[0] ?? null)
-            : (nextTalents.find((talent) => talent.id === selectedId) ?? nextTalents[0] ?? null);
+      const succeededIds = data.result.succeededIds;
+      const nextTalents = liveTalents.filter((talent) => !succeededIds.includes(talent.id));
+      const nextSelectedTalent =
+        selectedId && succeededIds.includes(selectedId)
+          ? (nextTalents[0] ?? null)
+          : (nextTalents.find((talent) => talent.id === selectedId) ?? nextTalents[0] ?? null);
 
-        setLiveTalents(nextTalents);
-        setSelectedIds((current) => current.filter((id) => !succeededIds.includes(id)));
-        setSelectedId(nextSelectedTalent?.id ?? null);
-        setDraft(createTalentDraft(nextSelectedTalent));
-      } else if (data.result.talents) {
-        applyUpdatedTalents(data.result.talents);
-      }
+      setLiveTalents(nextTalents);
+      setSelectedIds((current) => current.filter((id) => !succeededIds.includes(id)));
+      setSelectedId(nextSelectedTalent?.id ?? null);
+      setDraft(createTalentDraft(nextSelectedTalent));
 
       const blockedSummary =
         data.result.blocked.length > 0
           ? `，${data.result.blocked.length} 项未完成：${data.result.blocked.map((item) => item.reason).join(" / ")}`
           : "";
-      const actionLabel =
-        action === "add_tags" ? "已批量添加标签" : action === "remove_tags" ? "已批量移除标签" : "已批量删除达人";
-      setMessage(`${actionLabel} ${data.result.succeededIds.length} 项${blockedSummary}`);
+      setMessage(`已批量删除达人 ${data.result.succeededIds.length} 项${blockedSummary}`);
     });
   }
 
@@ -488,36 +493,11 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
         </div>
         <div className="mt-4 rounded-[1.4rem] border border-white/10 bg-black/15 p-4">
           <p className="text-xs uppercase tracking-[0.25em] text-white/45">Bulk Actions</p>
-          <input
-            value={bulkTags}
-            onChange={(event) => setBulkTags(event.target.value)}
-            data-testid="bulk-tags-input"
-            placeholder="标签，支持中英文逗号分隔"
-            className="mt-3 w-full rounded-[1rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
-          />
           <div className="mt-3 grid gap-3">
             <button
               type="button"
-              data-testid="bulk-add-tags"
-              onClick={() => handleBulkAction("add_tags")}
-              disabled={pending || !hasSelectedTalents}
-              className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 disabled:opacity-50"
-            >
-              批量添加标签
-            </button>
-            <button
-              type="button"
-              data-testid="bulk-remove-tags"
-              onClick={() => handleBulkAction("remove_tags")}
-              disabled={pending || !hasSelectedTalents}
-              className="rounded-full border border-white/12 px-4 py-2 text-sm text-white/70 disabled:opacity-50"
-            >
-              批量移除标签
-            </button>
-            <button
-              type="button"
               data-testid="bulk-delete-talents"
-              onClick={() => handleBulkAction("delete")}
+              onClick={handleBulkDelete}
               disabled={pending || !hasSelectedTalents}
               className="rounded-full border border-[#b13b45]/45 px-4 py-2 text-sm text-[#5f0f18] disabled:opacity-50"
             >
@@ -592,6 +572,11 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                 placeholder="昵称"
                 className="rounded-[1.2rem] border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none"
               />
+              {duplicateNicknameTalent ? (
+                <p className="text-xs text-[#b13b45] md:col-span-2">
+                  已存在同名达人“{duplicateNicknameTalent.nickname}”，建议更换昵称后再保存。
+                </p>
+              ) : null}
               <input
                 name="mcn"
                 value={draft.mcn}
@@ -788,7 +773,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               </p>
               <button
                 type="button"
-                disabled={pending}
+                disabled={pending || Boolean(duplicateNicknameTalent)}
                 data-testid="save-talent"
                 onClick={handleSave}
                 className="rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm uppercase tracking-[0.25em] text-black disabled:opacity-60"

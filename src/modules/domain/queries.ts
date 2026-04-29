@@ -6,6 +6,7 @@ import {
   getDateOnlyKey,
   getDateRangeDays,
   getDateSortTime,
+  getShanghaiDateKey,
   isMultiDayRange,
   toDateOnlyIso
 } from "@/lib/date";
@@ -42,6 +43,10 @@ function byId<T extends { id: string }>(rows: T[]) {
 
 function sortByDateDesc<T extends { updatedAt: string }>(rows: T[]) {
   return [...rows].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+}
+
+function getDateKeyDaysAgo(now: Date, days: number) {
+  return getShanghaiDateKey(new Date(now.getTime() - days * 24 * 60 * 60 * 1000));
 }
 
 function getEventPrimaryTime(event: Event) {
@@ -533,17 +538,37 @@ function buildTagSpotlights(state: ContentState): HomepageDiscovery["tagSpotligh
     }));
 }
 
+function countRecentUpdatedTalents(state: ContentState, now: Date) {
+  const thresholdDateKey = getDateKeyDaysAgo(now, 7);
+  return state.talents.filter((talent) => {
+    const updatedDateKey = getDateOnlyKey(talent.updatedAt);
+    return Boolean(updatedDateKey && updatedDateKey >= thresholdDateKey);
+  }).length;
+}
+
+function countHomepageRecentEvents(state: ContentState, now: Date) {
+  const thresholdDateKey = getDateKeyDaysAgo(now, 7);
+  return state.events.filter((event) => {
+    const boundaryDateKey = getDateOnlyKey(event.endsAt ?? event.startsAt ?? null);
+    return Boolean(boundaryDateKey && boundaryDateKey >= thresholdDateKey);
+  }).length;
+}
+
 export function getEditors(state: ContentState) {
   return state.editors;
 }
 
-export function getHomepageCollections(state: ContentState): HomepageDiscovery {
+export function getHomepageCollections(state: ContentState, now = new Date()): HomepageDiscovery {
   const recentTalents = sortByDateDesc(state.talents).map((talent) => buildTalentSummary(state, talent));
   const futureEvents = listEventSummaries(state, { eventStatus: "future", sort: "lineupSize" }).sort(
     (left, right) => right.lineupSize - left.lineupSize || compareEventChronological(left.event, right.event)
   );
 
   return {
+    stats: {
+      recentTalentCount: countRecentUpdatedTalents(state, now),
+      recentEventCount: countHomepageRecentEvents(state, now)
+    },
     featuredTalents: recentTalents.slice(0, 4),
     futureEvents: futureEvents.slice(0, 2),
     recentTalents: recentTalents.slice(0, 6),

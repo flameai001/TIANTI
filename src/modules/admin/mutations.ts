@@ -153,6 +153,10 @@ function normalizeOptionalSlug(value?: string | null) {
   return normalizedSlug || null;
 }
 
+function normalizeNickname(value: string) {
+  return value.trim().toLocaleLowerCase("zh-CN");
+}
+
 function getValidLineupDateKeys(startsAt?: string | null, endsAt?: string | null) {
   const rangeDates = getDateRangeDays(startsAt, endsAt);
   if (rangeDates.length > 0) {
@@ -214,6 +218,19 @@ async function ensureUniqueEventSlug(id: string, slug?: string | null) {
 
   if (duplicate) {
     throw new Error("该活动 slug 已存在，请修改活动名称或 slug。");
+  }
+}
+
+async function ensureUniqueTalentNickname(id: string, nickname: string) {
+  const repository = getContentRepository();
+  const state = await repository.getState();
+  const normalizedNickname = normalizeNickname(nickname);
+  const duplicate = state.talents.find(
+    (talent) => talent.id !== id && normalizeNickname(talent.nickname) === normalizedNickname
+  );
+
+  if (duplicate) {
+    throw new Error("已存在同名达人，请修改昵称后再保存。");
   }
 }
 
@@ -293,6 +310,7 @@ export async function saveTalent(payload: unknown) {
   const assetTitleMap = new Map<string | null, string>(state.assets.map((asset) => [asset.id, asset.title]));
 
   await ensureUniqueTalentSlug(id, slug);
+  await ensureUniqueTalentNickname(id, nickname);
 
   const talent = await repository.upsertTalent({
     id,
