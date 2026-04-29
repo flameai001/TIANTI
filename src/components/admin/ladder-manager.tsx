@@ -10,8 +10,17 @@ interface LadderManagerProps {
   editorName: string;
 }
 
+const talentNameCollator = new Intl.Collator("zh-Hans-CN-u-co-pinyin", {
+  numeric: true,
+  sensitivity: "base"
+});
+
 function getDerivedLadderTitle(editorName: string) {
   return `${editorName}的天梯榜`;
+}
+
+function compareTalentsByNickname(first: Talent, second: Talent) {
+  return talentNameCollator.compare(first.nickname, second.nickname) || first.id.localeCompare(second.id);
 }
 
 export function LadderManager({ ladder, talents, editorName }: LadderManagerProps) {
@@ -22,8 +31,11 @@ export function LadderManager({ ladder, talents, editorName }: LadderManagerProp
   const [message, setMessage] = useState<string | null>(null);
 
   const talentMap = useMemo(() => new Map(talents.map((talent) => [talent.id, talent])), [talents]);
-  const assignedTalentIds = new Set(draft.tiers.flatMap((tier) => tier.talentIds));
-  const unassignedTalents = talents.filter((talent) => !assignedTalentIds.has(talent.id));
+  const assignedTalentIds = useMemo(() => new Set(draft.tiers.flatMap((tier) => tier.talentIds)), [draft.tiers]);
+  const unassignedTalents = useMemo(
+    () => talents.filter((talent) => !assignedTalentIds.has(talent.id)).sort(compareTalentsByNickname),
+    [assignedTalentIds, talents]
+  );
 
   function updateTierName(tierId: string, name: string) {
     setDraft((current) => ({
@@ -62,6 +74,22 @@ export function LadderManager({ ladder, talents, editorName }: LadderManagerProp
     if (!dragging) return;
     moveTalent(dragging.talentId, null);
     setDragging(null);
+  }
+
+  function removeEmptyTier(tierId: string) {
+    setDraft((current) => {
+      const tier = current.tiers.find((item) => item.id === tierId);
+      if (!tier || tier.talentIds.length > 0) {
+        return current;
+      }
+
+      return {
+        ...current,
+        tiers: current.tiers
+          .filter((item) => item.id !== tierId)
+          .map((item, itemIndex) => ({ ...item, order: itemIndex }))
+      };
+    });
   }
 
   function handleDropToTierEnd(tierId: string) {
@@ -142,13 +170,14 @@ export function LadderManager({ ladder, talents, editorName }: LadderManagerProp
           </div>
         </div>
         <div
-          className="mt-5 flex min-h-24 flex-wrap gap-3 rounded-[1.2rem] border border-dashed border-[var(--line-strong)] bg-white/70 p-4"
+          className="mt-5 flex min-h-24 flex-wrap gap-3 rounded-[1.2rem] border border-dashed border-[var(--line-strong)] bg-[rgba(248,251,255,0.82)] p-4"
           onDragOver={(event) => event.preventDefault()}
           onDrop={handleDropToPool}
         >
           {unassignedTalents.map((talent) => (
             <div
               key={talent.id}
+              data-testid={`unassigned-talent-${talent.id}`}
               draggable
               onDragStart={(event) => {
                 event.dataTransfer.setData("text/plain", talent.id);
@@ -173,119 +202,127 @@ export function LadderManager({ ladder, talents, editorName }: LadderManagerProp
         {draft.tiers
           .slice()
           .sort((a, b) => a.order - b.order)
-          .map((tier, index) => (
+          .map((tier) => (
             <section
               key={tier.id}
-              className="surface grid gap-4 rounded-[1.8rem] p-5 lg:grid-cols-[13rem_minmax(0,1fr)]"
+              className="surface rounded-[1.35rem] p-3"
             >
-              <div className="space-y-3">
-                <input
-                  value={tier.name}
-                  onChange={(event) => updateTierName(tier.id, event.target.value)}
-                  className="ui-input"
-                />
-                <button
-                  type="button"
-                  disabled={tier.talentIds.length > 0}
-                  onClick={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      tiers: current.tiers
-                        .filter((item) => item.id !== tier.id)
-                        .map((item, itemIndex) => ({ ...item, order: itemIndex }))
-                    }))
-                  }
-                  className="ui-button-secondary px-3 py-2 text-xs disabled:opacity-30"
+              <div className="grid gap-3 lg:grid-cols-[25rem_minmax(0,1fr)] lg:items-center">
+                <div
+                  className="grid grid-cols-[minmax(0,1fr)_7rem_auto] items-center gap-2"
                 >
-                  删除
-                </button>
-
-                <select
-                  defaultValue=""
-                  onChange={(event) => {
-                    const talentId = event.target.value;
-                    if (!talentId) return;
-                    moveTalent(talentId, tier.id);
-                    event.currentTarget.value = "";
-                  }}
-                  className="ui-select"
-                >
-                  <option value="">快速加入达人</option>
-                  {unassignedTalents.map((talent) => (
-                    <option key={talent.id} value={talent.id}>
-                      {talent.nickname}
-                    </option>
-                  ))}
+                  <input
+                    value={tier.name}
+                    onChange={(event) => updateTierName(tier.id, event.target.value)}
+                    className="ui-input min-h-11 rounded-[0.95rem] px-3 py-2 text-sm"
+                  />
+                  <select
+                    defaultValue=""
+                    onChange={(event) => {
+                      const talentId = event.target.value;
+                      if (!talentId) return;
+                      moveTalent(talentId, tier.id);
+                      event.currentTarget.value = "";
+                    }}
+                    className="ui-select min-h-11 rounded-[0.95rem] px-3 py-2 text-sm"
+                  >
+                    <option value="">达人</option>
+                    {unassignedTalents.map((talent) => (
+                      <option key={talent.id} value={talent.id}>
+                        {talent.nickname}
+                      </option>
+                    ))}
                   </select>
 
-                {index === draft.tiers.length - 1 ? (
                   <button
                     type="button"
-                    data-testid="add-tier"
-                    onClick={() =>
-                      setDraft((current) => ({
-                        ...current,
-                        tiers: [
-                          ...current.tiers,
-                          {
-                            id: crypto.randomUUID(),
-                            name: `T${current.tiers.length}`,
-                            order: current.tiers.length,
-                            talentIds: []
-                          }
-                        ]
-                      }))
-                    }
-                    className="ui-button-secondary w-full text-sm"
+                    aria-disabled={tier.talentIds.length > 0}
+                    data-testid={`tier-${tier.id}-delete`}
+                    onClick={() => removeEmptyTier(tier.id)}
+                    onDragOver={(event) => {
+                      if (dragging) {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      handleDropToPool();
+                    }}
+                    title="空梯度可删除；拖拽达人到这里可移出榜单。"
+                    className={`ui-button-danger min-h-11 px-3 py-2 text-xs ${
+                      dragging ? "border-red-300 bg-red-50" : ""
+                    } ${tier.talentIds.length > 0 ? "opacity-70" : ""}`}
                   >
-                    + 新增梯度
+                    删除
                   </button>
-                ) : null}
-              </div>
+                </div>
 
-              <div
-                className="min-w-0 overflow-x-auto pb-3"
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => handleDropToTierEnd(tier.id)}
-              >
-                <div className="flex min-h-14 w-max min-w-full items-center gap-2 rounded-[1.2rem] border border-dashed border-[var(--line-strong)] bg-white/55 p-3">
-                  {tier.talentIds.map((talentId, talentIndex) => {
-                    const talent = talentMap.get(talentId);
-                    if (!talent) return null;
+                <div
+                  className="min-w-0 overflow-x-auto py-1 lg:py-0"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => handleDropToTierEnd(tier.id)}
+                >
+                  <div className="flex min-h-11 w-max min-w-full items-center gap-2 rounded-[0.95rem] border border-dashed border-[var(--line-soft)] bg-[rgba(248,251,255,0.84)] p-2">
+                    {tier.talentIds.map((talentId, talentIndex) => {
+                      const talent = talentMap.get(talentId);
+                      if (!talent) return null;
 
-                    return (
-                      <div
-                        key={talentId}
-                        data-testid={`tier-${tier.id}-talent-${talentIndex}`}
-                        draggable
-                        onDragStart={(event) => {
-                          event.dataTransfer.setData("text/plain", talentId);
-                          event.dataTransfer.effectAllowed = "move";
-                          setDragging({ talentId, fromTierId: tier.id });
-                        }}
-                        onDragEnd={() => setDragging(null)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          handleDropToTierPosition(tier.id, talentId);
-                        }}
-                        className="inline-flex w-fit cursor-grab whitespace-nowrap rounded-full border border-[var(--line-soft)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)]"
-                      >
-                        {talent.nickname}
+                      return (
+                        <div
+                          key={talentId}
+                          data-testid={`tier-${tier.id}-talent-${talentIndex}`}
+                          draggable
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData("text/plain", talentId);
+                            event.dataTransfer.effectAllowed = "move";
+                            setDragging({ talentId, fromTierId: tier.id });
+                          }}
+                          onDragEnd={() => setDragging(null)}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleDropToTierPosition(tier.id, talentId);
+                          }}
+                          className="inline-flex w-fit cursor-grab whitespace-nowrap rounded-full border border-[var(--line-soft)] bg-[var(--surface-strong)] px-3 py-1.5 text-sm text-[var(--foreground)]"
+                        >
+                          {talent.nickname}
+                        </div>
+                      );
+                    })}
+
+                    {tier.talentIds.length === 0 ? (
+                      <div className="inline-flex min-h-8 items-center rounded-full border border-dashed border-[var(--line-strong)] px-3 py-1.5 text-sm ui-subtle">
+                        把达人拖到这里，或拖到具体卡片上方进行插入排序。
                       </div>
-                    );
-                  })}
-
-                  {tier.talentIds.length === 0 ? (
-                    <div className="inline-flex min-h-10 items-center rounded-full border border-dashed border-[var(--line-strong)] px-4 py-2 text-sm ui-subtle">
-                      把达人拖到这里，或拖到具体卡片上方进行插入排序。
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </section>
           ))}
+        <button
+          type="button"
+          data-testid="add-tier"
+          onClick={() =>
+            setDraft((current) => ({
+              ...current,
+              tiers: [
+                ...current.tiers,
+                {
+                  id: crypto.randomUUID(),
+                  name: `T${current.tiers.length}`,
+                  order: current.tiers.length,
+                  talentIds: []
+                }
+              ]
+            }))
+          }
+          className="ui-button-secondary w-fit px-4 py-2 text-sm"
+        >
+          + 新增梯度
+        </button>
       </div>
 
       {message ? <StatusNotice variant="error">{message}</StatusNotice> : null}

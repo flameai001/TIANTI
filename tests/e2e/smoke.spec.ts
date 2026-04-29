@@ -453,6 +453,20 @@ test("ladder tier ordering syncs from admin sorting to the public ladder", async
   await expect(page.getByTestId("ladder-tier-lin-t1-talent-1")).toContainText("云墨");
 });
 
+test("dragging ladder chips to delete returns them to the sorted unranked pool", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/ladder");
+  await page.getByTestId("tier-lin-t0-talent-0").dragTo(page.getByTestId("tier-lin-t0-delete"));
+  await page.getByTestId("tier-lin-t1-talent-0").dragTo(page.getByTestId("tier-lin-t1-delete"));
+
+  const poolTalents = page.locator('[data-testid^="unassigned-talent-"]');
+  await expect(poolTalents).toHaveCount(2);
+  await expect(poolTalents.nth(0)).toHaveText("青鸾");
+  await expect(poolTalents.nth(1)).toHaveText("云墨");
+  await expect(page.getByTestId("tier-lin-t0-talent-0")).toHaveCount(0);
+});
+
 test("event index can filter by editor archive presence", async ({ page }) => {
   await page.goto("/events");
   await page.locator('select[name="editor"]').selectOption("lin");
