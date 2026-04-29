@@ -70,30 +70,30 @@ const UNSAVED_MESSAGE = "当前活动仍有未保存的修改，离开后会丢�
 
 function AdminDialog({ title, description, children, footer, onClose }: AdminDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(6,10,18,0.72)] px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(238,243,248,0.76)] px-4 py-6 backdrop-blur-md">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-dialog-title"
-        className="max-h-[calc(100vh-3rem)] w-full max-w-3xl overflow-y-auto rounded-[1.8rem] border border-white/12 bg-[#111827] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
+        className="surface max-h-[calc(100vh-3rem)] w-full max-w-3xl overflow-y-auto rounded-[1.8rem] p-6 shadow-[0_24px_80px_rgba(91,109,133,0.16)]"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--line-soft)] pb-4">
           <div>
-            <h2 id="admin-dialog-title" className="text-2xl text-white">
+            <h2 id="admin-dialog-title" className="text-2xl text-[var(--foreground)]">
               {title}
             </h2>
-            {description ? <p className="mt-2 text-sm leading-6 text-white/58">{description}</p> : null}
+            {description ? <p className="mt-2 text-sm leading-6 ui-subtle">{description}</p> : null}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/12 px-3 py-2 text-sm text-white/70 transition hover:border-white/25 hover:text-white"
+            className="ui-button-secondary px-3 py-2 text-sm"
           >
             关闭
           </button>
         </div>
         <div className="py-5">{children}</div>
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-white/10 pt-4">{footer}</div>
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[var(--line-soft)] pt-4">{footer}</div>
       </section>
     </div>
   );
@@ -1573,7 +1573,7 @@ export function ArchiveManager({
                 setIsLineupDialogOpen(false);
                 setLineupDialogDraft(null);
               }}
-              className="rounded-full border border-white/12 px-5 py-2.5 text-sm text-white/70"
+              className="ui-button-secondary px-5 py-2.5 text-sm"
             >
               取消
             </button>
@@ -1581,7 +1581,7 @@ export function ArchiveManager({
               type="button"
               data-testid="lineup-dialog-submit"
               onClick={submitLineupDialog}
-              className="rounded-full bg-[var(--color-accent)] px-5 py-2.5 text-sm uppercase tracking-[0.18em] text-black"
+              className="ui-button-primary px-5 py-2.5 text-sm uppercase tracking-[0.18em]"
             >
               添加达人
             </button>
@@ -1591,12 +1591,12 @@ export function ArchiveManager({
         <div data-testid="lineup-dialog" className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-2">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/45">达人</span>
+              <span className="text-xs uppercase tracking-[0.2em] ui-muted">达人</span>
               <select
                 data-testid="lineup-dialog-talent"
                 value={lineupDialogDraft.talentId}
                 onChange={(event) => updateLineupDialogTalent(event.target.value)}
-                className="w-full rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                className="ui-select text-sm"
               >
                 {sortedTalents.map((talent) => (
                   <option key={talent.id} value={talent.id}>
@@ -1606,12 +1606,12 @@ export function ArchiveManager({
               </select>
             </label>
             <label className="space-y-2">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/45">状态</span>
+              <span className="text-xs uppercase tracking-[0.2em] ui-muted">状态</span>
               <select
                 data-testid="lineup-dialog-status"
                 value={lineupDialogDraft.status}
                 onChange={(event) => updateLineupDialogStatus(event.target.value as EditableLineup["status"])}
-                className="w-full rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                className="ui-select text-sm"
               >
                 <option value="confirmed">已确认</option>
                 <option value="pending">待确认</option>
@@ -1621,7 +1621,7 @@ export function ArchiveManager({
 
           {lineupDialogDraft.status === "pending" ? (
             <label className="block space-y-2">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/45">信息来源</span>
+              <span className="text-xs uppercase tracking-[0.2em] ui-muted">信息来源</span>
               <input
                 data-testid="lineup-dialog-source"
                 value={lineupDialogDraft.source}
@@ -1631,25 +1631,25 @@ export function ArchiveManager({
                   )
                 }
                 placeholder="信息来源"
-                className="w-full rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                className="ui-input text-sm"
               />
             </label>
           ) : null}
 
           {isMultiDayEvent ? (
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/45">到场日期与备注</p>
+              <p className="text-xs uppercase tracking-[0.2em] ui-muted">到场日期与备注</p>
               {lineupDialogDraft.dates.map((dateDraft) => {
                 const dateTaken = isLineupDateTaken(lineupDialogDraft.talentId, dateDraft.date);
 
                 return (
                   <div
                     key={dateDraft.date}
-                    className={`grid gap-3 rounded-[1rem] border border-white/10 bg-black/15 p-3 md:grid-cols-[auto_1fr] ${
+                    className={`grid gap-3 rounded-[1rem] border border-[var(--line-soft)] bg-[rgba(248,251,255,0.78)] p-3 md:grid-cols-[auto_1fr] ${
                       dateTaken ? "opacity-45" : ""
                     }`}
                   >
-                    <label className="flex items-center gap-3 text-sm text-white/72">
+                    <label className="flex items-center gap-3 text-sm ui-subtle">
                       <input
                         type="checkbox"
                         data-testid={`lineup-dialog-date-${dateDraft.date}`}
@@ -1660,7 +1660,7 @@ export function ArchiveManager({
                         }
                       />
                       {formatDateKey(dateDraft.date)}
-                      {dateTaken ? <span className="text-xs text-white/45">已录入</span> : null}
+                      {dateTaken ? <span className="text-xs ui-muted">已录入</span> : null}
                     </label>
                     <input
                       data-testid={`lineup-dialog-note-${dateDraft.date}`}
@@ -1668,7 +1668,7 @@ export function ArchiveManager({
                       disabled={dateTaken}
                       onChange={(event) => updateLineupDialogDate(dateDraft.date, { note: event.target.value })}
                       placeholder="当日备注"
-                      className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none disabled:opacity-50"
+                      className="ui-input text-sm disabled:opacity-50"
                     />
                   </div>
                 );
@@ -1676,7 +1676,7 @@ export function ArchiveManager({
             </div>
           ) : (
             <label className="block space-y-2">
-              <span className="text-xs uppercase tracking-[0.2em] text-white/45">备注</span>
+              <span className="text-xs uppercase tracking-[0.2em] ui-muted">备注</span>
               <textarea
                 data-testid="lineup-dialog-note"
                 value={lineupDialogDraft.note}
@@ -1685,7 +1685,7 @@ export function ArchiveManager({
                 }
                 rows={3}
                 placeholder="补充备注"
-                className="w-full rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                className="ui-textarea text-sm"
               />
             </label>
           )}
@@ -1707,7 +1707,7 @@ export function ArchiveManager({
               type="button"
               onClick={addArchiveDialogEntry}
               data-testid="archive-dialog-add-row"
-              className="mr-auto rounded-full border border-white/12 px-5 py-2.5 text-sm text-white/70"
+              className="ui-button-secondary mr-auto px-5 py-2.5 text-sm"
             >
               再加一条
             </button>
@@ -1717,7 +1717,7 @@ export function ArchiveManager({
                 setIsArchiveDialogOpen(false);
                 setArchiveDialogDrafts([]);
               }}
-              className="rounded-full border border-white/12 px-5 py-2.5 text-sm text-white/70"
+              className="ui-button-secondary px-5 py-2.5 text-sm"
             >
               取消
             </button>
@@ -1725,7 +1725,7 @@ export function ArchiveManager({
               type="button"
               data-testid="archive-dialog-submit"
               onClick={submitArchiveDialog}
-              className="rounded-full bg-[var(--color-accent)] px-5 py-2.5 text-sm uppercase tracking-[0.18em] text-black"
+              className="ui-button-primary px-5 py-2.5 text-sm uppercase tracking-[0.18em]"
             >
               添加记录
             </button>
@@ -1737,14 +1737,14 @@ export function ArchiveManager({
             const entryDateOptions = getArchiveDateOptionsForTalent(entry.talentId);
 
             return (
-              <section key={entry.id} className="rounded-[1.2rem] border border-white/10 bg-black/15 p-4">
+              <section key={entry.id} className="surface-strong rounded-[1.2rem] p-4">
                 <div className="mb-4 flex items-center justify-between gap-3">
-                  <p className="text-sm uppercase tracking-[0.18em] text-white/45">记录 {index + 1}</p>
+                  <p className="text-sm uppercase tracking-[0.18em] ui-muted">记录 {index + 1}</p>
                   <button
                     type="button"
                     onClick={() => removeArchiveDialogEntry(index)}
                     disabled={archiveDialogDrafts.length === 1}
-                    className="rounded-full border border-[#b13b45]/45 px-3 py-1.5 text-xs text-[#ffb3b8] disabled:opacity-35"
+                    className="ui-button-danger px-3 py-1.5 text-xs disabled:opacity-35"
                   >
                     删除
                   </button>
@@ -1754,7 +1754,7 @@ export function ArchiveManager({
                     data-testid={`archive-dialog-talent-${index}`}
                     value={entry.talentId}
                     onChange={(event) => updateArchiveDialogTalent(index, event.target.value)}
-                    className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                    className="ui-select text-sm"
                   >
                     {lineupTalentOptions.map((talent) => (
                       <option key={talent.id} value={talent.id}>
@@ -1767,7 +1767,7 @@ export function ArchiveManager({
                       data-testid={`archive-dialog-date-${index}`}
                       value={entry.entryDate ?? ""}
                       onChange={(event) => updateArchiveDialogEntry(index, { entryDate: event.target.value || null })}
-                      className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                      className="ui-select text-sm"
                     >
                       {entryDateOptions.map((date) => (
                         <option key={date} value={date}>
@@ -1781,7 +1781,7 @@ export function ArchiveManager({
                     value={entry.cosplayTitle}
                     onChange={(event) => updateArchiveDialogEntry(index, { cosplayTitle: event.target.value })}
                     placeholder="角色 / 作品 / 游戏"
-                    className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                    className="ui-input text-sm"
                   />
                 </div>
               </section>
