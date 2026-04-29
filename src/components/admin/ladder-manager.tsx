@@ -207,9 +207,9 @@ export function LadderManager({ ladder, talents, editorName }: LadderManagerProp
               key={tier.id}
               className="surface rounded-[1.35rem] p-3"
             >
-              <div className="grid gap-3 lg:grid-cols-[25rem_minmax(0,1fr)] lg:items-center">
+              <div className="grid gap-3 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-center">
                 <div
-                  className="grid grid-cols-[minmax(0,1fr)_7rem_auto] items-center gap-2"
+                  className="grid grid-cols-[5.5rem_7rem_auto] items-center gap-2"
                 >
                   <input
                     value={tier.name}
