@@ -74,18 +74,6 @@ function sortTalentsForSelection(value: Talent[]) {
   );
 }
 
-function buildTalentSearchText(talent: Talent) {
-  return [
-    talent.nickname,
-    talent.aliases.join(" "),
-    talent.tags.join(" "),
-    talent.searchKeywords.join(" "),
-    talent.mcn
-  ]
-    .join(" ")
-    .toLowerCase();
-}
-
 function createEditableLineup(talentId = "", lineupDate = ""): EditableLineup {
   return {
     id: crypto.randomUUID(),
@@ -269,8 +257,6 @@ export function ArchiveManager({
 
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
-  const [talentQuery, setTalentQuery] = useState("");
-  const deferredTalentQuery = useDeferredValue(talentQuery);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [liveAssets, setLiveAssets] = useState(assets);
@@ -311,15 +297,6 @@ export function ArchiveManager({
     [liveArchives, selectedEventId]
   );
   const sortedTalents = useMemo(() => sortTalentsForSelection(talents), [talents]);
-  const filteredTalentOptions = useMemo(() => {
-    const normalizedQuery = deferredTalentQuery.trim().toLowerCase();
-    if (!normalizedQuery) {
-      return sortedTalents;
-    }
-
-    return sortedTalents.filter((talent) => buildTalentSearchText(talent).includes(normalizedQuery));
-  }, [deferredTalentQuery, sortedTalents]);
-  const talentMap = useMemo(() => new Map(talents.map((talent) => [talent.id, talent])), [talents]);
   const assetMap = useMemo(() => new Map(liveAssets.map((asset) => [asset.id, asset])), [liveAssets]);
   const lineupDateOptions = useMemo(
     () => getDateRangeDays(eventDraft.startsAt, eventDraft.endsAt),
@@ -429,19 +406,6 @@ export function ArchiveManager({
         itemIndex === index ? { ...item, ...patch } : item
       )
     }));
-  }
-
-  function getTalentOptions(selectedTalentId?: string | null) {
-    if (!selectedTalentId) {
-      return filteredTalentOptions;
-    }
-
-    if (filteredTalentOptions.some((talent) => talent.id === selectedTalentId)) {
-      return filteredTalentOptions;
-    }
-
-    const selectedTalent = talentMap.get(selectedTalentId);
-    return selectedTalent ? [selectedTalent, ...filteredTalentOptions] : filteredTalentOptions;
   }
 
   async function handleSaveEvent() {
@@ -928,13 +892,6 @@ export function ArchiveManager({
                       : "单日活动保持轻量录入体验，阵容不额外按日期拆分。"}
                   </p>
                 </div>
-                <input
-                  value={talentQuery}
-                  onChange={(event) => setTalentQuery(event.target.value)}
-                  data-testid="event-talent-search"
-                  placeholder="搜索达人昵称、别名、标签或机构"
-                  className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm outline-none"
-                />
                 <button
                   type="button"
                   data-testid="add-lineup"
@@ -989,7 +946,7 @@ export function ArchiveManager({
                           className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
                         >
                           <option value="">暂不选择达人</option>
-                          {getTalentOptions(lineup.talentId).map((talent) => (
+                          {sortedTalents.map((talent) => (
                             <option key={talent.id} value={talent.id}>
                               {talent.nickname}
                             </option>
@@ -1177,7 +1134,7 @@ export function ArchiveManager({
                             className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
                           >
                             <option value="">暂不选择达人</option>
-                            {getTalentOptions(entry.talentId).map((talent) => (
+                            {sortedTalents.map((talent) => (
                               <option key={talent.id} value={talent.id}>
                                 {talent.nickname}
                               </option>
