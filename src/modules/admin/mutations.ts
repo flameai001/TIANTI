@@ -173,23 +173,40 @@ async function getValidArchiveDateKeys(
   event: Awaited<ReturnType<ReturnType<typeof getContentRepository>["getState"]>>["events"][number] | null;
   isMultiDayEvent: boolean;
   validDateKeys: Set<string>;
+  lineupTalentIds: Set<string>;
+  lineupDateKeysByTalentId: Map<string, Set<string>>;
 }> {
   const repository = getContentRepository();
   const state = await repository.getState();
   const event = state.events.find((item) => item.id === eventId) ?? null;
+  const eventLineups = state.lineups.filter((lineup) => lineup.eventId === eventId);
+  const lineupDateKeysByTalentId = new Map<string, Set<string>>();
+
+  for (const lineup of eventLineups) {
+    const current = lineupDateKeysByTalentId.get(lineup.talentId) ?? new Set<string>();
+    const dateKey = getDateOnlyKey(lineup.lineupDate);
+    if (dateKey) {
+      current.add(dateKey);
+    }
+    lineupDateKeysByTalentId.set(lineup.talentId, current);
+  }
 
   if (!event) {
     return {
       event: null,
       isMultiDayEvent: false,
-      validDateKeys: new Set<string>()
+      validDateKeys: new Set<string>(),
+      lineupTalentIds: new Set<string>(),
+      lineupDateKeysByTalentId
     };
   }
 
   return {
     event,
     isMultiDayEvent: isMultiDayRange(event.startsAt ?? null, event.endsAt ?? null),
-    validDateKeys: new Set(getValidLineupDateKeys(event.startsAt ?? null, event.endsAt ?? null))
+    validDateKeys: new Set(getValidLineupDateKeys(event.startsAt ?? null, event.endsAt ?? null)),
+    lineupTalentIds: new Set(eventLineups.map((lineup) => lineup.talentId)),
+    lineupDateKeysByTalentId
   };
 }
 
@@ -394,7 +411,7 @@ export async function saveEvent(payload: unknown) {
         talentId: lineup.talentId!.trim(),
         lineupDate,
         status: lineup.status,
-        source: lineup.source.trim(),
+        source: lineup.status === "confirmed" ? "" : lineup.source.trim(),
         note: lineup.note.trim()
       };
     });
@@ -457,7 +474,8 @@ export async function saveLadder(editorId: string, payload: unknown) {
 export async function saveArchive(editorId: string, payload: unknown) {
   const repository = getContentRepository();
   const input = archiveSchema.parse(payload);
-  const { event, isMultiDayEvent, validDateKeys } = await getValidArchiveDateKeys(input.eventId);
+  const { event, isMultiDayEvent, validDateKeys, lineupTalentIds, lineupDateKeysByTalentId } =
+    await getValidArchiveDateKeys(input.eventId);
 
   if (!event) {
     throw new Error("活动不存在或已被删除。");
@@ -473,12 +491,20 @@ export async function saveArchive(editorId: string, payload: unknown) {
       const entryDate = toDateOnlyIso(entry.entryDate?.trim() ?? "") ?? null;
       const entryDateKey = getDateOnlyKey(entryDate);
 
+      if (!lineupTalentIds.has(entry.talentId)) {
+        throw new Error("现场档案只能选择已在当前活动阵容里的达人。");
+      }
+
       if (isMultiDayEvent && !entryDate) {
         throw new Error("多日活动的每条现场档案记录都必须选择所属日期。");
       }
 
       if (entryDateKey && validDateKeys.size > 0 && !validDateKeys.has(entryDateKey)) {
         throw new Error("现场档案记录的所属日期必须落在活动开始和结束日期之间。");
+      }
+
+      if (isMultiDayEvent && entryDateKey && !lineupDateKeysByTalentId.get(entry.talentId)?.has(entryDateKey)) {
+        throw new Error("现场档案记录的所属日期必须匹配该达人在活动阵容中的日期。");
       }
 
       return {

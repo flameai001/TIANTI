@@ -35,9 +35,13 @@ export function EventCard({ item }: { item: EventSummary }) {
                 {group.items.map((lineup) => (
                   <div key={lineup.lineup.id} className="surface-strong rounded-[1.15rem] p-3">
                     <p className="text-sm text-[var(--foreground)]">{lineup.talent.nickname}</p>
-                    <p className="mt-2 text-[11px] uppercase tracking-[0.16em] ui-muted">
-                      {lineup.lineup.status === "confirmed" ? "Confirmed" : "Pending"}
-                    </p>
+                    {lineup.lineup.status === "pending" ? (
+                      <p className="mt-2 inline-flex rounded-full border border-[#d8a526]/55 bg-[#f7d56a]/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a5200]">
+                        UNCONFIRMED
+                      </p>
+                    ) : lineup.lineup.note ? (
+                      <p className="mt-2 text-xs leading-5 ui-subtle">{lineup.lineup.note}</p>
+                    ) : null}
                   </div>
                 ))}
               </div>

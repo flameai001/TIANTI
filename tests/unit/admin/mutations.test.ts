@@ -146,6 +146,38 @@ describe("admin mutations", () => {
     ).rejects.toThrow("达人阵容的所属日期必须落在活动开始和结束日期之间。");
   });
 
+  it("clears confirmed lineup sources while preserving pending sources", async () => {
+    const saved = await saveEvent({
+      name: "Source Normalization Event",
+      startsAt: "2026-06-01",
+      endsAt: "2026-06-01",
+      city: "",
+      venue: "",
+      status: "future",
+      note: "",
+      lineups: [
+        {
+          talentId: "talent-qingluan",
+          lineupDate: "2026-06-01",
+          status: "confirmed",
+          source: "Official announcement",
+          note: "Confirmed note"
+        },
+        {
+          talentId: "talent-yunmo",
+          lineupDate: "2026-06-01",
+          status: "pending",
+          source: "Live hint",
+          note: "Pending note"
+        }
+      ]
+    });
+
+    const savedLineups = getMockState().lineups.filter((lineup) => lineup.eventId === saved.id);
+    expect(savedLineups.find((lineup) => lineup.talentId === "talent-qingluan")?.source).toBe("");
+    expect(savedLineups.find((lineup) => lineup.talentId === "talent-yunmo")?.source).toBe("Live hint");
+  });
+
   it("requires archive entry dates for multi-day events", async () => {
     await expect(
       saveArchive("editor-lin", {
@@ -182,6 +214,44 @@ describe("admin mutations", () => {
         ]
       })
     ).rejects.toThrow("现场档案记录的所属日期必须落在活动开始和结束日期之间。");
+  });
+
+  it("rejects archive entries for talents outside the event lineup", async () => {
+    await expect(
+      saveArchive("editor-lin", {
+        eventId: "event-spring-gala",
+        note: "archive note",
+        entries: [
+          {
+            talentId: "talent-yunmo",
+            entryDate: "2026-05-01",
+            sceneAssetId: "asset-scene-1",
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Role One",
+            hasSharedPhoto: false
+          }
+        ]
+      })
+    ).rejects.toThrow("现场档案只能选择已在当前活动阵容里的达人。");
+  });
+
+  it("rejects archive entry dates that do not match the talent lineup date", async () => {
+    await expect(
+      saveArchive("editor-lin", {
+        eventId: "event-spring-gala",
+        note: "archive note",
+        entries: [
+          {
+            talentId: "talent-zhaoying",
+            entryDate: "2026-05-01",
+            sceneAssetId: "asset-scene-1",
+            sharedPhotoAssetId: null,
+            cosplayTitle: "Role One",
+            hasSharedPhoto: false
+          }
+        ]
+      })
+    ).rejects.toThrow("现场档案记录的所属日期必须匹配该达人在活动阵容中的日期。");
   });
 
   it("ignores blank representation rows when saving a talent", async () => {

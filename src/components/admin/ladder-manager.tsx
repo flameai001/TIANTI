@@ -169,18 +169,16 @@ export function LadderManager({ ladder, talents, editorName }: LadderManagerProp
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="space-y-4">
         {draft.tiers
           .slice()
           .sort((a, b) => a.order - b.order)
           .map((tier, index) => (
             <section
               key={tier.id}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => handleDropToTierEnd(tier.id)}
-              className="surface rounded-[1.8rem] p-5"
+              className="surface grid gap-4 rounded-[1.8rem] p-5 lg:grid-cols-[13rem_minmax(0,1fr)]"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="space-y-3">
                 <input
                   value={tier.name}
                   onChange={(event) => updateTierName(tier.id, event.target.value)}
@@ -201,48 +199,7 @@ export function LadderManager({ ladder, talents, editorName }: LadderManagerProp
                 >
                   删除
                 </button>
-              </div>
 
-              <div className="mt-4 space-y-3">
-                {tier.talentIds.map((talentId, talentIndex) => {
-                  const talent = talentMap.get(talentId);
-                  if (!talent) return null;
-
-                  return (
-                    <div
-                      key={talentId}
-                      data-testid={`tier-${tier.id}-talent-${talentIndex}`}
-                      draggable
-                      onDragStart={(event) => {
-                        event.dataTransfer.setData("text/plain", talentId);
-                        event.dataTransfer.effectAllowed = "move";
-                        setDragging({ talentId, fromTierId: tier.id });
-                      }}
-                      onDragEnd={() => setDragging(null)}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        handleDropToTierPosition(tier.id, talentId);
-                      }}
-                      className="cursor-grab rounded-[1.2rem] border border-[var(--line-soft)] bg-[var(--surface-strong)] px-4 py-4 text-sm text-[var(--foreground)]"
-                    >
-                      <p className="text-lg text-[var(--foreground)]">{talent.nickname}</p>
-                      <p className="mt-2 text-xs uppercase tracking-[0.2em] ui-muted">
-                        {talent.tags.join(" · ") || "未设置标签"}
-                      </p>
-                    </div>
-                  );
-                })}
-
-                {tier.talentIds.length === 0 ? (
-                  <div className="rounded-[1.2rem] border border-dashed border-[var(--line-strong)] px-4 py-8 text-center text-sm ui-subtle">
-                    把达人拖到这里，或拖到具体卡片上方进行插入排序。
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="mt-4">
                 <select
                   defaultValue=""
                   onChange={(event) => {
@@ -259,32 +216,74 @@ export function LadderManager({ ladder, talents, editorName }: LadderManagerProp
                       {talent.nickname}
                     </option>
                   ))}
-                </select>
+                  </select>
+
+                {index === draft.tiers.length - 1 ? (
+                  <button
+                    type="button"
+                    data-testid="add-tier"
+                    onClick={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        tiers: [
+                          ...current.tiers,
+                          {
+                            id: crypto.randomUUID(),
+                            name: `T${current.tiers.length}`,
+                            order: current.tiers.length,
+                            talentIds: []
+                          }
+                        ]
+                      }))
+                    }
+                    className="ui-button-secondary w-full text-sm"
+                  >
+                    + 新增梯度
+                  </button>
+                ) : null}
               </div>
 
-              {index === draft.tiers.length - 1 ? (
-                <button
-                  type="button"
-                  data-testid="add-tier"
-                  onClick={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      tiers: [
-                        ...current.tiers,
-                        {
-                          id: crypto.randomUUID(),
-                          name: `T${current.tiers.length}`,
-                          order: current.tiers.length,
-                          talentIds: []
-                        }
-                      ]
-                    }))
-                  }
-                  className="ui-button-secondary mt-4 text-sm"
-                >
-                  + 新增梯度
-                </button>
-              ) : null}
+              <div
+                className="min-w-0 overflow-x-auto pb-3"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => handleDropToTierEnd(tier.id)}
+              >
+                <div className="flex min-h-14 w-max min-w-full items-center gap-2 rounded-[1.2rem] border border-dashed border-[var(--line-strong)] bg-white/55 p-3">
+                  {tier.talentIds.map((talentId, talentIndex) => {
+                    const talent = talentMap.get(talentId);
+                    if (!talent) return null;
+
+                    return (
+                      <div
+                        key={talentId}
+                        data-testid={`tier-${tier.id}-talent-${talentIndex}`}
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData("text/plain", talentId);
+                          event.dataTransfer.effectAllowed = "move";
+                          setDragging({ talentId, fromTierId: tier.id });
+                        }}
+                        onDragEnd={() => setDragging(null)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleDropToTierPosition(tier.id, talentId);
+                        }}
+                        className="inline-flex w-fit cursor-grab whitespace-nowrap rounded-full border border-[var(--line-soft)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-[var(--foreground)]"
+                      >
+                        {talent.nickname}
+                      </div>
+                    );
+                  })}
+
+                  {tier.talentIds.length === 0 ? (
+                    <div className="inline-flex min-h-10 items-center rounded-full border border-dashed border-[var(--line-strong)] px-4 py-2 text-sm ui-subtle">
+                      把达人拖到这里，或拖到具体卡片上方进行插入排序。
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </section>
           ))}
       </div>

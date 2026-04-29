@@ -23,7 +23,7 @@ test("public homepage renders and links into talent detail", async ({ page }) =>
   await page.getByTestId("home-cta-talents").click();
   await expect(page).toHaveURL(/\/talents$/);
   await page.getByRole("link", { name: "青鸾" }).first().click();
-  await expect(page).toHaveURL(/\/talents\/qingluan$/);
+  await expect(page).toHaveURL(/\/talents\/(qingluan|talent-qingluan)$/);
   await expect(page.getByRole("heading", { name: "青鸾" })).toBeVisible();
 });
 

@@ -257,7 +257,7 @@ export default async function TalentDetailPage({
                         <p className="mt-2 text-sm ui-subtle">
                           {[item.event.city, formatDateRange(item.event.startsAt, item.event.endsAt)].filter(Boolean).join(" · ")}
                         </p>
-                        <p className="mt-2 text-sm ui-subtle">{item.detailText || "暂未录入角色 / 作品 / 游戏"}</p>
+                        {item.detailText ? <p className="mt-2 text-sm ui-subtle">{item.detailText}</p> : null}
                       </Link>
                     ))
                   ) : (
