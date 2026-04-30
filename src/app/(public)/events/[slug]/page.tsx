@@ -116,20 +116,20 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                           <span className="text-xs ui-muted">{group.items.length} 位达人</span>
                         </div>
                       ) : null}
-                      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+                      <div data-testid="event-detail-lineup-grid" className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-6">
                         {group.items.map((item) => (
                           <Link
                             key={item.lineup.id}
                             href={getTalentPath(item.talent)}
-                            className="surface-strong rounded-[1.4rem] p-4 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]"
+                            className="surface-strong min-w-0 rounded-[1.2rem] p-3 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)] md:rounded-[1.4rem] md:p-4"
                           >
-                            <p className="text-lg text-[var(--foreground)]">{item.talent.nickname}</p>
+                            <p className="truncate text-base text-[var(--foreground)] md:text-lg">{item.talent.nickname}</p>
                             {item.lineup.status === "pending" ? (
-                              <p className="mt-3 inline-flex rounded-full border border-[#d8a526]/55 bg-[#f7d56a]/30 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a5200]">
+                              <p className="mt-3 inline-flex max-w-full rounded-full border border-[#d8a526]/55 bg-[#f7d56a]/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#7a5200] md:px-2.5 md:text-[10px] md:tracking-[0.14em]">
                                 UNCONFIRMED
                               </p>
                             ) : item.lineup.note ? (
-                              <p className="mt-3 text-sm leading-6 ui-subtle">{item.lineup.note}</p>
+                              <p className="mt-3 line-clamp-2 text-xs leading-5 ui-subtle md:text-sm md:leading-6">{item.lineup.note}</p>
                             ) : null}
                           </Link>
                         ))}

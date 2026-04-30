@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
-import type { ReactNode } from "react";
+import { AdminDialog } from "@/components/admin/admin-dialog";
 import { InlineAssetUpload } from "@/components/admin/inline-asset-upload";
 import { useAdminUnsavedChanges } from "@/components/admin/admin-unsaved-changes";
 import { StatusNotice } from "@/components/ui/status-notice";
@@ -58,46 +58,7 @@ interface AddArchiveEntryDraft {
   cosplayTitle: string;
 }
 
-interface AdminDialogProps {
-  title: string;
-  description?: string;
-  children: ReactNode;
-  footer: ReactNode;
-  onClose: () => void;
-}
-
 const UNSAVED_MESSAGE = "当前活动仍有未保存的修改，离开后会丢失。确定继续吗？";
-
-function AdminDialog({ title, description, children, footer, onClose }: AdminDialogProps) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(238,243,248,0.76)] px-4 py-6 backdrop-blur-md">
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="admin-dialog-title"
-        className="surface max-h-[calc(100vh-3rem)] w-full max-w-3xl overflow-y-auto rounded-[1.8rem] p-6 shadow-[0_24px_80px_rgba(91,109,133,0.16)]"
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-[var(--line-soft)] pb-4">
-          <div>
-            <h2 id="admin-dialog-title" className="text-2xl text-[var(--foreground)]">
-              {title}
-            </h2>
-            {description ? <p className="mt-2 text-sm leading-6 ui-subtle">{description}</p> : null}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="ui-button-secondary px-3 py-2 text-sm"
-          >
-            关闭
-          </button>
-        </div>
-        <div className="py-5">{children}</div>
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[var(--line-soft)] pt-4">{footer}</div>
-      </section>
-    </div>
-  );
-}
 
 function sortEventsForManager(value: Event[]) {
   const statusOrder = {
@@ -343,6 +304,7 @@ export function ArchiveManager({
   const [liveArchives, setLiveArchives] = useState(archives);
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(initialEventId);
+  const [isEventEditorOpen, setIsEventEditorOpen] = useState(false);
   const [isLineupDialogOpen, setIsLineupDialogOpen] = useState(false);
   const [lineupDialogDraft, setLineupDialogDraft] = useState<AddLineupDraft | null>(null);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
@@ -490,11 +452,24 @@ export function ArchiveManager({
     return !hasUnsavedChanges || window.confirm(UNSAVED_MESSAGE);
   }
 
+  function closeEventEditor() {
+    if (isEventDirty && !window.confirm(UNSAVED_MESSAGE)) return;
+    const currentEvent = liveEvents.find((event) => event.id === selectedEventId) ?? null;
+    setEventDraft(createEventDraft(currentEvent));
+    setEditableLineups(createLineupDrafts(currentEvent, liveLineups));
+    setCleanupCandidateAssetIds([]);
+    setIsEventEditorOpen(false);
+  }
+
   function selectEvent(eventId: string | null) {
-    if (eventId === selectedEventId) return;
+    if (eventId === selectedEventId) {
+      setIsEventEditorOpen(true);
+      return;
+    }
     if (!canLeaveCurrentWork()) return;
     resetDrafts(eventId);
     setMessage(null);
+    setIsEventEditorOpen(true);
   }
 
   function handleNewEvent() {
@@ -506,6 +481,7 @@ export function ArchiveManager({
     setCleanupCandidateAssetIds([]);
     updateBrowserSelection(null);
     setMessage(null);
+    setIsEventEditorOpen(true);
   }
 
   function isLineupDateTaken(talentId: string, date: string) {
@@ -767,6 +743,7 @@ export function ArchiveManager({
       setLiveEvents(nextEvents);
       setLiveLineups(nextLineups);
       resetDrafts(nextEventId, nextEvents, nextLineups, liveArchives);
+      setIsEventEditorOpen(false);
       setMessage(`活动「${data.event.name}」已保存。`);
     });
   }
@@ -850,6 +827,7 @@ export function ArchiveManager({
       setLiveArchives(nextArchives);
       setSelectedEventIds((current) => current.filter((id) => id !== selectedEvent.id));
       resetDrafts(nextEvents[0]?.id ?? null, nextEvents, nextLineups, nextArchives);
+      setIsEventEditorOpen(false);
       setMessage(`活动「${selectedEvent.name}」已删除。`);
     });
   }
@@ -902,6 +880,9 @@ export function ArchiveManager({
       setLiveArchives(nextArchives);
       setSelectedEventIds((current) => current.filter((id) => !removedIds.has(id)));
       resetDrafts(nextSelectedEventId, nextEvents, nextLineups, nextArchives);
+      if (removedIds.has(selectedEventId ?? "")) {
+        setIsEventEditorOpen(false);
+      }
       setMessage(buildBulkSummary(data.result, "已批量删除活动"));
     });
   }
@@ -1114,7 +1095,15 @@ export function ArchiveManager({
 
       <section className="space-y-6">
         {message ? <StatusNotice variant="warning">{message}</StatusNotice> : null}
-        <section className="surface rounded-[1.8rem] p-6">
+        {isEventEditorOpen ? (
+          <AdminDialog
+            title={selectedEvent ? `编辑 ${selectedEvent.name}` : "新建活动档案"}
+            description="活动基础信息和公开阵容在这里编辑；保存成功后弹窗会自动关闭。"
+            onClose={closeEventEditor}
+            size="xl"
+            footer={<span className="text-xs leading-6 ui-muted">保存活动信息后，再继续维护我的现场档案。</span>}
+          >
+            <section className="space-y-5">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <div className="flex flex-wrap items-center gap-3">
@@ -1349,7 +1338,37 @@ export function ArchiveManager({
               </button>
             </div>
           </div>
-        </section>
+            </section>
+          </AdminDialog>
+        ) : (
+          <section className="surface rounded-[1.8rem] p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">Archive Workspace</p>
+                  {isEventDirty ? (
+                    <span className="rounded-full border border-[#c48b26]/45 px-3 py-1 text-[11px] text-[#5f3d00]">
+                      活动信息未保存
+                    </span>
+                  ) : null}
+                </div>
+                <h2 className="mt-3 text-3xl text-white">
+                  {selectedEvent ? selectedEvent.name : "新建活动档案"}
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-white/60">
+                  新增和编辑活动信息会在独立弹窗中完成；这里保留活动选择和现场档案工作区。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => (selectedEventId ? selectEvent(selectedEventId) : handleNewEvent())}
+                className="ui-button-secondary px-5 py-2.5 text-sm"
+              >
+                {selectedEvent ? "编辑活动信息" : "新建活动档案"}
+              </button>
+            </div>
+          </section>
+        )}
         {!canEditArchive ? (
           <section className="surface rounded-[1.8rem] px-6 py-10 text-center text-white/68">
             先保存活动基础信息，再开始录入我的现场档案。

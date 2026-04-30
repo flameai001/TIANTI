@@ -31,16 +31,20 @@ export function EventCard({ item }: { item: EventSummary }) {
           item.lineupGroups.map((group) => (
             <div key={group.date ?? "single"} className="space-y-3">
               {group.label ? <p className="ui-kicker">{group.label}</p> : null}
-              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+              <div data-testid="event-card-lineup-grid" className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-6">
                 {group.items.map((lineup) => (
-                  <div key={lineup.lineup.id} className="surface-strong rounded-[1.15rem] p-3">
-                    <p className="text-sm text-[var(--foreground)]">{lineup.talent.nickname}</p>
+                  <div
+                    key={lineup.lineup.id}
+                    data-testid="event-card-lineup-talent"
+                    className="surface-strong min-w-0 rounded-[1rem] p-2.5 sm:rounded-[1.15rem] sm:p-3"
+                  >
+                    <p className="truncate text-xs text-[var(--foreground)] sm:text-sm">{lineup.talent.nickname}</p>
                     {lineup.lineup.status === "pending" ? (
-                      <p className="mt-2 inline-flex rounded-full border border-[#d8a526]/55 bg-[#f7d56a]/30 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7a5200]">
+                      <p className="mt-2 inline-flex max-w-full rounded-full border border-[#d8a526]/55 bg-[#f7d56a]/30 px-1.5 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#7a5200] sm:px-2 sm:text-[10px] sm:tracking-[0.14em]">
                         UNCONFIRMED
                       </p>
                     ) : lineup.lineup.note ? (
-                      <p className="mt-2 text-xs leading-5 ui-subtle">{lineup.lineup.note}</p>
+                      <p className="mt-2 line-clamp-2 text-[11px] leading-4 ui-subtle sm:text-xs sm:leading-5">{lineup.lineup.note}</p>
                     ) : null}
                   </div>
                 ))}

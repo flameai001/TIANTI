@@ -1,5 +1,5 @@
 import path from "node:path";
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 
 const sceneUploadPath = path.join(process.cwd(), "public", "media", "poster-crimson.svg");
 const sharedUploadPath = path.join(process.cwd(), "public", "media", "shared-bloom.svg");
@@ -31,6 +31,18 @@ async function dragByTestId(page: Page, sourceTestId: string, targetTestId: stri
   await page.getByTestId(targetTestId).dispatchEvent("dragover", { dataTransfer });
   await page.getByTestId(targetTestId).dispatchEvent("drop", { dataTransfer });
   await page.getByTestId(sourceTestId).dispatchEvent("dragend", { dataTransfer });
+}
+
+async function expectGridColumnCount(locator: Locator, expectedCount: number) {
+  await expect
+    .poll(async () =>
+      locator.evaluate((node) =>
+        getComputedStyle(node)
+          .gridTemplateColumns.split(" ")
+          .filter(Boolean).length
+      )
+    )
+    .toBe(expectedCount);
 }
 
 async function addLineupViaDialog(
@@ -153,7 +165,8 @@ test("editor can create a talent with inline uploads and publish a future event"
   await expect(page.getByTestId("talent-representation-select-0")).toHaveCount(0);
   await expect(page.getByTestId("talent-representation-upload-0-clear")).toBeEnabled();
   await page.getByTestId("save-talent").click();
-  await expect(page.getByRole("heading", { name: "编辑 Star Lume" })).toBeVisible();
+  await expect(page.getByText("已保存达人「Star Lume」")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await page.goto("/admin/archives");
   await page.getByTestId("new-event-button").click();
@@ -175,7 +188,8 @@ test("editor can create a talent with inline uploads and publish a future event"
   await page.getByTestId("lineup-dialog-submit").click();
   await page.getByTestId("save-event").click();
   await expect(page).toHaveURL(/\/admin\/archives\?event=/);
-  await expect(page.getByRole("heading", { name: "编辑 Starlight Expo" })).toBeVisible();
+  await expect(page.getByText("活动「Starlight Expo」已保存。")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Starlight Expo" })).toBeVisible();
 
   await page.goto("/events?eventStatus=future&q=Star%20Lume");
   await expect(page.getByText("Starlight Expo")).toBeVisible();
@@ -348,6 +362,7 @@ test("inline upload surfaces clear backend error messages", async ({ page }) => 
   });
 
   await page.goto("/admin/talents");
+  await page.getByRole("button", { name: "编辑达人" }).click();
   await page.getByTestId("talent-cover-upload").setInputFiles(sceneUploadPath);
   await confirmCrop(page, "talent-cover-upload");
   await expect(page.getByText("R2 存储配置错误：缺少 R2_PUBLIC_BASE_URL。")).toBeVisible();
@@ -357,10 +372,13 @@ test("editor can clear a current image and save the empty state", async ({ page 
   await login(page);
 
   await page.goto("/admin/talents");
+  await page.getByRole("button", { name: "编辑达人" }).click();
   await expect(page.getByTestId("talent-cover-upload-clear")).toBeEnabled();
   await page.getByTestId("talent-cover-upload-clear").click();
   await expect(page.getByTestId("talent-cover-upload-clear")).toBeDisabled();
   await page.getByTestId("save-talent").click();
+  await expect(page.getByText(/已保存达人/)).toBeVisible();
+  await page.getByRole("button", { name: "编辑达人" }).click();
   await expect(page.getByText("当前未上传图片")).toBeVisible();
 });
 
@@ -368,6 +386,7 @@ test("editor can reopen crop for an existing image", async ({ page }) => {
   await login(page);
 
   await page.goto("/admin/talents");
+  await page.getByRole("button", { name: "编辑达人" }).click();
   await expect(page.getByTestId("talent-cover-upload-edit")).toBeVisible();
   await page.getByTestId("talent-cover-upload-edit").click();
   await expect(page.getByTestId("talent-cover-upload-crop-frame")).toBeVisible();
@@ -421,6 +440,7 @@ test("representation order syncs from admin sorting to the public talent detail"
   await login(page);
 
   await page.goto("/admin/talents");
+  await page.getByRole("button", { name: "编辑达人" }).click();
   await page.getByTestId("representation-title-0").fill("Representation Alpha");
   await page.getByTestId("representation-title-1").fill("Representation Beta");
   await dragByTestId(page, "representation-handle-1", "representation-drop-0");
@@ -465,6 +485,24 @@ test("dragging ladder chips to delete returns them to the sorted unranked pool",
   await expect(poolTalents.nth(0)).toHaveText("青鸾");
   await expect(poolTalents.nth(1)).toHaveText("云墨");
   await expect(page.getByTestId("tier-lin-t0-talent-0")).toHaveCount(0);
+});
+
+test("double-clicking a ladder chip returns it to the unranked pool", async ({ page }) => {
+  await login(page);
+
+  await page.goto("/admin/ladder");
+  await page.getByTestId("tier-lin-t0-talent-0").dblclick();
+
+  const poolTalents = page.locator('[data-testid^="unassigned-talent-"]');
+  await expect(poolTalents).toHaveCount(1);
+  await expect(poolTalents.first()).toHaveText("青鸾");
+  await expect(page.getByTestId("tier-lin-t0-talent-0")).toHaveCount(0);
+
+  await page.getByTestId("save-ladder").click();
+  await page.waitForLoadState("networkidle");
+
+  await page.goto("/ladder?editor=lin");
+  await expect(page.getByTestId("ladder-tier-lin-t0-talent-0")).toHaveCount(0);
 });
 
 test("event index can filter by editor archive presence", async ({ page }) => {
@@ -522,12 +560,18 @@ test("public pages remain browsable on mobile", async ({ page }) => {
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "TIANTI" })).toBeVisible();
+  await expect(page.getByTestId("site-header")).toHaveCSS("position", "static");
+  await expectGridColumnCount(page.getByTestId("event-card-lineup-grid").first(), 3);
 
   await page.goto("/talents");
   await expect(page.getByTestId("talents-page-title")).toBeVisible();
 
   await page.goto("/events");
   await expect(page.getByTestId("events-page-title")).toBeVisible();
+  await expectGridColumnCount(page.getByTestId("event-card-lineup-grid").first(), 3);
+
+  await page.goto("/events/event-spring-gala");
+  await expectGridColumnCount(page.getByTestId("event-detail-lineup-grid").first(), 2);
 
   await page.goto("/ladder");
   await expect(page.getByTestId("ladder-page-title")).toBeVisible();

@@ -12,8 +12,9 @@ const navItems = [
 export function SiteHeader({ className }: { className?: string }) {
   return (
     <header
+      data-testid="site-header"
       className={cn(
-        "sticky top-0 z-50 border-b border-[var(--line-soft)] bg-[rgba(247,250,254,0.84)] backdrop-blur-xl",
+        "z-50 border-b border-[var(--line-soft)] bg-[rgba(247,250,254,0.84)] backdrop-blur-xl md:sticky md:top-0",
         className
       )}
     >

@@ -279,6 +279,7 @@ export function LadderManager({ ladder, talents, editorName }: LadderManagerProp
                             setDragging({ talentId, fromTierId: tier.id });
                           }}
                           onDragEnd={() => setDragging(null)}
+                          onDoubleClick={() => moveTalent(talentId, null)}
                           onDragOver={(event) => event.preventDefault()}
                           onDrop={(event) => {
                             event.preventDefault();

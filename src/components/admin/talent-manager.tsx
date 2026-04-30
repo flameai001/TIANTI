@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
+import { AdminDialog } from "@/components/admin/admin-dialog";
 import { InlineAssetUpload } from "@/components/admin/inline-asset-upload";
 import { compareByPinyin } from "@/lib/pinyin";
 import type { TalentBulkResponse } from "@/modules/admin/types";
@@ -118,6 +119,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [draggingRepresentationId, setDraggingRepresentationId] = useState<string | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const selectedTalent = liveTalents.find((talent) => talent.id === selectedId) ?? null;
   const [draft, setDraft] = useState<TalentDraft>(() => createTalentDraft(selectedTalent));
@@ -151,13 +153,22 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
 
   const hasSelectedTalents = selectedIds.length > 0;
 
-  function selectTalent(id: string | null) {
+  function openTalentEditor(id: string | null) {
     const nextTalent = liveTalents.find((talent) => talent.id === id) ?? null;
     setSelectedId(id);
     setDraft(createTalentDraft(nextTalent));
     setCleanupCandidateAssetIds([]);
     setDraggingRepresentationId(null);
     setMessage(null);
+    setIsEditorOpen(true);
+  }
+
+  function closeTalentEditor() {
+    const nextTalent = liveTalents.find((talent) => talent.id === selectedId) ?? null;
+    setDraft(createTalentDraft(nextTalent));
+    setCleanupCandidateAssetIds([]);
+    setDraggingRepresentationId(null);
+    setIsEditorOpen(false);
   }
 
   function toggleSelectedTalent(id: string, checked: boolean) {
@@ -385,6 +396,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       setSelectedId(data.talent.id);
       setDraft(createTalentDraft(data.talent));
       setCleanupCandidateAssetIds([]);
+      setIsEditorOpen(false);
       setMessage(`已保存达人「${data.talent.nickname}」。`);
     });
   }
@@ -411,6 +423,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       setSelectedId(nextSelectedTalent?.id ?? null);
       setDraft(createTalentDraft(nextSelectedTalent));
       setCleanupCandidateAssetIds([]);
+      setIsEditorOpen(false);
       setMessage(`已删除达人「${selectedTalent.nickname}」。`);
     });
   }
@@ -458,6 +471,9 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       setSelectedIds((current) => current.filter((id) => !succeededIds.includes(id)));
       setSelectedId(nextSelectedTalent?.id ?? null);
       setDraft(createTalentDraft(nextSelectedTalent));
+      if (selectedId && succeededIds.includes(selectedId)) {
+        setIsEditorOpen(false);
+      }
 
       const blockedSummary =
         data.result.blocked.length > 0
@@ -509,7 +525,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
           <button
             type="button"
             data-testid="new-talent-button"
-            onClick={() => selectTalent(null)}
+            onClick={() => openTalentEditor(null)}
             className="w-full rounded-[1.2rem] border border-dashed border-white/15 px-4 py-4 text-left text-sm text-white/70 transition hover:border-white/30 hover:text-white"
           >
             + 新建达人
@@ -531,7 +547,7 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
                   onChange={(event) => toggleSelectedTalent(talent.id, event.target.checked)}
                   className="mt-1 size-4 rounded border-white/20 bg-black/30"
                 />
-                <button type="button" onClick={() => selectTalent(talent.id)} className="flex-1 text-left">
+                <button type="button" onClick={() => openTalentEditor(talent.id)} className="flex-1 text-left">
                   <p className="text-lg text-white">{talent.nickname}</p>
                   <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/40">
                     {talent.tags.join(" · ") || "未设置标签"}
@@ -544,7 +560,58 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
       </aside>
 
       <section className="space-y-6">
+        {message ? (
+          <div className="surface rounded-[1.4rem] px-5 py-4 text-sm text-[#5f3d00]">{message}</div>
+        ) : null}
         <div className="surface rounded-[1.8rem] p-6">
+          <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">Talent Workspace</p>
+          <h2 className="mt-3 text-3xl text-white">达人资料</h2>
+          <p className="mt-3 text-sm leading-7 text-white/60">
+            新增和编辑会在独立弹窗中完成；列表保持用于搜索、勾选和批量管理。
+          </p>
+          <div className="mt-6 rounded-[1.4rem] border border-white/10 bg-black/15 p-4">
+            {selectedTalent ? (
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-lg text-white">{selectedTalent.nickname}</p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.2em] text-white/40">
+                    {selectedTalent.tags.join(" · ") || "未设置标签"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openTalentEditor(selectedTalent.id)}
+                  className="ui-button-secondary px-5 py-2.5 text-sm"
+                >
+                  编辑达人
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <p className="text-sm text-white/60">当前没有选中的达人。</p>
+                <button
+                  type="button"
+                  onClick={() => openTalentEditor(null)}
+                  className="ui-button-secondary px-5 py-2.5 text-sm"
+                >
+                  新建达人
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {isEditorOpen ? (
+        <AdminDialog
+          title={selectedTalent ? `编辑 ${selectedTalent.nickname}` : "新建达人"}
+          description="只有昵称必填；保存成功后弹窗会自动关闭，并同步左侧列表。"
+          onClose={closeTalentEditor}
+          size="xl"
+          footer={<span className="text-xs leading-6 ui-muted">标签和别名支持中英文逗号分隔。</span>}
+        >
+          <section className="space-y-6">
+            <div className="space-y-5">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">Talent Editor</p>
@@ -782,8 +849,10 @@ export function TalentManager({ talents, assets }: TalentManagerProps) {
               </button>
             </div>
           </div>
-        </div>
-      </section>
+            </div>
+          </section>
+        </AdminDialog>
+      ) : null}
     </div>
   );
 }
