@@ -50,8 +50,6 @@ async function addLineupViaDialog(
   options: {
     talentId?: string;
     talentLabel?: string;
-    status?: "confirmed" | "pending";
-    source?: string;
     note?: string;
     allDates?: string[];
     dateNotes?: Record<string, string>;
@@ -62,14 +60,6 @@ async function addLineupViaDialog(
     await page.getByTestId("lineup-dialog-talent").selectOption(options.talentId);
   } else if (options.talentLabel) {
     await page.getByTestId("lineup-dialog-talent").selectOption({ label: options.talentLabel });
-  }
-
-  if (options.status) {
-    await page.getByTestId("lineup-dialog-status").selectOption(options.status);
-  }
-
-  if (options.source) {
-    await page.getByTestId("lineup-dialog-source").fill(options.source);
   }
 
   if (options.allDates && options.dateNotes) {
@@ -88,6 +78,12 @@ async function addLineupViaDialog(
   }
 
   await page.getByTestId("lineup-dialog-submit").click();
+}
+
+async function openSelectedEventEditor(page: Page) {
+  await page.getByRole("button", { name: "编辑活动信息" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByTestId("archive-note")).toBeVisible();
 }
 
 async function addArchiveEntriesViaDialog(
@@ -122,8 +118,10 @@ test("public homepage renders and links into talent detail", async ({ page }) =>
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "TIANTI" })).toBeVisible();
   await expect(page.getByText("主视觉第一轮海报已出现")).toBeVisible();
-  await expect(page.getByText("UNCONFIRMED")).toBeVisible();
-  await expect(page.getByText("待主办二宣")).toHaveCount(0);
+  await expect(page.getByText("UNCONFIRMED")).toHaveCount(0);
+  await expect(page.getByText("待主办二宣")).toBeVisible();
+  await expect(page.getByTestId("talent-future-hint-talent-qingluan")).toHaveText("春序漫展 2026");
+  await expect(page.getByTestId("talent-card-talent-qingluan")).not.toContainText("虹馆 West Hall");
   await page.getByTestId("home-cta-talents").click();
   await expect(page).toHaveURL(/\/talents$/);
   await page.getByRole("link", { name: "青鸾" }).first().click();
@@ -178,12 +176,6 @@ test("editor can create a talent with inline uploads and publish a future event"
   await page.getByTestId("event-note").fill("Acceptance path event for TIANTI v3.1.");
   await page.getByTestId("add-lineup").click();
   await page.getByTestId("lineup-dialog-talent").selectOption({ label: "Star Lume" });
-  await expect(page.getByTestId("lineup-dialog-source")).toHaveCount(0);
-  await page.getByTestId("lineup-dialog-status").selectOption("pending");
-  await expect(page.getByTestId("lineup-dialog-source")).toBeVisible();
-  await page.getByTestId("lineup-dialog-source").fill("Official announcement");
-  await page.getByTestId("lineup-dialog-status").selectOption("confirmed");
-  await expect(page.getByTestId("lineup-dialog-source")).toHaveCount(0);
   await page.getByTestId("lineup-dialog-note").fill("Featured guest slot");
   await page.getByTestId("lineup-dialog-submit").click();
   await page.getByTestId("save-event").click();
@@ -220,6 +212,7 @@ test("multi-day event lineups are grouped by date in admin, list cards, and deta
     dateNotes: { "2026-06-02": "Day 2 note" }
   });
   await page.getByTestId("save-event").click();
+  await openSelectedEventEditor(page);
 
   await addArchiveEntriesViaDialog(page, [
     { talentLabel: "青鸾", date: "2026-06-01", cosplayTitle: "Role Day 1" },
@@ -263,8 +256,9 @@ test("editor can upload archive assets inline and shared-photo card toggles on t
   await login(page);
 
   await page.goto("/admin/archives");
+  await openSelectedEventEditor(page);
   await page.getByTestId("archive-note").fill("收尾验收档案备注");
-  await addArchiveEntriesViaDialog(page, [{ talentLabel: "青鸾", date: "2026-05-01", cosplayTitle: "Archive Test Role" }]);
+  await addArchiveEntriesViaDialog(page, [{ talentLabel: "青鸾", date: "2026-05-15", cosplayTitle: "Archive Test Role" }]);
   await page.getByTestId("archive-scene-upload-0").setInputFiles(sceneUploadPath);
   await confirmCrop(page, "archive-scene-upload-0");
   await expect(page.getByTestId("archive-scene-0")).toHaveCount(0);
@@ -314,6 +308,7 @@ test("event archive rails can page horizontally within a single editor date row"
 
   await page.getByTestId("save-event").click();
   await expect(page).toHaveURL(/\/admin\/archives\?event=/);
+  await openSelectedEventEditor(page);
   await page.getByTestId("import-lineup-entries").click();
   await expect(page.getByTestId("archive-entry")).toHaveCount(4);
   await page.getByTestId("archive-copy-0").click();
@@ -533,6 +528,7 @@ test("archive workspace can import lineup entries and duplicate a record", async
   await login(page);
 
   await page.goto("/admin/archives");
+  await openSelectedEventEditor(page);
   await page.getByTestId("import-lineup-entries").click();
   await expect(page.getByTestId("archive-entry")).toHaveCount(2);
 
@@ -542,7 +538,6 @@ test("archive workspace can import lineup entries and duplicate a record", async
   await page.getByTestId("archive-note").fill("Imported archive workflow note");
   await page.getByTestId("archive-cosplay-0").fill("Role One");
   await page.getByTestId("archive-cosplay-1").fill("Role Two");
-  await page.getByTestId("archive-cosplay-2").fill("Role Three");
   await page.getByTestId("archive-scene-upload-0").setInputFiles(sceneUploadPath);
   await confirmCrop(page, "archive-scene-upload-0");
   await page.getByTestId("archive-scene-upload-1").setInputFiles(sceneUploadPath);

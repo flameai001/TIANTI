@@ -124,11 +124,7 @@ export default async function EventDetailPage({ params }: { params: Params }) {
                             className="surface-strong min-w-0 rounded-[1.2rem] p-3 transition hover:-translate-y-1 hover:shadow-[var(--shadow-soft)] md:rounded-[1.4rem] md:p-4"
                           >
                             <p className="truncate text-base text-[var(--foreground)] md:text-lg">{item.talent.nickname}</p>
-                            {item.lineup.status === "pending" ? (
-                              <p className="mt-3 inline-flex max-w-full rounded-full border border-[#d8a526]/55 bg-[#f7d56a]/30 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#7a5200] md:px-2.5 md:text-[10px] md:tracking-[0.14em]">
-                                UNCONFIRMED
-                              </p>
-                            ) : item.lineup.note ? (
+                            {item.lineup.note ? (
                               <p className="mt-3 line-clamp-2 text-xs leading-5 ui-subtle md:text-sm md:leading-6">{item.lineup.note}</p>
                             ) : null}
                           </Link>

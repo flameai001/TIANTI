@@ -10,6 +10,7 @@ export function TalentCard({ talent }: { talent: TalentSummary }) {
   return (
     <Link
       href={getTalentPath(talent)}
+      data-testid={`talent-card-${talent.id}`}
       className="group surface block overflow-hidden rounded-[1.9rem] transition duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-strong)]"
     >
       <div className="relative overflow-hidden" style={{ aspectRatio: coverDisplayPreset.aspectStyle }}>
@@ -38,7 +39,11 @@ export function TalentCard({ talent }: { talent: TalentSummary }) {
       <div className="space-y-3 px-5 py-5">
         <div className="space-y-2">
           <h3 className="text-2xl tracking-[-0.03em] text-[var(--foreground)]">{talent.nickname}</h3>
-          {talent.futureLocationHint ? <p className="text-sm ui-subtle">{talent.futureLocationHint}</p> : null}
+          {talent.futureLocationHint ? (
+            <p data-testid={`talent-future-hint-${talent.id}`} className="text-sm ui-subtle">
+              {talent.futureLocationHint}
+            </p>
+          ) : null}
         </div>
         <p className="line-clamp-1 text-sm leading-7 ui-subtle">{talent.bioPreviewLine ?? ""}</p>
       </div>

@@ -146,7 +146,7 @@ describe("admin mutations", () => {
     ).rejects.toThrow("达人阵容的所属日期必须落在活动开始和结束日期之间。");
   });
 
-  it("clears confirmed lineup sources while preserving pending sources", async () => {
+  it("normalizes lineup status and clears lineup sources", async () => {
     const saved = await saveEvent({
       name: "Source Normalization Event",
       startsAt: "2026-06-01",
@@ -175,7 +175,8 @@ describe("admin mutations", () => {
 
     const savedLineups = getMockState().lineups.filter((lineup) => lineup.eventId === saved.id);
     expect(savedLineups.find((lineup) => lineup.talentId === "talent-qingluan")?.source).toBe("");
-    expect(savedLineups.find((lineup) => lineup.talentId === "talent-yunmo")?.source).toBe("Live hint");
+    expect(savedLineups.find((lineup) => lineup.talentId === "talent-yunmo")?.source).toBe("");
+    expect(savedLineups.every((lineup) => lineup.status === "confirmed")).toBe(true);
   });
 
   it("requires archive entry dates for multi-day events", async () => {
@@ -195,6 +196,25 @@ describe("admin mutations", () => {
         ]
       })
     ).rejects.toThrow("多日活动的每条现场档案记录都必须选择所属日期。");
+  });
+
+  it("allows archive role text to be blank", async () => {
+    const saved = await saveArchive("editor-lin", {
+      eventId: "event-mist-lantern",
+      note: "blank role archive",
+      entries: [
+        {
+          talentId: "talent-qingluan",
+          entryDate: "2026-03-22",
+          sceneAssetId: "asset-scene-1",
+          sharedPhotoAssetId: null,
+          cosplayTitle: "",
+          hasSharedPhoto: false
+        }
+      ]
+    });
+
+    expect(saved.entries[0]?.cosplayTitle).toBe("");
   });
 
   it("rejects archive entry dates outside the event range", async () => {
@@ -224,7 +244,7 @@ describe("admin mutations", () => {
         entries: [
           {
             talentId: "talent-yunmo",
-            entryDate: "2026-05-01",
+            entryDate: "2026-05-15",
             sceneAssetId: "asset-scene-1",
             sharedPhotoAssetId: null,
             cosplayTitle: "Role One",
@@ -243,7 +263,7 @@ describe("admin mutations", () => {
         entries: [
           {
             talentId: "talent-zhaoying",
-            entryDate: "2026-05-01",
+            entryDate: "2026-05-15",
             sceneAssetId: "asset-scene-1",
             sharedPhotoAssetId: null,
             cosplayTitle: "Role One",

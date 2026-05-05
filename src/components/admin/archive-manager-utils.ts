@@ -58,8 +58,8 @@ export function createLineupDrafts(event: Event | null, lineups: EventLineup[]):
       id: lineup.id,
       talentId: lineup.talentId,
       lineupDate: toDateInputValue(lineup.lineupDate ?? event.startsAt ?? event.endsAt ?? null),
-      status: lineup.status,
-      source: lineup.status === "confirmed" ? "" : lineup.source,
+      status: "confirmed",
+      source: "",
       note: lineup.note
     }));
 }
@@ -114,8 +114,8 @@ export function normalizeLineupDrafts(value: EditableLineup[]) {
     id: lineup.id,
     talentId: lineup.talentId,
     lineupDate: lineup.lineupDate,
-    status: lineup.status,
-    source: lineup.status === "confirmed" ? "" : lineup.source.trim(),
+    status: "confirmed",
+    source: "",
     note: lineup.note.trim()
   }));
 }

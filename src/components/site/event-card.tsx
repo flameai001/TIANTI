@@ -39,11 +39,7 @@ export function EventCard({ item }: { item: EventSummary }) {
                     className="surface-strong min-w-0 rounded-[1rem] p-2.5 sm:rounded-[1.15rem] sm:p-3"
                   >
                     <p className="truncate text-xs text-[var(--foreground)] sm:text-sm">{lineup.talent.nickname}</p>
-                    {lineup.lineup.status === "pending" ? (
-                      <p className="mt-2 inline-flex max-w-full rounded-full border border-[#d8a526]/55 bg-[#f7d56a]/30 px-1.5 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#7a5200] sm:px-2 sm:text-[10px] sm:tracking-[0.14em]">
-                        UNCONFIRMED
-                      </p>
-                    ) : lineup.lineup.note ? (
+                    {lineup.lineup.note ? (
                       <p className="mt-2 line-clamp-2 text-[11px] leading-4 ui-subtle sm:text-xs sm:leading-5">{lineup.lineup.note}</p>
                     ) : null}
                   </div>

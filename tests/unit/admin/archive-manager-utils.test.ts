@@ -29,7 +29,7 @@ describe("archive manager utils", () => {
     expect(draft.entries[0]?.entryDate).toBe("2026-04-18");
   });
 
-  it("clears confirmed lineup sources in editable drafts", () => {
+  it("normalizes lineup status and source out of editable drafts", () => {
     const event: Event = {
       id: "event-1",
       slug: null,
@@ -67,7 +67,8 @@ describe("archive manager utils", () => {
 
     const draft = createLineupDrafts(event, lineups);
 
+    expect(draft.every((lineup) => lineup.status === "confirmed")).toBe(true);
     expect(draft.find((lineup) => lineup.id === "lineup-1")?.source).toBe("");
-    expect(draft.find((lineup) => lineup.id === "lineup-2")?.source).toBe("Hint");
+    expect(draft.find((lineup) => lineup.id === "lineup-2")?.source).toBe("");
   });
 });

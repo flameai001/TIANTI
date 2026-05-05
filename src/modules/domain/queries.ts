@@ -263,9 +263,7 @@ function buildTalentSummary(state: ContentState, talent: Talent, relevanceScore?
   );
   const latestEvent = sortEventsByRecent(relatedEvents)[0] ?? null;
   const preferredFutureEvent = getPreferredFutureEventForTalent(state, talent.id);
-  const futureLocationHint = preferredFutureEvent
-    ? [preferredFutureEvent.city, preferredFutureEvent.venue].filter(Boolean).join(" · ")
-    : null;
+  const futureLocationHint = preferredFutureEvent?.name ?? null;
   const recentHint = latestEvent ? [latestEvent.city, latestEvent.name].filter(Boolean).join(" · ") : null;
 
   return {

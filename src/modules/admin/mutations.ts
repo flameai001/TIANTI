@@ -70,7 +70,7 @@ const eventSchema = z.object({
         id: z.string().optional(),
         talentId: z.string().nullable().optional(),
         lineupDate: z.string().nullable().optional(),
-        status: z.enum(["confirmed", "pending"]),
+        status: z.enum(["confirmed", "pending"]).optional().default("confirmed"),
         source: z.string().optional().default(""),
         note: z.string().optional().default("")
       })
@@ -104,7 +104,7 @@ const archiveSchema = z.object({
       entryDate: z.string().nullable().optional(),
       sceneAssetId: z.string().nullable().optional(),
       sharedPhotoAssetId: z.string().nullable().optional(),
-      cosplayTitle: z.string().min(1),
+      cosplayTitle: z.string().optional().default(""),
       hasSharedPhoto: z.boolean()
     })
   )
@@ -410,8 +410,8 @@ export async function saveEvent(payload: unknown) {
         eventId: id,
         talentId: lineup.talentId!.trim(),
         lineupDate,
-        status: lineup.status,
-        source: lineup.status === "confirmed" ? "" : lineup.source.trim(),
+        status: "confirmed" as const,
+        source: "",
         note: lineup.note.trim()
       };
     });

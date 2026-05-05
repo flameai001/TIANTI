@@ -193,8 +193,8 @@ export const demoSeedState: RepositoryState = {
       name: "春序漫展 2026",
       aliases: ["春序漫展", "Spring Gala 2026"],
       searchKeywords: ["上海漫展", "国风舞台", "主视觉活动"],
-      startsAt: "2026-05-01T10:00:00.000Z",
-      endsAt: "2026-05-03T18:00:00.000Z",
+      startsAt: "2026-05-15T10:00:00.000Z",
+      endsAt: "2026-05-17T18:00:00.000Z",
       city: "上海",
       venue: "虹馆 West Hall",
       status: "future",
@@ -235,18 +235,18 @@ export const demoSeedState: RepositoryState = {
       id: "lineup-1",
       eventId: "event-spring-gala",
       talentId: "talent-qingluan",
-      lineupDate: "2026-05-01T12:00:00.000Z",
+      lineupDate: "2026-05-15T12:00:00.000Z",
       status: "confirmed",
-      source: "主办官宣",
+      source: "",
       note: "主视觉第一轮海报已出现"
     },
     {
       id: "lineup-2",
       eventId: "event-spring-gala",
       talentId: "talent-zhaoying",
-      lineupDate: "2026-05-02T12:00:00.000Z",
-      status: "pending",
-      source: "达人直播口风",
+      lineupDate: "2026-05-16T12:00:00.000Z",
+      status: "confirmed",
+      source: "",
       note: "待主办二宣"
     },
     {
@@ -255,7 +255,7 @@ export const demoSeedState: RepositoryState = {
       talentId: "talent-yunmo",
       lineupDate: "2026-04-19T12:00:00.000Z",
       status: "confirmed",
-      source: "主办嘉宾名单",
+      source: "",
       note: "签售时段待补"
     },
     {
@@ -264,7 +264,7 @@ export const demoSeedState: RepositoryState = {
       talentId: "talent-yanjin",
       lineupDate: "2026-04-20T12:00:00.000Z",
       status: "confirmed",
-      source: "工作室行程表",
+      source: "",
       note: "预计双日均在"
     },
     {
@@ -273,7 +273,7 @@ export const demoSeedState: RepositoryState = {
       talentId: "talent-qingluan",
       lineupDate: "2026-03-22T12:00:00.000Z",
       status: "confirmed",
-      source: "已结束活动",
+      source: "",
       note: "现场返图已归档"
     },
     {
@@ -282,7 +282,7 @@ export const demoSeedState: RepositoryState = {
       talentId: "talent-yanjin",
       lineupDate: "2026-03-22T12:00:00.000Z",
       status: "confirmed",
-      source: "已结束活动",
+      source: "",
       note: "舞台返场一次"
     }
   ],

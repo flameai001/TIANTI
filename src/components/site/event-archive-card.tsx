@@ -62,7 +62,7 @@ export function EventArchiveCard({
         <Link href={getTalentPath({ id: talentId, slug: talentSlug })} className="text-xl tracking-[-0.03em] text-[var(--foreground)]">
           {talentName}
         </Link>
-        <p className="text-sm ui-subtle">{cosplayTitle}</p>
+        {cosplayTitle ? <p className="text-sm ui-subtle">{cosplayTitle}</p> : null}
         <div className="flex items-center gap-3 text-xs uppercase tracking-[0.15em] ui-muted">
           {sharedPhotoAsset ? (
             canToggleSharedPhoto ? (

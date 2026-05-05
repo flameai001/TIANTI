@@ -45,8 +45,6 @@ interface AddLineupDateDraft {
 
 interface AddLineupDraft {
   talentId: string;
-  status: EditableLineup["status"];
-  source: string;
   note: string;
   dates: AddLineupDateDraft[];
 }
@@ -185,7 +183,6 @@ function validateArchiveDraft(
     if (isMultiDayEvent && entry.entryDate && !validDateKeysByTalentId.get(entry.talentId)?.has(entry.entryDate)) {
       return "现场档案记录的所属日期必须匹配该达人在活动阵容中的日期。";
     }
-    if (!entry.cosplayTitle.trim()) return "请为每条档案记录填写角色或作品。";
     if (entry.hasSharedPhoto && !entry.sharedPhotoAssetId) {
       return "已勾选合照的档案条目必须选择一张合照素材。";
     }
@@ -453,10 +450,11 @@ export function ArchiveManager({
   }
 
   function closeEventEditor() {
-    if (isEventDirty && !window.confirm(UNSAVED_MESSAGE)) return;
+    if (hasUnsavedChanges && !window.confirm(UNSAVED_MESSAGE)) return;
     const currentEvent = liveEvents.find((event) => event.id === selectedEventId) ?? null;
     setEventDraft(createEventDraft(currentEvent));
     setEditableLineups(createLineupDrafts(currentEvent, liveLineups));
+    setArchiveDraft(createArchiveDraft(selectedEventId, liveArchives));
     setCleanupCandidateAssetIds([]);
     setIsEventEditorOpen(false);
   }
@@ -503,8 +501,6 @@ export function ArchiveManager({
 
     return {
       talentId,
-      status: "confirmed",
-      source: "",
       note: "",
       dates: dateRows.map((row) => ({
         ...row,
@@ -523,23 +519,8 @@ export function ArchiveManager({
     setMessage(null);
   }
 
-  function updateLineupDialogStatus(status: EditableLineup["status"]) {
-    setLineupDialogDraft((current) =>
-      current ? { ...current, status, source: status === "confirmed" ? "" : current.source } : current
-    );
-  }
-
   function updateLineupDialogTalent(talentId: string) {
-    setLineupDialogDraft((current) => {
-      const nextDraft = createLineupDialogDraft(talentId);
-      return current
-        ? {
-            ...nextDraft,
-            status: current.status,
-            source: current.status === "confirmed" ? "" : current.source
-          }
-        : nextDraft;
-    });
+    setLineupDialogDraft(createLineupDialogDraft(talentId));
   }
 
   function updateLineupDialogDate(date: string, patch: Partial<AddLineupDateDraft>) {
@@ -559,21 +540,16 @@ export function ArchiveManager({
       return;
     }
 
-    const source = lineupDialogDraft.status === "pending" ? lineupDialogDraft.source : "";
     const nextLineups = isMultiDayEvent
       ? lineupDialogDraft.dates
           .filter((dateDraft) => dateDraft.selected && !isLineupDateTaken(lineupDialogDraft.talentId, dateDraft.date))
           .map((dateDraft) => ({
             ...createEditableLineup(lineupDialogDraft.talentId, dateDraft.date),
-            status: lineupDialogDraft.status,
-            source,
             note: dateDraft.note
           }))
       : [
           {
             ...createEditableLineup(lineupDialogDraft.talentId, defaultLineupDate),
-            status: lineupDialogDraft.status,
-            source,
             note: lineupDialogDraft.note
           }
         ];
@@ -736,7 +712,8 @@ export function ArchiveManager({
             ...lineup,
             eventId: nextEventId,
             lineupDate: toDateOnlyIso(lineup.lineupDate) ?? null,
-            source: lineup.status === "confirmed" ? "" : lineup.source
+            status: "confirmed" as const,
+            source: ""
           }))
       ];
 
@@ -1101,7 +1078,7 @@ export function ArchiveManager({
             description="活动基础信息和公开阵容在这里编辑；保存成功后弹窗会自动关闭。"
             onClose={closeEventEditor}
             size="xl"
-            footer={<span className="text-xs leading-6 ui-muted">保存活动信息后，再继续维护我的现场档案。</span>}
+            footer={<span className="text-xs leading-6 ui-muted">活动信息与现场档案可分别保存。</span>}
           >
             <section className="space-y-5">
           <div className="mb-6 flex items-start justify-between gap-4">
@@ -1118,7 +1095,7 @@ export function ArchiveManager({
                 {selectedEvent ? `编辑 ${selectedEvent.name}` : "新建活动档案"}
               </h2>
               <p className="mt-3 text-sm leading-7 text-white/60">
-                活动名称必填，其他信息都可以留空；保存活动后，再继续补录我的现场档案。
+                活动名称必填，其他信息都可以留空；现场档案也在这个弹窗里维护。
               </p>
             </div>
             {selectedEvent ? (
@@ -1226,14 +1203,9 @@ export function ArchiveManager({
                     ) : null}
 
                     {group.items.map(({ lineup, index }) => {
-                      const showSource = lineup.status === "pending";
                       const gridClass = isMultiDayEvent
-                        ? showSource
-                          ? "xl:grid-cols-[1fr_0.9fr_0.9fr_1fr_auto]"
-                          : "xl:grid-cols-[1fr_0.9fr_0.9fr_auto]"
-                        : showSource
-                          ? "md:grid-cols-[1fr_0.8fr_0.8fr_auto]"
-                          : "md:grid-cols-[1fr_0.8fr_auto]";
+                        ? "xl:grid-cols-[1fr_0.9fr_auto]"
+                        : "md:grid-cols-[1fr_auto]";
 
                       return (
                         <div
@@ -1269,27 +1241,6 @@ export function ArchiveManager({
                               ))}
                             </select>
                           ) : null}
-                          <select
-                            data-testid={`lineup-status-${index}`}
-                            value={lineup.status}
-                            onChange={(event) => {
-                              const status = event.target.value as EditableLineup["status"];
-                              updateLineup(index, { status, source: status === "confirmed" ? "" : lineup.source });
-                            }}
-                            className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                          >
-                            <option value="confirmed">已确认</option>
-                            <option value="pending">待确认</option>
-                          </select>
-                          {showSource ? (
-                            <input
-                              data-testid={`lineup-source-${index}`}
-                              value={lineup.source}
-                              onChange={(event) => updateLineup(index, { source: event.target.value })}
-                              placeholder="信息来源"
-                              className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none"
-                            />
-                          ) : null}
                           <button
                             type="button"
                             onClick={() =>
@@ -1306,13 +1257,7 @@ export function ArchiveManager({
                             rows={2}
                             placeholder="补充备注"
                             className={`rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm outline-none ${
-                              isMultiDayEvent
-                                ? showSource
-                                  ? "xl:col-span-5"
-                                  : "xl:col-span-4"
-                                : showSource
-                                  ? "md:col-span-4"
-                                  : "md:col-span-3"
+                              isMultiDayEvent ? "xl:col-span-3" : "md:col-span-2"
                             }`}
                           />
                         </div>
@@ -1339,36 +1284,6 @@ export function ArchiveManager({
             </div>
           </div>
             </section>
-          </AdminDialog>
-        ) : (
-          <section className="surface rounded-[1.8rem] p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">Archive Workspace</p>
-                  {isEventDirty ? (
-                    <span className="rounded-full border border-[#c48b26]/45 px-3 py-1 text-[11px] text-[#5f3d00]">
-                      活动信息未保存
-                    </span>
-                  ) : null}
-                </div>
-                <h2 className="mt-3 text-3xl text-white">
-                  {selectedEvent ? selectedEvent.name : "新建活动档案"}
-                </h2>
-                <p className="mt-3 text-sm leading-7 text-white/60">
-                  新增和编辑活动信息会在独立弹窗中完成；这里保留活动选择和现场档案工作区。
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => (selectedEventId ? selectEvent(selectedEventId) : handleNewEvent())}
-                className="ui-button-secondary px-5 py-2.5 text-sm"
-              >
-                {selectedEvent ? "编辑活动信息" : "新建活动档案"}
-              </button>
-            </div>
-          </section>
-        )}
         {!canEditArchive ? (
           <section className="surface rounded-[1.8rem] px-6 py-10 text-center text-white/68">
             先保存活动基础信息，再开始录入我的现场档案。
@@ -1574,6 +1489,36 @@ export function ArchiveManager({
             </div>
           </>
         )}
+          </AdminDialog>
+        ) : (
+          <section className="surface rounded-[1.8rem] p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-[var(--color-accent)]">Archive Workspace</p>
+                  {isEventDirty ? (
+                    <span className="rounded-full border border-[#c48b26]/45 px-3 py-1 text-[11px] text-[#5f3d00]">
+                      活动信息未保存
+                    </span>
+                  ) : null}
+                </div>
+                <h2 className="mt-3 text-3xl text-white">
+                  {selectedEvent ? selectedEvent.name : "新建活动档案"}
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-white/60">
+                  新增和编辑活动、阵容与现场档案会在同一个弹窗中完成。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => (selectedEventId ? selectEvent(selectedEventId) : handleNewEvent())}
+                className="ui-button-secondary px-5 py-2.5 text-sm"
+              >
+                {selectedEvent ? "编辑活动信息" : "新建活动档案"}
+              </button>
+            </div>
+          </section>
+        )}
       </section>
     </div>
     {isLineupDialogOpen && lineupDialogDraft ? (
@@ -1608,7 +1553,7 @@ export function ArchiveManager({
         }
       >
         <div data-testid="lineup-dialog" className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4">
             <label className="space-y-2">
               <span className="text-xs uppercase tracking-[0.2em] ui-muted">达人</span>
               <select
@@ -1624,36 +1569,7 @@ export function ArchiveManager({
                 ))}
               </select>
             </label>
-            <label className="space-y-2">
-              <span className="text-xs uppercase tracking-[0.2em] ui-muted">状态</span>
-              <select
-                data-testid="lineup-dialog-status"
-                value={lineupDialogDraft.status}
-                onChange={(event) => updateLineupDialogStatus(event.target.value as EditableLineup["status"])}
-                className="ui-select text-sm"
-              >
-                <option value="confirmed">已确认</option>
-                <option value="pending">待确认</option>
-              </select>
-            </label>
           </div>
-
-          {lineupDialogDraft.status === "pending" ? (
-            <label className="block space-y-2">
-              <span className="text-xs uppercase tracking-[0.2em] ui-muted">信息来源</span>
-              <input
-                data-testid="lineup-dialog-source"
-                value={lineupDialogDraft.source}
-                onChange={(event) =>
-                  setLineupDialogDraft((current) =>
-                    current ? { ...current, source: event.target.value } : current
-                  )
-                }
-                placeholder="信息来源"
-                className="ui-input text-sm"
-              />
-            </label>
-          ) : null}
 
           {isMultiDayEvent ? (
             <div className="space-y-3">

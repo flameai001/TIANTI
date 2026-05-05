@@ -101,7 +101,7 @@ describe("domain queries", () => {
     expect(homepage.stats.recentEventCount).toBe(3);
   });
 
-  it("builds bio preview and future location hint from the largest future lineup, breaking ties by earlier date", () => {
+  it("builds bio preview and future event hint from the largest future lineup, breaking ties by earlier date", () => {
     const state = structuredClone(demoSeedState);
     state.talents[0] = {
       ...state.talents[0]!,
@@ -197,7 +197,7 @@ describe("domain queries", () => {
     const qingluan = listTalents(state).find((item) => item.id === "talent-qingluan");
 
     expect(qingluan?.bioPreviewLine).toBe("第一行简介");
-    expect(qingluan?.futureLocationHint).toBe("苏州 · River Stage");
+    expect(qingluan?.futureLocationHint).toBe("Future Max Early");
   });
 
   it("aggregates talent editor summary statistics", () => {
